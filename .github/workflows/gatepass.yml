@@ -28,9 +28,11 @@ jobs:
 
       - name: 📦 Install backend dependencies
         run: |
-          cd backend
-          npm ci
-          echo "✅ Backend dependencies installed!"
+          #cd backend
+          #npm ci
+          #echo "✅ Backend dependencies installed!"
+          run: npm ci
+          working-directory: ./backend
 
       - name: 🧪 Run backend tests
         run: |
