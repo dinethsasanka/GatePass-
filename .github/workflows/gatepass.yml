@@ -12,7 +12,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: GatePass-/GatePass-Project-main/sltbd-gatepass-system-mern-/package-lock.json
+        working-directory: sltbd-gatepass-system-mern-
 
 
     steps:
@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: GatePass-/GatePass-Project-main/sltbd-gatepass-system-mern-/backend/package-lock.json
+          cache-dependency-path: /backend/package-lock.json
 
       - name: 📦 Install backend dependencies
         run: |
@@ -54,7 +54,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: GatePass-/GatePass-Project-main/sltbd-gatepass-system-mern-/frontend/package-lock.json
+          cache-dependency-path: /frontend/package-lock.json
 
       - name: 📦 Install frontend dependencies
         run: |
