@@ -10,6 +10,10 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: GatePass-Project-main/sltbd-gatepass-system-mern-
+
     steps:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
@@ -20,7 +24,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: GatePass-Project-main/sltbd-gatepass-system-mern-/backend/package-lock.json
 
       - name: 📦 Install backend dependencies
         run: |
@@ -31,14 +35,12 @@ jobs:
 
       - name: 🧪 Run backend tests
         run: |
-          echo "Running backend Jest tests..."
           cd backend
           npm test || echo "⚠️ Tests failed or not found — skipping for now."
           echo "✅ Backend test step completed!"
 
       - name: 🚀 Verify backend starts
         run: |
-          echo "Starting backend briefly to verify it runs..."
           cd backend
           node server.js &
           sleep 5
@@ -51,25 +53,22 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: GatePass-Project-main/sltbd-gatepass-system-mern-/frontend/package-lock.json
 
       - name: 📦 Install frontend dependencies
         run: |
-          echo "Installing frontend dependencies..."
           cd frontend
           npm ci
           echo "✅ Frontend dependencies installed!"
 
       - name: 🏗️ Build frontend
         run: |
-          echo "Building frontend..."
           cd frontend
           npm run build
           echo "✅ Frontend build completed!"
 
       - name: 🧹 Lint frontend code
         run: |
-          echo "Running ESLint on frontend..."
           cd frontend
           npm run lint || echo "⚠️ Linting failed or skipped."
           echo "✅ Linting step completed!"
