@@ -12,7 +12,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: GatePass-\GatePass-Project-main
+        working-directory: GatePass-/GatePass-Project-main      # update:12/1/2025  Chnage the slash error
     steps:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
