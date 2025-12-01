@@ -1,0 +1,75 @@
+name: CI - Frontend & Backend Checks
+
+on:
+  push:
+    branches:
+      - main        #12/1
+  workflow_call:
+
+jobs:
+
+  
+  # FRONTEND CI         Update: 1/12/25
+
+  frontend_ci:
+    name: Frontend CI - Lint & Build
+    runs-on: ubuntu-latest
+        
+    steps:
+      - name:  Checkout Repository
+        uses: actions/checkout@v4
+              
+      - name:  Setup Node.js v20 (Frontend)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name:  Install Frontend Dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name:  Run ESLint / Code Quality Checks
+        working-directory: ./frontend
+        run: npm run lint
+        continue-on-error: true   # Temporary
+
+      - name:  Run Production Build Check
+        working-directory: ./frontend
+        run: npm run build
+              
+      - name: ✅ Frontend CI Completed
+        run: echo "Frontend CI build completed."
+
+
+  
+  # BACKEND CI                Update: 1/12/25
+
+  backend_ci:
+    name: Backend CI - Test & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name:  Checkout Repository
+        uses: actions/checkout@v4
+
+      - name:  Setup Node.js v20 (Backend)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name:  Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name:  Run Backend Tests
+        working-directory: ./backend
+        run: npm test
+
+      - name:  Backend Build / Compile
+        working-directory: ./backend
+        run: npm run build
+
+      - name:  Backend CI Completed
+        run: echo "Backend CI build completed."
