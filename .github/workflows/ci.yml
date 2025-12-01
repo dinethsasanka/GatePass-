@@ -12,7 +12,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: GatePass-\GatePass-Project-main\sltbd-gatepass-system-mern-
+        working-directory: GatePass-\GatePass-Project-main
     steps:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
