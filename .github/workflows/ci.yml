@@ -12,7 +12,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: GatePass-/GatePass-Project-main      # update:12/1/2025  Chnage the slash error
+        working-directory: GatePass-Project-main/sltbd-gatepass-system-mern-      # update:12/1/2025  Chnage woriking directory to project root
     steps:
       - name: 🧾 Checkout code
         uses: actions/checkout@v4
