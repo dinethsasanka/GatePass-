@@ -15,6 +15,9 @@ const adminRouters = require('./routes/adminRoutes');
 const receiveRoutes = require('./routes/receiveRoutes');
 const emailRoutes = require('./routes/emailRoutes');
 const superAdminRoutes = require('./routes/superAdminRoutes');
+const healthRouter = require('./routes/health');
+
+
 
 mongoose.set('strictQuery', false);
 
@@ -25,6 +28,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+app.use('/api', healthRouter);  // DEVOPS update 12/16/2025 Add a Health check endpoint
 app.use('/api/auth', authRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/users', userRoutes);
