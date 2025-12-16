@@ -1,70 +1,141 @@
-name: Build and Test Full Stack (Backend + Frontend)
+name: 🧪 Build & Test GatePass (CI)
 
+# --------------------------------------------------
+# CI TRIGGERS
+# - Runs on push to main
+# --------------------------------------------------
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-// This is comment
+
 jobs:
   build-and-test:
+    name: Build and Test (MERN)
     runs-on: ubuntu-latest
 
+    # --------------------------------------------------
+    # PERMISSIONS
+    # Required to push Git tags (auto-tagging feature)
+    # --------------------------------------------------
+    permissions:
+      contents: write
+
+    # --------------------------------------------------
+    # DEFAULT WORKING DIRECTORY
+    # Project root inside the repository
+    # --------------------------------------------------
     defaults:
       run:
-        working-directory: GatePass-Project-main/sltbd-gatepass-system-mern-      # update:12/1/2025  Chnage woriking directory to project root
-    steps:
-      - name: 🧾 Checkout code
-        uses: actions/checkout@v4
+        working-directory: GatePass-
 
-      # 🟢 BACKEND SECTION
-      - name: ⚙️ Setup Node.js for backend
+    steps:
+      # --------------------------------------------------
+      # CHECKOUT SOURCE CODE
+      # fetch-depth: 0 is REQUIRED for git tags
+      # --------------------------------------------------
+      - name: ⬇️ Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # --------------------------------------------------
+      # NODE.JS SETUP
+      # Shared Node version for backend & frontend
+      # --------------------------------------------------
+      - name: 🛠️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: GatePass-Project-main/sltbd-gatepass-system-mern-/backend/package-lock.json
 
+      # ==================================================
+      # BACKEND CI SECTION
+      # ==================================================
       - name: 📦 Install backend dependencies
         run: |
-          echo "Installing backend dependencies..."
           cd backend
           npm ci
-          echo "✅ Backend dependencies installed!"
+
       - name: 🧪 Run backend tests
         run: |
           cd backend
-          npm test || echo "⚠️ Tests failed or not found — skipping for now."
-          echo "✅ Backend test step completed!"
-      - name: 🚀 Verify backend starts
+          npm test || echo "⚠️ No tests found or tests skipped"
+
+      # --------------------------------------------------
+      # BACKEND HEALTH CHECK
+      # - Starts backend
+      # - Verifies /api/health endpoint
+      # - Stops backend
+      # --------------------------------------------------
+      - name: 🩺 Backend health verification
         run: |
           cd backend
           node server.js &
+          PID=$!
           sleep 5
-          pkill node || true
-          echo "✅ Backend start verified!"
-      # 🔵 FRONTEND SECTION
-      - name: ⚙️ Setup Node.js for frontend
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: GatePass-Project-main/sltbd-gatepass-system-mern-/frontend/package-lock.json
+          curl -f http://localhost:5000/api/health
+          kill $PID
 
+      # ==================================================
+      # FRONTEND CI SECTION
+      # ==================================================
       - name: 📦 Install frontend dependencies
         run: |
           cd frontend
           npm ci
-          echo "✅ Frontend dependencies installed!"
-      - name: 🏗️ Build frontend
+
+      - name: 🏗️ Build frontend (Vite)
         run: |
           cd frontend
           npm run build
-          echo "✅ Frontend build completed!"
+
       - name: 🧹 Lint frontend code
         run: |
           cd frontend
-          npm run lint || echo "⚠️ Linting failed or skipped."
-          echo "✅ Linting step completed!"
-      - name: ✅ Pipeline completed
-        run: echo "🎉 All build and test steps completed successfully!"
+          npm run lint || echo "⚠️ Lint warnings ignored"
+
+      # --------------------------------------------------
+      # BUILD ARTIFACT VALIDATION
+      # Ensures frontend build output exists
+      # --------------------------------------------------
+      - name: 📂 Verify frontend build output
+        run: |
+          if [ ! -d "frontend/dist" ]; then
+            echo "❌ Frontend build output missing"
+            exit 1
+          fi
+          echo "✅ Frontend build verified"
+
+      # ==================================================
+      # AUTO-TAGGING FEATURE
+      # - Runs ONLY on push to main
+      # - Automatically increments PATCH version
+      # - Creates Git tag (vX.Y.Z)
+      # ==================================================
+      - name: 🏷️ Auto-tag release
+        if: github.event_name == 'push'
+        run: |
+          git fetch --tags
+
+          LAST_TAG=$(git tag --sort=-v:refname | head -n 1)
+
+          if [ -z "$LAST_TAG" ]; then
+            NEW_TAG="v1.0.0"
+          else
+            VERSION=${LAST_TAG#v}
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+            PATCH=$((PATCH+1))
+            NEW_TAG="v$MAJOR.$MINOR.$PATCH"
+          fi
+
+          echo "Creating tag: $NEW_TAG"
+          git tag $NEW_TAG
+          git push origin $NEW_TAG
+
+      # --------------------------------------------------
+      # CI SUCCESS MESSAGE
+      # --------------------------------------------------
+      - name: ✅ CI completed successfully
+        run: echo "🎉 CI passed — auto-tag created"

@@ -7,6 +7,7 @@ const http = require("http");
 const path = require("path"); 
 const { Server } = require("socket.io");
 const connectDB = require("./config/db");
+const healthRouter = require('./routes/health');   // DEVOPS Change 12/16/2025
 
 // 1) Load env first
 dotenv.config();
@@ -57,6 +58,7 @@ const superAdminRoutes = require("./routes/superAdminRoutes");
 const adminRequestRoutes = require("./routes/adminRequestRoutes");
 
 // 8) Mount routes (only ONCE each)
+app.use('/api', healthRouter);  // DEVOPS Change 12/16/2025
 app.use("/api/auth", authRoutes);
 app.use("/api/requests", requestRoutes);
 app.use("/api/users", userRoutes);
