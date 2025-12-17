@@ -43,8 +43,7 @@ TEST*.xml
 *.tsbuildinfo
 dist-ssr/
 
-# Package manager
-package-lock.json
+# Package manager 
 yarn.lock
 pnpm-lock.yaml
 
