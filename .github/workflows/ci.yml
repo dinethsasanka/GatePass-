@@ -57,7 +57,7 @@ jobs:
       # --------------------------------------------------
       - name: 🩺 Backend health check
         env:
-          MONGODB_URI: ${{ secrets.MONGO_URI }}       // 12/18/25 12.27AM
+          MONGO_URI: ${{ secrets.MONGO_URI }}       // 12/18/25 12.27AM, 12.34AM
           PORT: 5000
 
         run: |
