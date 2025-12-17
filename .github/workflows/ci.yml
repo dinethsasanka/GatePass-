@@ -103,7 +103,12 @@ jobs:
       # --------------------------------------------------
       - name: 📂 Verify frontend build
         run: |
-          test -d frontend/dist
+          if [ -d "frontend/dist" ]; then
+           echo " Frontend build output exists: frontend/dist"
+          else
+           echo " Frontend build output missing! Please check the build step."
+           exit 1
+          fi
 
       # ==================================================
       # AUTO-TAGGING FEATURE
