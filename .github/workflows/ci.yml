@@ -56,17 +56,19 @@ jobs:
       # Ensures server can start correctly
       # --------------------------------------------------
       - name: 🩺 Backend health check
+        env:
+          MONGODB_URI: ${{ secrets.MONGO_URI }}       // 12/18/25 12.27AM
+          PORT: 5000
+
         run: |
           cd backend
           node server.js &
           PID=$!
-          sleep 5
+          sleep 10
           curl -f http://localhost:5000/api/health
           kill $PID
 
-          env:
-            MONGODB_URI: ${{ secrets.MONGO_URI }}
-            PORT: 5000
+          
 
       # ==================================================
       # FRONTEND CI SECTION
