@@ -18,8 +18,7 @@ connectDB();
 
 // 3) Init express BEFORE any app.use(...)
 const app = express();
-const server = http.createServer(app);
-
+const server = http.createServer(app); 
 // 4) Setup Socket.IO with CORS
 const io = new Server(server, {
   cors: {
