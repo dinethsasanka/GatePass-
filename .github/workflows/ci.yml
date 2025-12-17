@@ -64,6 +64,10 @@ jobs:
           curl -f http://localhost:5000/api/health
           kill $PID
 
+          env:
+            MONGODB_URI: ${{ secrets.MONGO_URI }}
+            PORT: 5000
+
       # ==================================================
       # FRONTEND CI SECTION
       # ==================================================
@@ -126,4 +130,3 @@ jobs:
       - name: ✅ CI completed successfully
         run: echo "🎉 CI passed — build, test, and tagging successful"
 
-        
