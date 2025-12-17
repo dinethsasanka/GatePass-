@@ -45,7 +45,7 @@ jobs:
         run: |
           cd backend
           npm ci
-          npm audit fix
+          
 
 
       - name: 🧪 Run backend tests
@@ -86,7 +86,7 @@ jobs:
         run: |
           cd frontend
           npm ci
-          npm audit fix
+          
 
       - name: 🏗️ Build frontend (Vite)
         run: |
