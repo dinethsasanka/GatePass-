@@ -15,7 +15,7 @@ import RequestDetails from "./pages/RequestDetails.jsx";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastProvider } from "./components/ToastProvider";
-import EmailForm from "./pages/Example";
+import EmailForm from "./pages/example";     // DEVOPS Change 12/16/2025 : Example --> example
 
 const App = () => {
   return (

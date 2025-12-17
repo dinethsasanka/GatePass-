@@ -7,12 +7,12 @@ import {
   rejectStatus,
   searchUserByServiceNo,
   markItemsAsReturned,
-} from "../services/dispatchService.js";
+} from "../services/DispatchService.js";      // DEVOPS Change 12/16/2025 : dispatchService  --> DispatchService
 import {
   getImageUrl,
   getImageUrlSync,
   searchReceiverByServiceNo,
-} from "../services/requestService.js";
+} from "../services/RequestService.js";       // DEVOPS Change 12/16/2025 : requestService  --> RequestService
 import { jsPDF } from "jspdf";
 import { useToast } from "../components/ToastProvider.jsx";
 import logoUrl from "../assets/SLTMobitel_Logo.png";
