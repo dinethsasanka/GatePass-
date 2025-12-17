@@ -1,9 +1,9 @@
 name: 🧪 Build & Test GatePass (CI)
 
-# --------------------------------------------------
+# ==================================================
 # CI TRIGGERS
-# - Runs on push to main
-# --------------------------------------------------
+# - Runs on push & PR to main
+# ==================================================
 on:
   push:
     branches: [main]
@@ -17,42 +17,30 @@ jobs:
 
     # --------------------------------------------------
     # PERMISSIONS
-    # Required to push Git tags (auto-tagging feature)
+    # Required for auto-tagging
     # --------------------------------------------------
     permissions:
       contents: write
 
-    # --------------------------------------------------
-    # DEFAULT WORKING DIRECTORY
-    # Project root inside the repository
-    # --------------------------------------------------
-    defaults:
-      run:
-        working-directory: ./       // 12.17.2025 11.47PM
-
     steps:
-      # --------------------------------------------------
+      # ==================================================
       # CHECKOUT SOURCE CODE
-      # fetch-depth: 0 is REQUIRED for git tags
-      # --------------------------------------------------
-      - name: ⬇️ Checkout source code
+      # ==================================================
+      - name: ⬇️ Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      # --------------------------------------------------
-      # NODE.JS SETUP
-      # Shared Node version for backend & frontend
-      # --------------------------------------------------
-      - name: 🛠️ Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-          cache: 'npm'
+          fetch-depth: 0   # required for git tags
 
       # ==================================================
       # BACKEND CI SECTION
       # ==================================================
+      - name: 🛠️ Setup Node.js (Backend)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
       - name: 📦 Install backend dependencies
         run: |
           cd backend
@@ -61,15 +49,13 @@ jobs:
       - name: 🧪 Run backend tests
         run: |
           cd backend
-          npm test || echo "⚠️ No tests found or tests skipped"
+          npm test || echo "⚠️ No tests found or skipped"
 
       # --------------------------------------------------
       # BACKEND HEALTH CHECK
-      # - Starts backend
-      # - Verifies /api/health endpoint
-      # - Stops backend
+      # Ensures server can start correctly
       # --------------------------------------------------
-      - name: 🩺 Backend health verification
+      - name: 🩺 Backend health check
         run: |
           cd backend
           node server.js &
@@ -81,6 +67,13 @@ jobs:
       # ==================================================
       # FRONTEND CI SECTION
       # ==================================================
+      - name: 🛠️ Setup Node.js (Frontend)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
       - name: 📦 Install frontend dependencies
         run: |
           cd frontend
@@ -91,34 +84,27 @@ jobs:
           cd frontend
           npm run build
 
-      - name: 🧹 Lint frontend code
+      - name: 🧹 Lint frontend
         run: |
           cd frontend
           npm run lint || echo "⚠️ Lint warnings ignored"
 
       # --------------------------------------------------
-      # BUILD ARTIFACT VALIDATION
-      # Ensures frontend build output exists
+      # VERIFY BUILD OUTPUT
       # --------------------------------------------------
-      - name: 📂 Verify frontend build output
+      - name: 📂 Verify frontend build
         run: |
-          if [ ! -d "frontend/dist" ]; then
-            echo "❌ Frontend build output missing"
-            exit 1
-          fi
-          echo "✅ Frontend build verified"
+          test -d frontend/dist
 
       # ==================================================
       # AUTO-TAGGING FEATURE
-      # - Runs ONLY on push to main
-      # - Automatically increments PATCH version
-      # - Creates Git tag (vX.Y.Z)
+      # - Runs only on push to main
+      # - Increments PATCH version
       # ==================================================
       - name: 🏷️ Auto-tag release
         if: github.event_name == 'push'
         run: |
           git fetch --tags
-
           LAST_TAG=$(git tag --sort=-v:refname | head -n 1)
 
           if [ -z "$LAST_TAG" ]; then
@@ -134,8 +120,8 @@ jobs:
           git tag $NEW_TAG
           git push origin $NEW_TAG
 
-      # --------------------------------------------------
-      # CI SUCCESS MESSAGE
-      # --------------------------------------------------
+      # ==================================================
+      # CI SUCCESS
+      # ==================================================
       - name: ✅ CI completed successfully
-        run: echo "🎉 CI passed — auto-tag created"
+        run: echo "🎉 CI passed — build, test, and tagging successful"
