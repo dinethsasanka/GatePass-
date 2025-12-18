@@ -1,0 +1,146 @@
+name: 🚀 Deploy GatePass to Production (CD)
+
+# ==================================================
+# TRIGGER
+# - Runs ONLY when a version tag is pushed (vX.Y.Z)
+# ==================================================
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  deploy:
+    name: Production Deployment
+    runs-on: ubuntu-latest
+
+    steps:
+      # ==================================================
+      # CHECKOUT TAGGED CODE
+      # ==================================================
+      - name: ⬇️ Checkout repository
+        uses: actions/checkout@v4
+
+      # ==================================================
+      # NODE SETUP (BUILD ENV)
+      # ==================================================
+      - name: 🛠️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # ==================================================
+      # FRONTEND BUILD (CI SIDE)
+      # ==================================================
+      - name: 🏗️ Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      # ==================================================
+      # UPLOAD PROJECT TO SERVER
+      # ==================================================
+      - name: 🚚 Upload files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: .
+          target: /home/dpd/GatePass-deploy
+
+      # ==================================================
+      # DEPLOY + ROLLBACK (SERVER SIDE)
+      # ==================================================
+      - name: 🔐 Deploy on production server
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            set -e
+
+            echo "🚀 Starting GatePass deployment"
+
+            # ------------------------------------------------
+            # PATH DEFINITIONS
+            # ------------------------------------------------
+            RELEASE_TIME=$(date +"%Y%m%d-%H%M%S")
+            RELEASE_DIR="/var/www/releases/release-$RELEASE_TIME"
+            CURRENT_DIR="/var/www/releases/current"
+
+            FRONTEND_BLUE="/opt/Gate_Pass_blue"
+            FRONTEND_GREEN="/opt/Gate_Pass_green"
+            FRONTEND_CURRENT="/opt/Gate_Pass"
+
+            # ------------------------------------------------
+            # CREATE RELEASE (BACKEND + FRONTEND SOURCE)
+            # ------------------------------------------------
+            echo "📦 Creating new backend release"
+            mkdir -p $RELEASE_DIR
+            cp -r /home/dpd/GatePass-deploy/* $RELEASE_DIR/
+
+            ln -sfn $RELEASE_DIR $CURRENT_DIR
+
+            # ------------------------------------------------
+            # BACKEND DEPLOY (ZERO-DOWNTIME)
+            # ------------------------------------------------
+            echo "🔄 Deploying backend"
+            cd $CURRENT_DIR/backend
+
+            npm ci --production
+
+            if pm2 describe Gate-Pass > /dev/null; then
+              pm2 reload Gate-Pass --update-env
+            else
+              pm2 start server.js --name Gate-Pass
+            fi
+
+            pm2 save
+
+            # ------------------------------------------------
+            # FRONTEND BLUE–GREEN DEPLOY
+            # ------------------------------------------------
+            echo "🎨 Deploying frontend (green)"
+            rm -rf $FRONTEND_GREEN
+            mkdir -p $FRONTEND_GREEN
+            cp -r $CURRENT_DIR/frontend/dist/* $FRONTEND_GREEN/
+
+            ln -sfn $FRONTEND_GREEN $FRONTEND_CURRENT
+            sudo nginx -s reload
+
+            # ------------------------------------------------
+            # HEALTH CHECK
+            # ------------------------------------------------
+            echo "🩺 Running health check"
+            sleep 5
+
+            if ! curl -f https://gatepass.slt.lk/api/health; then
+              echo "❌ Health check failed — rolling back"
+
+              # FRONTEND ROLLBACK
+              ln -sfn $FRONTEND_BLUE $FRONTEND_CURRENT
+              sudo nginx -s reload
+
+              # BACKEND ROLLBACK
+              PREVIOUS=$(ls -dt /var/www/releases/release-* | sed -n '2p')
+              if [ -n "$PREVIOUS" ]; then
+                ln -sfn $PREVIOUS $CURRENT_DIR
+                cd $CURRENT_DIR/backend
+                pm2 reload Gate-Pass
+              fi
+
+              exit 1
+            fi
+
+            # ------------------------------------------------
+            # PROMOTE GREEN → BLUE
+            # ------------------------------------------------
+            rm -rf $FRONTEND_BLUE
+            cp -r $FRONTEND_GREEN $FRONTEND_BLUE
+
+            echo "🎉 Deployment successful!"
