@@ -140,3 +140,12 @@ jobs:
       - name: ✅ CI completed successfully
         run: echo "🎉 CI passed — build, test, and tagging successful"
 
+# Test 1
+      # ==================================================
+      # NOTIFY ON FAILURE
+      # ==================================================
+      - name: ❌ Notify on failure
+        if: failure()
+        run: echo "🚨 CI failed — please check the logs"
+
+        

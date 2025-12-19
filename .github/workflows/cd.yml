@@ -3,6 +3,7 @@ name: 🚀 Deploy GatePass to Production (CD)
 on:
   workflow_run:
     workflows: ["🧪 Build & Test GatePass (CI)"]
+    branches: [main]
     types:
       - completed
 
@@ -29,7 +30,7 @@ jobs:
       - name: 🛠️ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       # ==================================================
       # FRONTEND BUILD
