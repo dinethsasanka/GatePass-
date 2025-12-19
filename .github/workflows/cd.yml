@@ -12,14 +12,14 @@ jobs:
     name: Production Deployment
     runs-on: ubuntu-latest
 
-    # ✅ Run ONLY if CI succeeded
+    # Run ONLY if CI succeeded
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       # ==================================================
       # CHECKOUT EXACT CI COMMIT
       # ==================================================
-      - name: ⬇️ Checkout tagged commit
+      - name: ⬇️ Checkout CI commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
@@ -41,17 +41,18 @@ jobs:
           npm ci
           npm run build
 
+      # ==================================================
+      # DEBUG (REMOVE AFTER SUCCESS)
+      # ==================================================
       - name: 🔍 Debug workspace
         run: |
           pwd
           ls -la
-          ls -la backend || true
-          ls -la frontend || true
-          ls -la frontend/dist || true
-
+          ls -la backend
+          ls -la frontend/dist
 
       # ==================================================
-      # UPLOAD TO SERVER
+      # UPLOAD TO SERVER (NO .git)
       # ==================================================
       - name: 🚚 Upload files to server
         uses: appleboy/scp-action@v0.1.7
@@ -61,10 +62,10 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           source: |
-           backend/**
-           frontend/dist/**
-           package.json
-           package-lock.json
+            backend
+            frontend/dist
+            package.json
+            package-lock.json
           target: /home/dpd/GatePass-deploy
           rm: true
 
@@ -91,11 +92,12 @@ jobs:
             FRONTEND_GREEN="/opt/Gate_Pass_green"
             FRONTEND_CURRENT="/opt/Gate_Pass"
 
-            mkdir -p $RELEASE_DIR
-            cp -r /home/dpd/GatePass-deploy/* $RELEASE_DIR/
-            ln -sfn $RELEASE_DIR $CURRENT_DIR
+            mkdir -p "$RELEASE_DIR"
+            cp -r /home/dpd/GatePass-deploy/* "$RELEASE_DIR/"
+            ln -sfn "$RELEASE_DIR" "$CURRENT_DIR"
 
-            cd $CURRENT_DIR/backend
+            # Backend
+            cd "$CURRENT_DIR/backend"
             npm ci --production
 
             if pm2 describe Gate-Pass > /dev/null; then
@@ -106,29 +108,31 @@ jobs:
 
             pm2 save
 
-            rm -rf $FRONTEND_GREEN
-            mkdir -p $FRONTEND_GREEN
-            cp -r $CURRENT_DIR/frontend/dist/* $FRONTEND_GREEN/
+            # Frontend blue-green
+            rm -rf "$FRONTEND_GREEN"
+            mkdir -p "$FRONTEND_GREEN"
+            cp -r "$CURRENT_DIR/frontend/dist/"* "$FRONTEND_GREEN/"
 
-            ln -sfn $FRONTEND_GREEN $FRONTEND_CURRENT
+            ln -sfn "$FRONTEND_GREEN" "$FRONTEND_CURRENT"
             sudo nginx -s reload
 
+            # Health check
             sleep 5
             if ! curl -f https://gatepass.slt.lk/api/health; then
               echo "❌ Health check failed — rolling back"
 
-              ln -sfn $FRONTEND_BLUE $FRONTEND_CURRENT
+              ln -sfn "$FRONTEND_BLUE" "$FRONTEND_CURRENT"
               sudo nginx -s reload
 
               PREVIOUS=$(ls -dt /var/www/releases/release-* | sed -n '2p')
               if [ -n "$PREVIOUS" ]; then
-                ln -sfn $PREVIOUS $CURRENT_DIR
+                ln -sfn "$PREVIOUS" "$CURRENT_DIR"
                 pm2 reload Gate-Pass
               fi
               exit 1
             fi
 
-            rm -rf $FRONTEND_BLUE
-            cp -r $FRONTEND_GREEN $FRONTEND_BLUE
+            rm -rf "$FRONTEND_BLUE"
+            cp -r "$FRONTEND_GREEN" "$FRONTEND_BLUE"
 
             echo "🎉 Deployment successful!"
