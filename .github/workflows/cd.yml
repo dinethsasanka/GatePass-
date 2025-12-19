@@ -41,6 +41,15 @@ jobs:
           npm ci
           npm run build
 
+      - name: 🔍 Debug workspace
+        run: |
+          pwd
+          ls -la
+          ls -la backend || true
+          ls -la frontend || true
+          ls -la frontend/dist || true
+
+
       # ==================================================
       # UPLOAD TO SERVER
       # ==================================================
@@ -52,10 +61,10 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           source: |
-            backend/
-            frontend/dist/
-            pacakge.json
-            package-lock.json
+           backend/**
+           frontend/dist/**
+           package.json
+           package-lock.json
           target: /home/dpd/GatePass-deploy
           rm: true
 
