@@ -41,6 +41,25 @@ jobs:
           npm ci
           npm run build
 
+      - name: ✅ Verify frontend build output (dist)
+        run: |
+          if [ ! -d "frontend/dist" ]; then
+          echo "❌ ERROR: frontend/dist directory not found!"
+          echo "Contents of frontend:"
+          ls -la frontend
+          exit 1
+          fi
+
+          echo "✅ frontend/dist exists"
+          ls -la frontend/dist
+          
+      - name: 🧪 Debug Vite build
+        working-directory: frontend
+        run: |
+          npm run build -- --debug
+
+
+
       # ==================================================
       # DEBUG (REMOVE AFTER SUCCESS)
       # ==================================================
@@ -49,6 +68,12 @@ jobs:
           pwd
           ls -la
           ls -la backend
+          ls -la frontend/dist
+
+      - name: ✅ Verify files before SCP
+        run: |
+          test -d backend
+          test -d frontend/dist
           ls -la frontend/dist
 
       # ==================================================
@@ -62,10 +87,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           source: |
-            backend
-            frontend/dist
-            package.json
-            package-lock.json
+             backend/**
+             frontend/dist/**
           target: /home/dpd/GatePass-deploy
           rm: true
 
