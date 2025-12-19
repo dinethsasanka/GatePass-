@@ -51,8 +51,13 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          source: .
+          source: |
+            backend/
+            frontend/dist/
+            pacakge.json
+            package-lock.json
           target: /home/dpd/GatePass-deploy
+          rm: true
 
       # ==================================================
       # DEPLOY + SAFE ROLLBACK
