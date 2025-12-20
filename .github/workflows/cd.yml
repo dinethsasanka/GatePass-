@@ -137,7 +137,7 @@ jobs:
             # =====================
             # Frontend blue-green
             # =====================
-            rm -rf "$FRONTEND_GREEN"
+            sudo rm -rf "$FRONTEND_GREEN"
             mkdir -p "$FRONTEND_GREEN"
             cp -r "$CURRENT_DIR/frontend/dist/"* "$FRONTEND_GREEN/"
 
