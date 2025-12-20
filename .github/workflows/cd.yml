@@ -116,7 +116,7 @@ jobs:
             FRONTEND_GREEN="/opt/Gate_Pass_green"
             FRONTEND_CURRENT="/opt/Gate_Pass"
 
-            sudo mkdir -p "$RELEASE_DIR"
+            mkdir -p "$RELEASE_DIR"
             cp -r /home/dpd/GatePass-deploy/* "$RELEASE_DIR/"
             ln -sfn "$RELEASE_DIR" "$CURRENT_DIR"
 
