@@ -41,27 +41,36 @@ jobs:
           npm ci
           npm run build
 
+      # ==================================================
+      # VERIFY FRONTEND DIST
+      # ==================================================
       - name: ✅ Verify frontend build output (dist)
         run: |
           if [ ! -d "frontend/dist" ]; then
-          echo "❌ ERROR: frontend/dist directory not found!"
-          echo "Contents of frontend:"
-          ls -la frontend
-          exit 1
+            echo "❌ ERROR: frontend/dist directory not found!"
+            exit 1
           fi
 
-          echo "✅ frontend/dist exists"
+          test -f frontend/dist/index.html || { echo "❌ index.html missing"; exit 1; }
+          test -d frontend/dist/assets || { echo "❌ assets directory missing"; exit 1; }
+
+          echo "✅ frontend/dist verified"
           ls -la frontend/dist
-          
-      - name: 🧪 Debug Vite build
-        working-directory: frontend
-        run: |
-          npm run build -- --debug
-
-
 
       # ==================================================
-      # DEBUG (REMOVE AFTER SUCCESS)
+      # VERIFY BACKEND FILES
+      # ==================================================
+      - name: ✅ Verify backend structure
+        run: |
+          test -d backend || { echo "❌ backend directory missing"; exit 1; }
+          test -f backend/server.js || { echo "❌ backend/server.js missing"; exit 1; }
+          test -f backend/package.json || { echo "❌ backend/package.json missing"; exit 1; }
+
+          echo "✅ backend verified"
+          ls -la backend
+
+      # ==================================================
+      # DEBUG WORKSPACE (SAFE TO REMOVE LATER)
       # ==================================================
       - name: 🔍 Debug workspace
         run: |
@@ -70,14 +79,8 @@ jobs:
           ls -la backend
           ls -la frontend/dist
 
-      - name: ✅ Verify files before SCP
-        run: |
-          test -d backend
-          test -d frontend/dist
-          ls -la frontend/dist
-
       # ==================================================
-      # UPLOAD TO SERVER (NO .git)
+      # UPLOAD TO SERVER (NO GLOB ISSUES)
       # ==================================================
       - name: 🚚 Upload files to server
         uses: appleboy/scp-action@v0.1.7
@@ -87,8 +90,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           source: |
-             backend/**
-             frontend/dist/**
+            backend
+            frontend/dist
           target: /home/dpd/GatePass-deploy
           rm: true
 
@@ -119,7 +122,9 @@ jobs:
             cp -r /home/dpd/GatePass-deploy/* "$RELEASE_DIR/"
             ln -sfn "$RELEASE_DIR" "$CURRENT_DIR"
 
+            # =====================
             # Backend
+            # =====================
             cd "$CURRENT_DIR/backend"
             npm ci --production
 
@@ -131,7 +136,9 @@ jobs:
 
             pm2 save
 
+            # =====================
             # Frontend blue-green
+            # =====================
             rm -rf "$FRONTEND_GREEN"
             mkdir -p "$FRONTEND_GREEN"
             cp -r "$CURRENT_DIR/frontend/dist/"* "$FRONTEND_GREEN/"
@@ -139,7 +146,9 @@ jobs:
             ln -sfn "$FRONTEND_GREEN" "$FRONTEND_CURRENT"
             sudo nginx -s reload
 
+            # =====================
             # Health check
+            # =====================
             sleep 5
             if ! curl -f https://gatepass.slt.lk/api/health; then
               echo "❌ Health check failed — rolling back"
