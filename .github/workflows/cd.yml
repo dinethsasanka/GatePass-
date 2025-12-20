@@ -90,8 +90,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           source: |
-            backend
-            frontend/dist
+            GatePass-/backend
+            GatePass-/frontend/dist
           target: /home/dpd/GatePass-deploy
           rm: true
 
