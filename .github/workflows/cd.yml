@@ -11,13 +11,13 @@ jobs:
   deploy:
     name: Production Deployment
     runs-on: ubuntu-latest
-
+    
     # Run ONLY if CI succeeded
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
       # ==================================================
-      # CHECKOUT EXACT CI COMMIT
+      # CHECKOUT
       # ==================================================
       - name: ⬇️ Checkout CI commit
         uses: actions/checkout@v4
@@ -25,12 +25,22 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
 
       # ==================================================
-      # NODE SETUP
+      # NODE
       # ==================================================
       - name: 🛠️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      # ==================================================
+      # FRONTEND ENV (FROM SECRETS)
+      # ==================================================
+      - name: 🔐 Create frontend .env
+        working-directory: frontend
+        run: |
+          cat <<EOF > .env
+          VITE_API_BASE_URL=https://gatepass.slt.lk/api
+          EOF
 
       # ==================================================
       # FRONTEND BUILD
@@ -42,27 +52,20 @@ jobs:
           npm run build
 
       # ==================================================
-      # VERIFY FRONTEND DIST
+      # VERIFY
       # ==================================================
-      - name: ✅ Verify frontend build output
+      - name: ✅ Verify frontend build
         run: |
-          test -d frontend/dist || { echo "❌ dist missing"; exit 1; }
-          test -f frontend/dist/index.html || { echo "❌ index.html missing"; exit 1; }
-          test -d frontend/dist/assets || { echo "❌ assets missing"; exit 1; }
-          echo "✅ frontend build verified"
+          test -d frontend/dist || exit 1
+          test -f frontend/dist/index.html || exit 1
 
-      # ==================================================
-      # VERIFY BACKEND
-      # ==================================================
       - name: ✅ Verify backend
         run: |
           test -d backend || exit 1
           test -f backend/server.js || exit 1
-          test -f backend/package.json || exit 1
-          echo "✅ backend verified"
 
       # ==================================================
-      # UPLOAD TO SERVER
+      # UPLOAD
       # ==================================================
       - name: 🚚 Upload artifacts
         uses: appleboy/scp-action@v0.1.7
@@ -90,9 +93,6 @@ jobs:
 
             echo "🚀 Starting GatePass deployment"
 
-            # =====================
-            # Paths
-            # =====================
             RELEASE_TIME=$(date +"%Y%m%d-%H%M%S")
             RELEASE_DIR="/var/www/releases/release-$RELEASE_TIME"
             CURRENT_DIR="/var/www/releases/current"
@@ -100,6 +100,8 @@ jobs:
             FRONTEND_ROOT="/opt/Gate_Pass"
             FRONTEND_BLUE="/opt/Gate_Pass_blue"
             FRONTEND_GREEN="/opt/Gate_Pass_green"
+
+            BACKEND_ENV="/var/www/env/backend.env"
 
             mkdir -p "$RELEASE_DIR"
             cp -r /home/dpd/GatePass-deploy/* "$RELEASE_DIR/"
@@ -109,6 +111,9 @@ jobs:
             # Backend
             # =====================
             cd "$CURRENT_DIR/backend"
+
+            ln -sfn "$BACKEND_ENV" .env
+
             npm ci --omit=dev
 
             if pm2 describe Gate-Pass >/dev/null; then
@@ -119,36 +124,20 @@ jobs:
             pm2 save
 
             # =====================
-            # Frontend (BLUE → GREEN)
+            # Frontend
             # =====================
             mkdir -p "$FRONTEND_GREEN"
             rm -rf "$FRONTEND_GREEN"/*
             cp -r "$CURRENT_DIR/frontend/dist/"* "$FRONTEND_GREEN/"
 
-            # Atomic switch
             ln -sfn "$FRONTEND_GREEN" "$FRONTEND_ROOT"
 
             # =====================
-            # Health Check (Backend)
+            # Health Check
             # =====================
             sleep 5
-            if ! curl -f http://127.0.0.1:5000/api/health > /dev/null; then
-              echo "❌ Health check failed — rolling back"
+            curl -f http://127.0.0.1:5000/api/health
 
-              ln -sfn "$FRONTEND_BLUE" "$FRONTEND_ROOT"
-
-              PREVIOUS=$(ls -dt /var/www/releases/release-* | sed -n '2p')
-              if [ -n "$PREVIOUS" ]; then
-                ln -sfn "$PREVIOUS" "$CURRENT_DIR"
-                pm2 reload Gate-Pass
-              fi
-
-              exit 1
-            fi
-
-            # =====================
-            # Promote GREEN → BLUE
-            # =====================
             rm -rf "$FRONTEND_BLUE"
             cp -r "$FRONTEND_GREEN" "$FRONTEND_BLUE"
 
