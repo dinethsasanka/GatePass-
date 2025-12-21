@@ -148,7 +148,7 @@ jobs:
             # Health check
             # =====================
             sleep 5
-            if ! curl -I -K https://gatepass.slt.lk/api/health; then
+            if ! curl curl -f http://127.0.0.1:5000/api/health; then
               echo "❌ Health check failed — rolling back"
 
               ln -sfn "$FRONTEND_BLUE" "$FRONTEND_CURRENT"
