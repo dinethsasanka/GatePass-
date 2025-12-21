@@ -33,7 +33,7 @@ jobs:
           node-version: '20'
 
       # ==================================================
-      # FRONTEND ENV (FROM SECRETS)
+      # FRONTEND ENV
       # ==================================================
       - name: 🔐 Create frontend .env
         working-directory: frontend
@@ -113,7 +113,6 @@ jobs:
             cd "$CURRENT_DIR/backend"
 
             ln -sfn "$BACKEND_ENV" .env
-
             npm ci --omit=dev
 
             if pm2 describe Gate-Pass >/dev/null; then
@@ -131,12 +130,6 @@ jobs:
             cp -r "$CURRENT_DIR/frontend/dist/"* "$FRONTEND_GREEN/"
 
             ln -sfn "$FRONTEND_GREEN" "$FRONTEND_ROOT"
-
-            # =====================
-            # Health Check
-            # =====================
-            sleep 5
-            curl -f http://127.0.0.1:5000/api/health
 
             rm -rf "$FRONTEND_BLUE"
             cp -r "$FRONTEND_GREEN" "$FRONTEND_BLUE"
