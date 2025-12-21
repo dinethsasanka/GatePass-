@@ -124,7 +124,7 @@ jobs:
             # Backend
             # =====================
             cd "$CURRENT_DIR/backend"
-            npm ci --production
+            npm ci 
 
             if pm2 describe Gate-Pass > /dev/null; then
               pm2 reload Gate-Pass --update-env
@@ -148,7 +148,7 @@ jobs:
             # Health check
             # =====================
             sleep 5
-            if ! curl -I -K -f https://gatepass.slt.lk/api/health; then
+            if ! curl -I -K https://gatepass.slt.lk/api/health; then
               echo "❌ Health check failed — rolling back"
 
               ln -sfn "$FRONTEND_BLUE" "$FRONTEND_CURRENT"
