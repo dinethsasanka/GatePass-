@@ -44,45 +44,27 @@ jobs:
       # ==================================================
       # VERIFY FRONTEND DIST
       # ==================================================
-      - name: ✅ Verify frontend build output (dist)
+      - name: ✅ Verify frontend build output
         run: |
-          if [ ! -d "frontend/dist" ]; then
-            echo "❌ ERROR: frontend/dist directory not found!"
-            exit 1
-          fi
-
+          test -d frontend/dist || { echo "❌ dist missing"; exit 1; }
           test -f frontend/dist/index.html || { echo "❌ index.html missing"; exit 1; }
-          test -d frontend/dist/assets || { echo "❌ assets directory missing"; exit 1; }
-
-          echo "✅ frontend/dist verified"
-          ls -la frontend/dist
+          test -d frontend/dist/assets || { echo "❌ assets missing"; exit 1; }
+          echo "✅ frontend build verified"
 
       # ==================================================
-      # VERIFY BACKEND FILES
+      # VERIFY BACKEND
       # ==================================================
-      - name: ✅ Verify backend structure
+      - name: ✅ Verify backend
         run: |
-          test -d backend || { echo "❌ backend directory missing"; exit 1; }
-          test -f backend/server.js || { echo "❌ backend/server.js missing"; exit 1; }
-          test -f backend/package.json || { echo "❌ backend/package.json missing"; exit 1; }
-
+          test -d backend || exit 1
+          test -f backend/server.js || exit 1
+          test -f backend/package.json || exit 1
           echo "✅ backend verified"
-          ls -la backend
 
       # ==================================================
-      # DEBUG WORKSPACE (SAFE TO REMOVE LATER)
+      # UPLOAD TO SERVER
       # ==================================================
-      - name: 🔍 Debug workspace
-        run: |
-          pwd
-          ls -la
-          ls -la backend
-          ls -la frontend/dist
-
-      # ==================================================
-      # UPLOAD TO SERVER (NO GLOB ISSUES)
-      # ==================================================
-      - name: 🚚 Upload files to server
+      - name: 🚚 Upload artifacts
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -94,7 +76,7 @@ jobs:
           rm: true
 
       # ==================================================
-      # DEPLOY + SAFE ROLLBACK
+      # DEPLOY
       # ==================================================
       - name: 🔐 Deploy on production server
         uses: appleboy/ssh-action@v0.1.10
@@ -104,17 +86,20 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-            set -e
+            set -euo pipefail
 
             echo "🚀 Starting GatePass deployment"
 
+            # =====================
+            # Paths
+            # =====================
             RELEASE_TIME=$(date +"%Y%m%d-%H%M%S")
             RELEASE_DIR="/var/www/releases/release-$RELEASE_TIME"
             CURRENT_DIR="/var/www/releases/current"
 
+            FRONTEND_ROOT="/opt/Gate_Pass"
             FRONTEND_BLUE="/opt/Gate_Pass_blue"
             FRONTEND_GREEN="/opt/Gate_Pass_green"
-            FRONTEND_CURRENT="/opt/Gate_Pass"
 
             mkdir -p "$RELEASE_DIR"
             cp -r /home/dpd/GatePass-deploy/* "$RELEASE_DIR/"
@@ -124,44 +109,46 @@ jobs:
             # Backend
             # =====================
             cd "$CURRENT_DIR/backend"
-            npm ci 
+            npm ci --omit=dev
 
-            if pm2 describe Gate-Pass > /dev/null; then
+            if pm2 describe Gate-Pass >/dev/null; then
               pm2 reload Gate-Pass --update-env
             else
               pm2 start server.js --name Gate-Pass
             fi
-
             pm2 save
 
             # =====================
-            # Frontend blue-green
+            # Frontend (BLUE → GREEN)
             # =====================
+            mkdir -p "$FRONTEND_GREEN"
             rm -rf "$FRONTEND_GREEN"/*
-            # mkdir -p "$FRONTEND_GREEN"
             cp -r "$CURRENT_DIR/frontend/dist/"* "$FRONTEND_GREEN/"
 
-            ln -sfn "$FRONTEND_GREEN" "$FRONTEND_CURRENT"
-            sudo nginx -s reload
+            # Atomic switch
+            ln -sfn "$FRONTEND_GREEN" "$FRONTEND_ROOT"
 
             # =====================
-            # Health check
+            # Health Check (Backend)
             # =====================
             sleep 5
-            if ! curl curl -f http://127.0.0.1:5000/api/health; then
+            if ! curl -sf http://127.0.0.1:5000/api/health > /dev/null; then
               echo "❌ Health check failed — rolling back"
 
-              ln -sfn "$FRONTEND_BLUE" "$FRONTEND_CURRENT"
-              sudo nginx -s reload
+              ln -sfn "$FRONTEND_BLUE" "$FRONTEND_ROOT"
 
               PREVIOUS=$(ls -dt /var/www/releases/release-* | sed -n '2p')
               if [ -n "$PREVIOUS" ]; then
                 ln -sfn "$PREVIOUS" "$CURRENT_DIR"
                 pm2 reload Gate-Pass
               fi
+
               exit 1
             fi
 
+            # =====================
+            # Promote GREEN → BLUE
+            # =====================
             rm -rf "$FRONTEND_BLUE"
             cp -r "$FRONTEND_GREEN" "$FRONTEND_BLUE"
 
