@@ -121,7 +121,7 @@ jobs:
             npm ci --omit=dev
 
             if pm2 describe Gate-Pass >/dev/null; then
-              pm2 reload Gate-Pass --update-env
+              pm2 restart Gate-Pass --update-env
             else
               pm2 start server.js --name Gate-Pass
             fi
