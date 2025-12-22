@@ -39,7 +39,7 @@ jobs:
         working-directory: frontend
         run: |
           cat <<EOF > .env.production
-          VITE_API_BASE_URL=https://gatepass.slt.lk/api
+          VITE_API_URL=https://gatepass.slt.lk/api
           EOF
 
       # ==================================================
