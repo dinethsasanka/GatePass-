@@ -38,7 +38,7 @@ jobs:
       - name: 🔐 Create frontend .env
         working-directory: frontend
         run: |
-          cat <<EOF > .env
+          cat <<EOF > .env.production
           VITE_API_BASE_URL=https://gatepass.slt.lk/api
           EOF
 
@@ -50,6 +50,11 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      - name: 🔎 Verify API URL inside build
+        run: |
+          grep -R "gatepass.slt.lk/api" frontend/dist || (echo "❌ API URL missing in build" && exit 1)
+
 
       # ==================================================
       # VERIFY
