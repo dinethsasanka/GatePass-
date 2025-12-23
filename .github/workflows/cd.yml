@@ -81,7 +81,7 @@ jobs:
           port: 22
           source: ./*
           target: /home/dpd/GatePass-deploy
-          rm: false     
+          rm: true     
           # 12/23 Update changed from true to false 13.18PM
 
       # ==================================================
