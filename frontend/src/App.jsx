@@ -44,7 +44,7 @@ const App = () => {
             }
           >
             <Route path="/home" element={<Home />} />
-            <Route path="/newrequest" element={<NewRequest />} />    // Change form "NewRequest" to "MyRequests"
+            <Route path="/newrequest" element={<MyRequests />} />    // Change form "NewRequest" to "MyRequests"
             <Route path="/myrequests" element={<GatePassRequests />} />
             <Route path="/itemTracker" element={<GatePassItemTracker />} />
             <Route path="/myReceipts" element={<GatePassMyReicept />} />
