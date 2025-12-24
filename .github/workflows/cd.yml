@@ -79,10 +79,9 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          source: "backend/**,frontend/dist/**,package.json" # 12/24 10.32PM 
+          source: "backend/**,frontend/dist/**,package.json"
           target: /home/dpd/GatePass-deploy
-              
-          # 12/23 Update changed from true to false 13.18PM
+          strip_components: 0
 
       # ==================================================
       # DEPLOY
@@ -139,5 +138,13 @@ jobs:
 
             rm -rf "$FRONTEND_BLUE"
             cp -r "$FRONTEND_GREEN" "$FRONTEND_BLUE"
+
+            # =====================
+            # CLEANUP
+            # =====================
+            echo "🧹 Cleaning up old releases..."
+            cd /var/www/releases
+            # Keep only the 5 most recent release directories
+            ls -dt release-* | tail -n +6 | xargs -d '\n' rm -rf || true
 
             echo "🎉 Deployment successful!"
