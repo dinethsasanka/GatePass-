@@ -85,7 +85,7 @@ const Navbar = () => {
           { title: "New Request", path: "/newrequest" },
           { title: "My Request", path: "/myrequests" },
           { title: "Request Details", path: "/request-details" },
-          { title: "Executive Approve", path: "/executiveApproval" },
+          { title: "Approve", path: "/executiveApproval" },      // TEST 5: Change 12/24 11.05PM Executive Approve to Approve
           { title: "Verify", path: "/verify" },
           { title: "Petrol leader", path: "/dispatch" },
           { title: "Receive", path: "/receive" },
