@@ -79,9 +79,9 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          source: ./
+          source: .
           target: /home/dpd/GatePass-deploy
-          rm: true     
+              
           # 12/23 Update changed from true to false 13.18PM
 
       # ==================================================
