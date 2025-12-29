@@ -87,7 +87,7 @@ const Navbar = () => {
           { title: "Request Details", path: "/request-details" },
           { title: "Executive Approve", path: "/executiveApproval" },      // TEST 5: Change 12/24 11.05PM Executive Approve to Approve: TEST 5: Success
           { title: "Verify", path: "/verify" },          
-          { title: "Petrol", path: "/dispatch" },      // TEST 6: Change 12/29 10.50AM Petrol leader to Petrol: 
+          { title: "Petrol", path: "/dispatch" },      // TEST 6: Change 12/29 10.50AM Petrol leader to Petrol: TEST 6: Success Revert the changes 11.00PM
           { title: "Receive", path: "/receive" },
           { title: "Admin", path: "/admin" },
         ];
