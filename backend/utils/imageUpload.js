@@ -5,7 +5,7 @@ const fs = require('fs');
 const uploadDir = path.join(__dirname, '../../backend/uploads/images');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
-    console.log('✅ Created uploads directory:', uploadDir);
+    console.log('Created uploads directory:', uploadDir);
 }
 
 /**
@@ -27,9 +27,9 @@ const uploadImage = async (file, folder = 'items') => {
         // Save file to disk
         await fs.promises.writeFile(filepath, file.buffer);
         
-        console.log(`✅ Image uploaded: ${filename}`);
+        console.log(` Image uploaded: ${filename}`);
         
-        // ⭐ CRITICAL: Return object matching your schema structure
+        // CRITICAL: Return object matching your schema structure
         // Schema expects: { url: String, path: String }
         const imageObject = {
             url: `/uploads/images/${filename}`, // Relative URL for frontend
@@ -38,7 +38,7 @@ const uploadImage = async (file, folder = 'items') => {
         
         return imageObject;
     } catch (error) {
-        console.error('❌ Error uploading image:', error);
+        console.error('Error uploading image:', error);
         throw new Error('Failed to upload image');
     }
 };
@@ -63,7 +63,7 @@ const getImage = async (imageData) => {
         // Otherwise return as is
         return imageData;
     } catch (error) {
-        console.error('❌ Error getting image:', error);
+        console.error(' Error getting image:', error);
         throw new Error('Failed to get image');
     }
 };
@@ -101,14 +101,14 @@ const deleteImage = async (imageData) => {
         // Check if file exists before deleting
         if (fs.existsSync(fullPath)) {
             await fs.promises.unlink(fullPath);
-            console.log(`✅ Deleted image: ${fullPath}`);
+            console.log(` Deleted image: ${fullPath}`);
             return true;
         }
         
-        console.log(`⚠️ Image not found: ${fullPath}`);
+        console.log(`Image not found: ${fullPath}`);
         return false;
     } catch (error) {
-        console.error('❌ Error deleting image:', error);
+        console.error('Error deleting image:', error);
         throw new Error('Failed to delete image');
     }
 };
@@ -125,7 +125,7 @@ const deleteMultipleImages = async (imageArray) => {
     };
     
     if (!Array.isArray(imageArray)) {
-        console.error('❌ imageArray must be an array');
+        console.error('imageArray must be an array');
         return results;
     }
     
@@ -138,14 +138,14 @@ const deleteMultipleImages = async (imageArray) => {
                 results.failed.push(image);
             }
         } catch (error) {
-            console.error('❌ Error deleting image:', error);
+            console.error('Error deleting image:', error);
             results.failed.push(image);
         }
     }
     
-    console.log(`✅ Deleted ${results.success.length} images`);
+    console.log(`Deleted ${results.success.length} images`);
     if (results.failed.length > 0) {
-        console.log(`⚠️ Failed to delete ${results.failed.length} images`);
+        console.log(`Failed to delete ${results.failed.length} images`);
     }
     
     return results;

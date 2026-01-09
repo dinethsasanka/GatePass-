@@ -85,9 +85,9 @@ const Navbar = () => {
           { title: "New Request", path: "/newrequest" },
           { title: "My Request", path: "/myrequests" },
           { title: "Request Details", path: "/request-details" },
-          { title: "Executive Approve", path: "/executiveApproval" },      // TEST 5: Change 12/24 11.05PM Executive Approve to Approve: TEST 5: Success
-          { title: "Verify", path: "/verify" },          
-          { title: "Petrol Leader", path: "/dispatch" },      // TEST 6: Change 12/29 10.50AM Petrol leader to Petrol: TEST 6: Success Revert the changes 11.00PM
+          { title: "Executive Approve", path: "/executiveApproval" },
+          { title: "Verify", path: "/verify" },
+          { title: "Petrol leader", path: "/dispatch" },
           { title: "Receive", path: "/receive" },
           { title: "Admin", path: "/admin" },
         ];
@@ -114,19 +114,21 @@ const Navbar = () => {
           { title: "Executive Approve", path: "/executiveApproval" },
           { title: "Receive", path: "/receive" },
         ];
-      case "Verifier":
-      case "RO1":
+
+      case "Security Officer":
         return [
           { title: "New Request", path: "/newrequest" },
           { title: "My Request", path: "/myrequests" },
           { title: "Verify", path: "/verify" },
+          { title: "Petrol leader", path: "/dispatch" },
           { title: "Receive", path: "/receive" },
         ];
+
       case "Pleader":
-      case "RO2":
         return [
           { title: "New Request", path: "/newrequest" },
           { title: "My Request", path: "/myrequests" },
+          { title: "Verify", path: "/verify" },
           { title: "Petrol leader", path: "/dispatch" },
           { title: "Receive", path: "/receive" },
         ];

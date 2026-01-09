@@ -1,5 +1,6 @@
 const Status = require("../models/Status");
 const User = require("../models/User");
+const { DISPATCH_ROLES } = require("../utils/roleGroup");
 const { sendEmail } = require("../utils/sendMail");
 const Request = require("../models/Request");
 const {
@@ -17,6 +18,18 @@ async function findReceiverForInLocation(inLocation) {
   }).lean();
 }
 
+async function findRequesterFromRequest(reqDoc) {
+  if (!reqDoc) return null;
+
+  if (reqDoc.employeeServiceNo) {
+    return await User.findOne({
+      serviceNo: String(reqDoc.employeeServiceNo),
+    }).lean();
+  }
+
+  return null;
+}
+
 // --- helpers for role/branch matching  ---
 const normalizeRole = (r) =>
   String(r || "")
@@ -25,6 +38,12 @@ const normalizeRole = (r) =>
 const esc = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const toRegexList = (arr = []) =>
   arr.filter(Boolean).map((b) => new RegExp(`^${esc(String(b).trim())}$`, "i"));
+
+// --- dispatch role helpers ---
+const isSuperAdmin = (role) => normalizeRole(role) === "superadmin";
+
+const isDispatchRole = (role) =>
+  DISPATCH_ROLES.map(normalizeRole).includes(normalizeRole(role));
 
 // Create a new status
 const createStatus = async (req, res) => {
@@ -48,96 +67,21 @@ const createStatus = async (req, res) => {
   }
 };
 
-// const getPending = async (req, res) => {
-//   try {
-//     const pendingStatuses = await Status.find({
-//       $or: [
-//         { verifyOfficerStatus: 2 },
-//         { executiveOfficerStatus: 2 }
-//       ]
-//     })
-//       .populate('request')
-//       .exec();
-
-//     res.status(200).json(pendingStatuses);
-//   } catch (error) {
-//     console.error("Error fetching pending statuses:", error);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// };
-// before:  $or: [{ verifyOfficerStatus: 2 }, { executiveOfficerStatus: 2 }]
-/*const getPending = async (req, res) => {
-  try {
-    const isSuper = normalizeRole(req.user?.role) === "superadmin";
-    const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
-    const branchRegex = toRegexList(branches);
-    // Find all references where dispatch has been approved (afterStatus: 8)
-    const approvedRefs = await Status.find({ afterStatus: 8 }).distinct(
-      "referenceNumber"
-    );
-
-    // Get pending: verifyOfficerStatus = 2 (PL1 approved)
-    // but exclude those that have already been approved by dispatch (afterStatus: 8)
-    const pendingStatuses = await Status.find({
-      verifyOfficerStatus: 2,
-      referenceNumber: { $nin: approvedRefs },
-    });
-    populate({
-      path: "request",
-      match: isSuper ? {} : { inLocation: { $in: branchRegex } },
-    })
-      .sort({ updatedAt: -1 })
-      .exec();
-
-    const filtered = pendingStatuses.filter(
-      (s) => s.request && (isSuper ? true : s.request.show !== false)
-    );
-    res.status(200).json(filtered);
-  } catch (error) {
-    console.error("Error fetching pending statuses:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};*/
-/*const getPending = async (req, res) => {
-  try {
-    // Find all references where dispatch has been approved (afterStatus: 8)
-    const approvedRefs = await Status.find({ afterStatus: 8 }).distinct(
-      "referenceNumber"
-    );
-
-    // Get pending: verifyOfficerStatus = 2 (PL1 approved)
-    // but exclude those that have already been approved by dispatch (afterStatus: 8)
-    const pendingStatuses = await Status.find({
-      verifyOfficerStatus: 2,
-      referenceNumber: { $nin: approvedRefs },
-    })
-      .populate("request")
-      .sort({ updatedAt: -1 })
-      .exec();
-
-    res.status(200).json(pendingStatuses);
-  } catch (error) {
-    console.error("Error fetching pending statuses:", error);
-    res.status(500).json({ message: "Server error" });
-  }
-};*/
-
-
-
-
-
 const getPending = async (req, res) => {
   try {
-    const isSuper = normalizeRole(req.user?.role) === "superadmin";
+    if (!isSuperAdmin(req.user?.role) && !isDispatchRole(req.user?.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const isSuper = isSuperAdmin(req.user?.role);
+
     const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
     const branchRegex = toRegexList(branches);
 
-    // Find dispatch-approved references
     const approvedRefs = await Status.find({ afterStatus: 8 }).distinct(
       "referenceNumber"
     );
 
-    // Pending (PL1 approved) but NOT dispatch approved
     const pendingStatuses = await Status.find({
       verifyOfficerStatus: 2,
       referenceNumber: { $nin: approvedRefs },
@@ -146,20 +90,19 @@ const getPending = async (req, res) => {
         path: "request",
         match: isSuper ? {} : { inLocation: { $in: branchRegex } },
       })
-      .sort({ updatedAt: -1 });
+      .sort({ updatedAt: -1 })
+      .exec();
 
-    // Filter out hidden requests
     const filtered = pendingStatuses.filter(
-      (s) => s.request && (isSuper ? true : s.request.show !== false)
+      (s) => s.request && s.request.show !== false
     );
 
-    res.status(200).json(filtered);
+    return res.status(200).json(filtered);
   } catch (error) {
     console.error("Error fetching pending statuses:", error);
-    res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: "Server error" });
   }
 };
-
 
 const getApproved = async (req, res) => {
   try {
@@ -206,44 +149,12 @@ const getRejected = async (req, res) => {
   }
 };
 
-// const updateApproved = async (req, res) => {
-//   try {
-//     const { comment } = req.body;
-//     const { referenceNumber } = req.params;
-
-//     // Update existing status
-//     const updatedStatus = await Status.findOneAndUpdate(
-//       { referenceNumber, beforeStatus: 7 },
-//       {
-//         afterStatus: 8,
-//         comment,
-//       },
-//       { new: true }
-//     ).populate("request");
-
-//     if (!updatedStatus)
-//       return res.status(404).json({ message: "Status not found" });
-
-//     if (updatedStatus.request) {
-//       updatedStatus.request.status = 10;
-//       await updatedStatus.request.save();
-//     }
-
-//     const newStatus = new Status({
-//       referenceNumber,
-//       request: updatedStatus.request._id,
-//       beforeStatus: 10,
-//     });
-//     await newStatus.save();
-
-//     res.status(200).json({ updatedStatus, newStatus });
-//   } catch (error) {
-//     res.status(400).json({ error: error.message });
-//   }
-// };
-
 const updateApproved = async (req, res) => {
   try {
+    if (!isSuperAdmin(req.user?.role) && !isDispatchRole(req.user?.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const { referenceNumber } = req.params;
     const { comment } = req.body;
 
@@ -271,8 +182,16 @@ const updateApproved = async (req, res) => {
     const newStatus = new Status({
       referenceNumber,
       request: latest.request?._id || latest.request,
+      // Pleader stage explicit fields
+      pleaderStatus: 2, // 2 = Approved by Pleader (Dispatch)
+      pleaderServiceNo: req.user?.serviceNo
+        ? String(req.user.serviceNo).trim()
+        : undefined,
+
+      // Backwards-compatible before/afterStatus fields
       beforeStatus: 7,
       afterStatus: 8,
+
       comment: comment || "",
       createdAt: originalStatus?.createdAt || new Date(), // Preserve original creation time
     });
@@ -384,33 +303,11 @@ const updateApproved = async (req, res) => {
   }
 };
 
-// const updateRejected = async (req, res) => {
-//   try {
-//     const { comment } = req.body;
-//     const updatedStatus = await Status.findOneAndUpdate(
-//       { referenceNumber: req.params.referenceNumber, beforeStatus: 7 },
-//       {
-//         afterStatus: 9,
-//         comment: comment,
-//       },
-//       { new: true }
-//     ).populate("request");
-//     if (!updatedStatus)
-//       return res.status(404).json({ message: "Status not found" });
-
-//     if (updatedStatus.request) {
-//       updatedStatus.request.status = 9;
-//       await updatedStatus.request.save();
-//     }
-
-//     res.status(200).json(updatedStatus);
-//   } catch (error) {
-//     res.status(400).json({ error: error.message });
-//   }
-// };
-
 const updateRejected = async (req, res) => {
   try {
+    if (!isSuperAdmin(req.user?.role) && !isDispatchRole(req.user?.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const { referenceNumber } = req.params;
     const { comment } = req.body;
 
@@ -433,6 +330,17 @@ const updateRejected = async (req, res) => {
       .sort({ createdAt: 1 }) // Sort by oldest first
       .lean();
 
+    const rejectedMeta = {
+      rejectedBy: "Pleader",
+      rejectedByServiceNo: req.user?.serviceNo || null,
+      rejectedAt: new Date(),
+      rejectionLevel: 3,
+      rejectedByBranch:
+        Array.isArray(req.user?.branches) && req.user.branches.length > 0
+          ? req.user.branches[0]
+          : null,
+    };
+
     // 7 = Pleader Pending, 9 = Pleader Rejected  (as per your getRejected filter)
     const newStatus = new Status({
       referenceNumber,
@@ -441,12 +349,33 @@ const updateRejected = async (req, res) => {
       afterStatus: 9,
       comment: comment.trim(),
       createdAt: originalStatus?.createdAt || new Date(), // Preserve original creation time
+      ...rejectedMeta,
     });
     await newStatus.save();
 
     if (latest.request) {
       latest.request.status = 9; // Pleader Rejected (only if your UI uses this)
       await latest.request.save();
+    }
+
+    // Notify requester only (safe)
+    try {
+      if (latest.request) {
+        const requester = await findRequesterFromRequest(latest.request);
+        if (requester?.email) {
+          const subject = `Gate Pass Rejected: ${referenceNumber}`;
+          const html = `
+        <p>Dear ${requester.name || "Requester"},</p>
+        <p>Your gate pass request has been <b>rejected</b>.</p>
+        <p><b>Reference:</b> ${referenceNumber}</p>
+        <p><b>Reason:</b> ${comment.trim()}</p>
+        <p>You can view this under <i>My Requests – Rejected</i>.</p>
+      `;
+          await sendEmail(requester.email, subject, html);
+        }
+      }
+    } catch (err) {
+      console.error("Email (reject → requester) failed:", err);
     }
 
     return res.status(200).json({ ok: true, status: newStatus });
@@ -545,6 +474,15 @@ const markItemsAsReturned = async (req, res) => {
     await request.save();
 
     console.log(`Successfully marked ${updatedCount} items as returned`);
+
+    try {
+      const io = req.app.get("io");
+      if (io && request) {
+        emitRequestRejection(io, request, "Pleader");
+      }
+    } catch (e) {
+      console.error("Reject socket emit failed:", e);
+    }
 
     return res.status(200).json({
       success: true,

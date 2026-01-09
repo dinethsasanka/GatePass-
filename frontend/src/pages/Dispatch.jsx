@@ -7,12 +7,12 @@ import {
   rejectStatus,
   searchUserByServiceNo,
   markItemsAsReturned,
-} from "../services/DispatchService.js";      // DEVOPS Change 12/16/2025 : dispatchService  --> DispatchService
+} from "../services/dispatchService.js";
 import {
-  getImageUrl,
   getImageUrlSync,
   searchReceiverByServiceNo,
-} from "../services/RequestService.js";       // DEVOPS Change 12/16/2025 : requestService  --> RequestService
+  searchEmployeeByServiceNo
+} from "../services/RequestService.js";
 import { jsPDF } from "jspdf";
 import { useToast } from "../components/ToastProvider.jsx";
 import logoUrl from "../assets/SLTMobitel_Logo.png";
@@ -66,6 +66,11 @@ const Dispatch = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [user, setUser] = useState(null);
+
+  const isSuperAdmin =
+    user?.role === "SUPERADMIN" ||
+    user?.username === "SUPER001" ||
+    user?.serviceNo === "SUPER001";
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem("user"));
@@ -523,119 +528,150 @@ const Dispatch = () => {
 
   // --- Approval Logic ---
 
-  const sendRecieverNotificationEmail = async (
+  // First, rename the function (change sendRecieverNotificationEmail to sendReceiverNotificationEmail)
+  const sendReceiverNotificationEmail = async (
     receiverData,
     requestData,
     referenceNumber
   ) => {
     try {
       if (!receiverData?.email) {
+        console.warn(
+          "Receiver email not available for notification:",
+          receiverData
+        );
         showToast("Receiver email not available for notification.", "warning");
-        return;
+        return false; // Return false instead of void
       }
 
       const emailSubject = `Gate Pass Request ${referenceNumber} - Approved by Dispatch`;
 
+      // Create a more detailed email body
       const emailBody = `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-              <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #3b82f6; margin-bottom: 5px;">Gate Pass Request Approved</h2>
-                <p style="color: #757575; font-size: 14px;">Reference Number: ${referenceNumber}</p>
-              </div>
-              
-              <div style="margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
-                <p>Dear ${receiverData.name},</p>
-                <p>The gate pass request (Ref: ${referenceNumber}) originating from ${
-        requestData.outLocation
-      } destined for ${
-        requestData.inLocation
-      } has been <strong>approved</strong> by the Dispatch Officer and is ready for physical dispatch.</p>
-                
-                <div style="margin-top: 15px;">
-                  <p><strong>Item Summary:</strong></p>
-                  <ul style="padding-left: 20px;">
-                    <li>Total Items: ${requestData.items.length}</li>
-                    <li>Date/Time: ${new Date().toLocaleString()}</li>
-                  </ul>
-                </div>
-              </div>
-              
-              <div style="margin-bottom: 20px;">
-                <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Item Summary</h3>
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                  <tr style="background-color: #f5f5f5;">
-                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Item</th>
-                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Serial No</th>
-                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Category</th>
-                    <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Status</th>
-                  </tr>
-                  ${requestData.items
-                    .map(
-                      (item) => `
-                    <tr>
-                      <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                        item.itemName
-                      }</td>
-                      <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                        item.serialNo || "-"
-                      }</td>
-                      <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                        item.itemCategory || "-"
-                      }</td>
-                      <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                        item.itemReturnable ? "Returnable" : "Non-Returnable"
-                      }</td>
-                    </tr>
-                  `
-                    )
-                    .join("")}
-                </table>
-              </div>
-              
-              <div style="margin-bottom: 20px;">
-                <p>Please log in to the system to finalize the dispatch process.</p>
-                <div style="text-align: center; margin-top: 20px;">
-                  <a href="${
-                    window.location.origin
-                  }/dispatch" style="background-color: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; font-weight: bold;">View System</a>
-                </div>
-              </div>
-              
-              <div style="font-size: 12px; color: #757575; margin-top: 30px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
-                <p>This is an automated email from the SLT Gate Pass Management System. Please do not reply to this email.</p>
-                <p>&copy; ${new Date().getFullYear()} Sri Lanka Telecom. All rights reserved.</p>
-              </div>
-            </div>
-          `;
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="${logoUrl}" alt="SLT Logo" style="max-height: 60px; margin-bottom: 10px;" />
+          <h2 style="color: #3b82f6; margin-bottom: 5px;">Gate Pass Request Approved</h2>
+          <p style="color: #757575; font-size: 14px;">Reference Number: ${referenceNumber}</p>
+        </div>
+        
+        <div style="margin-bottom: 20px; padding: 15px; background-color: #f0f9ff; border-radius: 4px; border-left: 4px solid #3b82f6;">
+          <p>Dear ${receiverData.name},</p>
+          <p>The gate pass request has been <strong>APPROVED</strong> by the Dispatch Officer and is ready for collection/delivery.</p>
+          
+          <div style="margin-top: 15px;">
+            <p><strong>Summary:</strong></p>
+            <ul style="padding-left: 20px; margin: 0;">
+              <li><strong>Reference:</strong> ${referenceNumber}</li>
+              <li><strong>From:</strong> ${requestData.outLocation}</li>
+              <li><strong>To:</strong> ${requestData.inLocation}</li>
+              <li><strong>Items Count:</strong> ${requestData.items.length}</li>
+              <li><strong>Approval Date:</strong> ${new Date().toLocaleString()}</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Item Details</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+              <tr style="background-color: #f5f5f5;">
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Item Name</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Serial No</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Category</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${requestData.items
+                .map(
+                  (item) => `
+                <tr>
+                  <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
+                    item.itemName
+                  }</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
+                    item.serialNo || "-"
+                  }</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
+                    item.itemCategory || "-"
+                  }</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">
+                    <span style="color: ${
+                      item.itemReturnable ? "#10b981" : "#f59e0b"
+                    }; font-weight: bold;">
+                      ${item.itemReturnable ? "Returnable" : "Non-Returnable"}
+                    </span>
+                  </td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+        
+        <div style="margin-bottom: 20px; padding: 15px; background-color: #e8f5e9; border-radius: 4px;">
+          <h4 style="color: #2e7d32; margin-bottom: 10px;">🚚 Next Steps:</h4>
+          <ul style="margin: 0; padding-left: 20px;">
+            <li>Items will be dispatched from <strong>${
+              requestData.outLocation
+            }</strong></li>
+            <li>Expected delivery/collection at <strong>${
+              requestData.inLocation
+            }</strong></li>
+            <li>Please be available to receive the items</li>
+            <li>Check all items upon receipt</li>
+          </ul>
+        </div>
+        
+        <div style="margin-bottom: 20px; text-align: center;">
+          <p>You can view the complete gate pass details in the system:</p>
+          <a href="${window.location.origin}/dispatch" 
+             style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block; margin-top: 10px;">
+            View Gate Pass Details
+          </a>
+        </div>
+        
+        <div style="font-size: 12px; color: #757575; margin-top: 30px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+          <p><strong>Important:</strong> Please bring this reference number when collecting items.</p>
+          <p>This is an automated email from the SLT Gate Pass Management System. Please do not reply to this email.</p>
+          <p>&copy; ${new Date().getFullYear()} Sri Lanka Telecom. All rights reserved.</p>
+        </div>
+      </div>
+    `;
 
-      await emailSent({
+      // Send the email
+      const result = await emailSent({
         to: receiverData.email,
         subject: emailSubject,
         html: emailBody,
       });
 
-      return true;
+      console.log("Notification email sent to receiver:", receiverData.email);
+      return true; // Return true on success
     } catch (error) {
       console.error("Failed to send notification email:", error);
-      return false;
+      showToast("Failed to send receiver notification email.", "error");
+      return false; // Return false on failure
     }
   };
 
- const sendRejectionEmailToSender = async (
-  senderData,
-  requestData,
-  referenceNumber,
-  rejectionComment
-) => {
-  try {
-    if (!senderData?.email) {
-      showToast("Sender email not available for notification.", "warning");
-      return false; // Return false if no email
-    }
+  const sendRejectionEmailToSender = async (
+    senderData,
+    requestData,
+    referenceNumber,
+    rejectionComment
+  ) => {
+    try {
+      if (!senderData?.email) {
+        showToast("Sender email not available for notification.", "warning");
+        return false; // Return false if no email
+      }
 
-    const emailSubject = `Gate Pass Request ${referenceNumber} - Rejected by Dispatch`;
+      const emailSubject = `Gate Pass Request ${referenceNumber} - Rejected by Dispatch`;
 
-    const emailBody = `
+      const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <div style="text-align: center; margin-bottom: 20px;">
           <h2 style="color: #ef4444; margin-bottom: 5px;">Gate Pass Request Rejected</h2>
@@ -644,7 +680,11 @@ const Dispatch = () => {
         
         <div style="margin-bottom: 20px; padding: 15px; background-color: #fef2f2; border-radius: 4px; border-left: 4px solid #ef4444;">
           <p>Dear ${senderData.name},</p>
-          <p>We regret to inform you that your gate pass request (Ref: ${referenceNumber}) from ${requestData.outLocation} to ${requestData.inLocation} has been <strong>rejected</strong> by the Dispatch Officer.</p>
+          <p>We regret to inform you that your gate pass request (Ref: ${referenceNumber}) from ${
+        requestData.outLocation
+      } to ${
+        requestData.inLocation
+      } has been <strong>rejected</strong> by the Dispatch Officer.</p>
           
           <div style="margin-top: 15px;">
             <p><strong>Rejection Reason:</strong></p>
@@ -710,50 +750,57 @@ const Dispatch = () => {
       </div>
     `;
 
-    await emailSent({
-      to: senderData.email,
-      subject: emailSubject,
-      html: emailBody,
-    });
+      await emailSent({
+        to: senderData.email,
+        subject: emailSubject,
+        html: emailBody,
+      });
 
-    return true; // Return true if email sent successfully
-  } catch (error) {
-    console.error("Failed to send rejection email:", error);
-    return false; // Return false if email failed
-  }
-};
-
-const sendReturnTOPetrolLeaderEmail = async (request, comment, selectedItemDetails) => {
-  try {
-    // Get the executive officer details from the request
-    const verifyServiceNo = request.requestDetails?.verifyOfficerServiceNumber || 
-                               request.request?.verifyOfficerServiceNumber;
-    
-    if (!verifyServiceNo) {
-      console.error("Verify officer service number not found");
-      showToast("Verify officer details not available", "error");
-      return;
+      return true; // Return true if email sent successfully
+    } catch (error) {
+      console.error("Failed to send rejection email:", error);
+      return false; // Return false if email failed
     }
+  };
 
-    // Fetch executive officer details
-    const verify = await searchReceiverByServiceNo(verifyServiceNo);
-    
-    if (!verify?.email) {
-      console.error("Verify officer email not found");
-      showToast("Verify officer email not available", "error");
-      return;
-    }
+  const sendReturnTOPetrolLeaderEmail = async (
+    request,
+    comment,
+    selectedItemDetails
+  ) => {
+    try {
+      // Get the executive officer details from the request
+      const verifyServiceNo =
+        request.requestDetails?.verifyOfficerServiceNumber ||
+        request.request?.verifyOfficerServiceNumber;
 
-    const emailSubject = `Action Required: Review and Return Items - ${request.refNo}`;
+      if (!verifyServiceNo) {
+        console.error("Verify officer service number not found");
+        showToast("Verify officer details not available", "error");
+        return;
+      }
 
-    // Create a professional email body with HTML formatting
-    const emailBody = `
+      // Fetch executive officer details
+      const verify = await searchReceiverByServiceNo(verifyServiceNo);
+
+      if (!verify?.email) {
+        console.error("Verify officer email not found");
+        showToast("Verify officer email not available", "error");
+        return;
+      }
+
+      const emailSubject = `Action Required: Review and Return Items - ${request.refNo}`;
+
+      // Create a professional email body with HTML formatting
+      const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         
         <!-- Header -->
         <div style="text-align: center; margin-bottom: 20px;">
           <h2 style="color: #2fd33dff; margin-bottom: 5px;">⚠️ Action Required: Review and Return Items</h2>
-          <p style="color: #757575; font-size: 14px;">Reference Number: <strong>${request.refNo}</strong></p>
+          <p style="color: #757575; font-size: 14px;">Reference Number: <strong>${
+            request.refNo
+          }</strong></p>
         </div>
         
         <!-- Alert Box -->
@@ -767,16 +814,22 @@ const sendReturnTOPetrolLeaderEmail = async (request, comment, selectedItemDetai
         <div style="margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
           <p style="margin-bottom: 15px;">Dear ${approver.name},</p>
           
-          <p style="margin-bottom: 15px;">We would like to inform you that ${selectedItemDetails.length} returnable item(s) under reference number <b>${request.refNo}</b> have been returned by the Receiver.</p>
+          <p style="margin-bottom: 15px;">We would like to inform you that ${
+            selectedItemDetails.length
+          } returnable item(s) under reference number <b>${
+        request.refNo
+      }</b> have been returned by the Receiver.</p>
           
           <p style="margin-bottom: 15px;"><strong>Please review these items and arrange for their return as soon as possible.</strong></p>
           
           <p style="margin: 0;">
-            📍 <strong>Current Location:</strong> ${request.inLocation || 'N/A'}<br>
-            📅 <strong>Date:</strong> ${new Date().toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric'
+            📍 <strong>Current Location:</strong> ${
+              request.inLocation || "N/A"
+            }<br>
+            📅 <strong>Date:</strong> ${new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
             })}
           </p>
         </div>
@@ -794,25 +847,44 @@ const sendReturnTOPetrolLeaderEmail = async (request, comment, selectedItemDetai
               </tr>
             </thead>
             <tbody>
-              ${selectedItemDetails?.map(item => `
+              ${
+                selectedItemDetails
+                  ?.map(
+                    (item) => `
                 <tr>
-                  <td style="padding: 8px; border: 1px solid #dee2e6;">${item.itemName || "N/A"}</td>
-                  <td style="padding: 8px; border: 1px solid #dee2e6;">${item.serialNo || "N/A"}</td>
-                  <td style="padding: 8px; border: 1px solid #dee2e6;">${item.itemCategory || "N/A"}</td>
-                  <td style="padding: 8px; border: 1px solid #dee2e6;">${item.itemQuantity || "1"}</td>
+                  <td style="padding: 8px; border: 1px solid #dee2e6;">${
+                    item.itemName || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #dee2e6;">${
+                    item.serialNo || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #dee2e6;">${
+                    item.itemCategory || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #dee2e6;">${
+                    item.itemQuantity || "1"
+                  }</td>
                 </tr>
-              `).join("") || '<tr><td colspan="4" style="padding: 8px; text-align: center;">No items selected</td></tr>'}
+              `
+                  )
+                  .join("") ||
+                '<tr><td colspan="4" style="padding: 8px; text-align: center;">No items selected</td></tr>'
+              }
             </tbody>
           </table>
         </div>
 
         <!-- Additional Comment Section -->
-        ${comment ? `
+        ${
+          comment
+            ? `
         <div style="margin-bottom: 20px; padding: 15px; background-color: #f0f4ff; border-radius: 4px; border-left: 4px solid #2196F3;">
           <p style="margin: 0 0 5px 0; font-weight: bold; color: #1976D2;">Additional Comments:</p>
           <p style="margin: 0; color: #424242;">${comment}</p>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
 
         <!-- Request Details -->
         <div style="margin-bottom: 20px;">
@@ -820,7 +892,9 @@ const sendReturnTOPetrolLeaderEmail = async (request, comment, selectedItemDetai
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
             <tr>
               <td style="padding: 8px 0; color: #757575; width: 40%;">Requester:</td>
-              <td style="padding: 8px 0;">${request.senderDetails?.name || "N/A"}</td>
+              <td style="padding: 8px 0;">${
+                request.senderDetails?.name || "N/A"
+              }</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #757575;">From Location:</td>
@@ -841,30 +915,188 @@ const sendReturnTOPetrolLeaderEmail = async (request, comment, selectedItemDetai
       </div>
     `;
 
-    // Send the email
-    const result = await emailSent({
-      to: verify.email,
-      subject: emailSubject,
-      html: emailBody,
-    });
+      // Send the email
+      const result = await emailSent({
+        to: verify.email,
+        subject: emailSubject,
+        html: emailBody,
+      });
 
-    console.log("Verify officer notification email sent successfully");
-    showToast("Return notification email sent to Verify officer", "success");
-    
-    return result;
+      console.log("Verify officer notification email sent successfully");
+      showToast("Return notification email sent to Verify officer", "success");
 
-  } catch (error) {
-    console.error("Failed to send return email to verify officer:", error);
-    showToast("Failed to send email to verify officer", "error");
-    throw error;
-  }
-};
+      return result;
+    } catch (error) {
+      console.error("Failed to send return email to verify officer:", error);
+      showToast("Failed to send email to verify officer", "error");
+      throw error;
+    }
+  };
+
+  const handleEmailNotification = async (request, approvedItem) => {
+    try {
+      // Get receiver service number from multiple possible locations
+      const receiverServiceNo =
+        request?.receiverServiceNo ||
+        request?.receiverDetails?.serviceNo ||
+        approvedItem?.receiverDetails?.serviceNo;
+
+      const isNonSltPlace = request?.isNonSltPlace || false;
+
+      console.log("Debug - Email notification:", {
+        receiverServiceNo,
+        isNonSltPlace,
+        request: request,
+        approvedItemReceiver: approvedItem?.receiverDetails,
+      });
+
+      if (isNonSltPlace) {
+        // Non-SLT receiver
+        const receiverName = request?.receiverName || "Non-SLT Receiver";
+        const receiverEmail = request?.receiverEmail;
+
+        if (receiverEmail) {
+          const emailSent = await sendReceiverNotificationEmail(
+            { name: receiverName, email: receiverEmail },
+            {
+              outLocation: approvedItem.outLocation,
+              inLocation: approvedItem.inLocation,
+              items: approvedItem.items,
+            },
+            approvedItem.refNo
+          );
+
+          return {
+            success: true,
+            message: emailSent
+              ? `Email sent to ${receiverName} (Non-SLT)`
+              : `Failed to send email to ${receiverName} (Non-SLT)`,
+            receiverFound: true,
+            emailSent,
+            receiverName,
+          };
+        } else {
+          return {
+            success: false,
+            message: `Non-SLT receiver "${receiverName}" found but email not available`,
+            receiverFound: true,
+            emailSent: false,
+            receiverName,
+          };
+        }
+      } else if (receiverServiceNo) {
+        // SLT receiver
+        try {
+          const receiverDetails = await searchReceiverByServiceNo(
+            receiverServiceNo
+          );
+
+          if (receiverDetails) {
+            const receiverName = receiverDetails.name || "SLT Employee";
+
+            if (receiverDetails.email) {
+              const emailSent = await sendReceiverNotificationEmail(
+                receiverDetails,
+                {
+                  outLocation: approvedItem.outLocation,
+                  inLocation: approvedItem.inLocation,
+                  items: approvedItem.items,
+                },
+                approvedItem.refNo
+              );
+
+              return {
+                success: true,
+                message: emailSent
+                  ? `Email sent to ${receiverName} (${receiverServiceNo})`
+                  : `Failed to send email to ${receiverName} (${receiverServiceNo})`,
+                receiverFound: true,
+                emailSent,
+                receiverName,
+              };
+            } else {
+              return {
+                success: false,
+                message: `Receiver "${receiverName}" (${receiverServiceNo}) found but email not available`,
+                receiverFound: true,
+                emailSent: false,
+                receiverName,
+              };
+            }
+          } else {
+            return {
+              success: false,
+              message: `Receiver with service number "${receiverServiceNo}" not found in SLT system`,
+              receiverFound: false,
+              emailSent: false,
+              receiverName: null,
+            };
+          }
+        } catch (error) {
+          return {
+            success: false,
+            message: `Error fetching receiver "${receiverServiceNo}": ${error.message}`,
+            receiverFound: false,
+            emailSent: false,
+            receiverName: null,
+          };
+        }
+      } else {
+        return {
+          success: false,
+          message: "No receiver service number provided in request",
+          receiverFound: false,
+          emailSent: false,
+          receiverName: null,
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Email notification error: ${error.message}`,
+        receiverFound: false,
+        emailSent: false,
+        receiverName: null,
+      };
+    }
+  };
+  const getReceiverEmail = async (request) => {
+    try {
+      const receiverServiceNo = request?.receiverServiceNo;
+      const isNonSltPlace = request?.isNonSltPlace || false;
+
+      if (isNonSltPlace) {
+        // For Non-SLT, check for email in request
+        return request?.receiverEmail || null;
+      } else if (receiverServiceNo) {
+        // For SLT employees, fetch from system
+        try {
+          const receiver = await searchReceiverByServiceNo(receiverServiceNo);
+          return receiver?.email || null;
+        } catch (error) {
+          console.warn("Could not fetch receiver email:", error);
+          return null;
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error getting receiver email:", error);
+      return null;
+    }
+  };
   const handleApprove = async (item) => {
+    if (isSuperAdmin) {
+      showToast("Super Admin has view-only access.", "warning");
+      return;
+    }
+
     try {
       const updatedStatus = await approveStatus(item.refNo, comment);
       const statusData = updatedStatus;
 
       const approvedItem = {
+        ...item,
         refNo: statusData.referenceNumber,
         inLocation: statusData.request?.inLocation,
         outLocation: statusData.request?.outLocation,
@@ -881,120 +1113,128 @@ const sendReturnTOPetrolLeaderEmail = async (request, comment, selectedItemDetai
       // Cleanup
       setShowModal(false);
       setComment("");
-      showToast(`Gate Pass ${item.refNo} Approved successfully.`, "success");
 
-      // Send Notification Email to Receiver ONLY if receiver is available
-      try {
-        const receiverAvailable =
-          statusData.request?.receiverAvailable === true;
-        const receiverServiceNo = statusData.request?.receiverServiceNo;
+      // Debug log to see what data we have
+      console.log("Debug - Approval data:", {
+        request: statusData.request,
+        approvedItem: approvedItem,
+        receiverServiceNo: statusData.request?.receiverServiceNo,
+        itemReceiver: item?.receiverDetails?.serviceNo,
+      });
 
-        if (receiverAvailable && receiverServiceNo) {
-          const selectedReceiver = await searchReceiverByServiceNo(
-            receiverServiceNo
-          );
+      // Handle email notification
+      const emailResult = await handleEmailNotification(
+        statusData.request, // Pass the entire request object
+        approvedItem
+      );
 
-          if (selectedReceiver) {
-            await sendRecieverNotificationEmail(
-              selectedReceiver,
-              {
-                outLocation: approvedItem.outLocation,
-                inLocation: approvedItem.inLocation,
-                items: approvedItem.items,
-              },
-              approvedItem.refNo
-            );
-          } else {
-            console.error(
-              "Selected receiver details not found for service number:",
-              receiverServiceNo
-            );
-          }
+      // Show appropriate messages
+      if (emailResult.receiverFound) {
+        if (emailResult.emailSent) {
+          showToast(`✅ Approved! ${emailResult.message}`, "success");
+        } else {
+          showToast(`⚠️ Approved! ${emailResult.message}`, "warning");
         }
-      } catch (emailError) {
-        console.error("Error sending notification email:", emailError);
-        showToast("Failed to send receiver notification email.", "error");
+      } else {
+        showToast(`❌ Approved! ${emailResult.message}`, "warning");
       }
+
+      // Always show main approval success
+      showToast(`✅ Gate Pass ${item.refNo} has been approved.`, "success");
     } catch (error) {
       console.error("Error approving status:", error.message);
-      showToast(`Approval Failed: ${error.message}`, "error");
+      showToast(`❌ Approval Failed: ${error.message}`, "error");
     }
   };
 
   const handleReject = async (item) => {
-  try {
-    if (!comment || comment.trim() === "") {
-      showToast("Comment is required to reject the item.", "warning");
+    if (isSuperAdmin) {
+      showToast("Super Admin has view-only access.", "warning");
       return;
     }
-    const updatedStatus = await rejectStatus(item.refNo, comment);
 
-    const rejectedItem = {
-      refNo: updatedStatus.referenceNumber,
-      inLocation: updatedStatus.request?.inLocation,
-      outLocation: updatedStatus.request?.outLocation,
-      createdAt: new Date(updatedStatus.createdAt).toLocaleString(),
-      items: updatedStatus.request?.items || [],
-      comment: updatedStatus.comment || "",
-      requestDetails: { ...updatedStatus.request },
-    };
-
-    setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
-    setRejectedItems([...rejectedItems, rejectedItem]);
-
-    setShowModal(false);
-    setComment("");
-    showToast("Rejected successfully", "success");
-
-    // Send Rejection Email to Sender - FIXED VERSION
     try {
-      // Use the sender details that are already available in the item object
-      const senderDetails = item.senderDetails;
-
-      if (senderDetails && senderDetails.email) {
-        const emailSent = await sendRejectionEmailToSender(
-          senderDetails,
-          {
-            outLocation: rejectedItem.outLocation,
-            inLocation: rejectedItem.inLocation,
-            items: rejectedItem.items,
-          },
-          rejectedItem.refNo,
-          comment
-        );
-        
-        if (emailSent) {
-          showToast("Rejection email sent to sender successfully.", "success");
-        } else {
-          showToast("Rejected but failed to send email notification.", "warning");
-        }
-      } else {
-        console.warn("Sender details or email not available:", senderDetails);
-        showToast("Rejected but sender email address not available.", "warning");
+      if (!comment || comment.trim() === "") {
+        showToast("Comment is required to reject the item.", "warning");
+        return;
       }
-    } catch (emailError) {
-      console.error("Error sending rejection email:", emailError);
-      showToast("Rejected but failed to send email notification.", "error");
+      const updatedStatus = await rejectStatus(item.refNo, comment);
+
+      const rejectedItem = {
+        refNo: updatedStatus.referenceNumber,
+        inLocation: updatedStatus.request?.inLocation,
+        outLocation: updatedStatus.request?.outLocation,
+        createdAt: new Date(updatedStatus.createdAt).toLocaleString(),
+        items: updatedStatus.request?.items || [],
+        comment: updatedStatus.comment || "",
+        requestDetails: { ...updatedStatus.request },
+      };
+
+      setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
+      setRejectedItems([...rejectedItems, rejectedItem]);
+
+      setShowModal(false);
+      setComment("");
+      showToast("Rejected successfully", "success");
+
+      // Send Rejection Email to Sender - FIXED VERSION
+      try {
+        // Use the sender details that are already available in the item object
+        const senderDetails = item.senderDetails;
+
+        if (senderDetails && senderDetails.email) {
+          const emailSent = await sendRejectionEmailToSender(
+            senderDetails,
+            {
+              outLocation: rejectedItem.outLocation,
+              inLocation: rejectedItem.inLocation,
+              items: rejectedItem.items,
+            },
+            rejectedItem.refNo,
+            comment
+          );
+
+          if (emailSent) {
+            showToast(
+              "Rejection email sent to sender successfully.",
+              "success"
+            );
+          } else {
+            showToast(
+              "Rejected but failed to send email notification.",
+              "warning"
+            );
+          }
+        } else {
+          console.warn("Sender details or email not available:", senderDetails);
+          showToast(
+            "Rejected but sender email address not available.",
+            "warning"
+          );
+        }
+      } catch (emailError) {
+        console.error("Error sending rejection email:", emailError);
+        showToast("Rejected but failed to send email notification.", "error");
+      }
+    } catch (error) {
+      showToast("Error rejecting the item.", "error");
+      console.error("Error rejecting status:", error.message);
     }
+  };
 
-  } catch (error) {
-    showToast("Error rejecting the item.", "error");
-    console.error("Error rejecting status:", error.message);
-  }
-};
+  const sendReturnEmail = async (request, comment, itemDetails = []) => {
+    try {
+      if (!request.senderDetails?.email) {
+        showToast("Sender email not available", "error");
+        return;
+      }
 
+      const emailSubject = `Returnable Items Update: ${request.refNo}`;
 
-const sendReturnEmail = async (request, comment, itemDetails = []) => {
-  try {
-    if (!request.senderDetails?.email) {
-      showToast("Sender email not available", "error");
-      return;
-    }
-
-    const emailSubject = `Returnable Items Update: ${request.refNo}`;
-
-    // Create items table for email
-    const itemsTable = itemDetails.length > 0 ? `
+      // Create items table for email
+      const itemsTable =
+        itemDetails.length > 0
+          ? `
       <div style="margin: 20px 0;">
         <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned Items</h3>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
@@ -1007,30 +1247,49 @@ const sendReturnEmail = async (request, comment, itemDetails = []) => {
             </tr>
           </thead>
           <tbody>
-            ${itemDetails.map(item => `
+            ${itemDetails
+              .map(
+                (item) => `
               <tr>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemName || 'N/A'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.serialNo || 'N/A'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemCategory || 'N/A'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemQuantity || '1'}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.itemName || "N/A"
+                }</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.serialNo || "N/A"
+                }</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.itemCategory || "N/A"
+                }</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.itemQuantity || "1"
+                }</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
-    ` : '';
+    `
+          : "";
 
-    const emailBody = `
+      const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <div style="text-align: center; margin-bottom: 20px;">
           <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable Items Update</h2>
-          <p style="color: #757575; font-size: 14px;">Reference Number: ${request.refNo}</p>
+          <p style="color: #757575; font-size: 14px;">Reference Number: ${
+            request.refNo
+          }</p>
         </div>
         
         <div style="margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
           <p>Dear ${request.senderDetails.name},</p>
           
-          <p>We would like to inform you that ${itemDetails.length} returnable item(s) under reference number <b>${request.refNo}</b> have been returned by the Receiver.</p>
+          <p>We would like to inform you that ${
+            itemDetails.length
+          } returnable item(s) under reference number <b>${
+        request.refNo
+      }</b> have been returned by the Receiver.</p>
           <p>You can view it under your <i>Completed</i> or relevant section.</p>
         </div>
 
@@ -1043,37 +1302,56 @@ const sendReturnEmail = async (request, comment, itemDetails = []) => {
       </div>
     `;
 
-    await emailSent({
-      to: request.senderDetails.email,
-      subject: emailSubject,
-      html: emailBody,
-    });
+      await emailSent({
+        to: request.senderDetails.email,
+        subject: emailSubject,
+        html: emailBody,
+      });
 
-    showToast("Return notification email sent to requester", "success");
-  } catch (error) {
-    console.error("Failed to send return email:", error);
-    showToast("Failed to send return email", "error");
-  }
-};
-
+      showToast("Return notification email sent to requester", "success");
+    } catch (error) {
+      console.error("Failed to send return email:", error);
+      showToast("Failed to send return email", "error");
+    }
+  };
 
   const handleModelOpen = async (item) => {
-    setSelectedItem(item);
-    if (item.requestDetails?.transport.transporterServiceNo) {
-      try {
-        const transport = await searchReceiverByServiceNo(
-          item.requestDetails?.transport.transporterServiceNo
-        );
-        setTransportData(transport);
-      } catch (error) {
-        console.error("Error fetching transporter details:", error);
+  setSelectedItem(item);
+
+  if (item.requestDetails?.transport.transporterServiceNo) {
+    try {
+      const transportResponse = await searchEmployeeByServiceNo(
+        item.requestDetails.transport.transporterServiceNo
+      );
+      
+      console.log("Transport response:", transportResponse); // Debug log
+      
+      // Extract the employee data from the nested response
+      const employee = transportResponse?.data?.data?.[0];
+      
+      if (employee) {
+        setTransportData({
+          name: `${employee.employeeTitle || ""} ${employee.employeeFirstName || ""} ${employee.employeeSurname || ""}`.trim(),
+          serviceNo: employee.employeeNo || item.requestDetails.transport.transporterServiceNo,
+          designation: employee.designation || "-",
+          section: employee.empSection || "-",
+          group: employee.empGroup || "-",
+          contactNo: employee.mobileNo || "-"
+        });
+      } else {
+        console.log("No employee data found");
         setTransportData(null);
       }
-    } else {
-      setTransportData(item.requestDetails?.transport || null);
+    } catch (error) {
+      console.error("Error fetching transporter details:", error);
+      setTransportData(null);
     }
-    setShowModal(true);
-  };
+  } else {
+    setTransportData(item.requestDetails?.transport || null);
+  }
+
+  setShowModal(true);
+};
 
   // --- Enhanced Filtering ---
   // Hide Non-SLT requests in pending table for Petrol Leader 2 (PL2) users
@@ -1512,6 +1790,7 @@ const sendReturnEmail = async (request, comment, itemDetails = []) => {
         setComment={setComment}
         showToast={showToast}
         transporterDetails={transportData}
+        isSuperAdmin={isSuperAdmin}
       />
     </div>
   );
@@ -1531,6 +1810,7 @@ const RequestDetailsModal = ({
   sendReturnTOPetrolLeaderEmail,
   showToast,
   transporterDetails,
+  isSuperAdmin,
 }) => {
   const [currentTab, setCurrentTab] = useState("details");
   const tabOrder = ["details", "navigation"];
@@ -1544,66 +1824,80 @@ const RequestDetailsModal = ({
   if (!isOpen || !request) return null;
 
   const handleBulkReturn = async () => {
-      if (selectedItems.length === 0) {
-        showToast("Please select at least one item to return", "warning");
-        return;
-      }
-    
-      const confirmed = window.confirm(
-        `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
+    if (isSuperAdmin) {
+      showToast("Super Admin has view-only access.", "warning");
+      return;
+    }
+
+    if (selectedItems.length === 0) {
+      showToast("Please select at least one item to return", "warning");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+
+    try {
+      console.log("Starting bulk return process...");
+      console.log("Selected serial numbers:", selectedItems);
+      console.log("Reference number:", request.refNo);
+
+      // Get full details of selected items
+      const selectedItemDetails = request.items.filter((item) =>
+        selectedItems.includes(item.serialNo)
       );
-    
-      if (!confirmed) return;
-    
-      setLoading(true);
-    
-      try {
-        console.log("Starting bulk return process...");
-        console.log("Selected serial numbers:", selectedItems);
-        console.log("Reference number:", request.refNo);
-    
-        // Get full details of selected items
-        const selectedItemDetails = request.items.filter(item => 
-          selectedItems.includes(item.serialNo)
-        );
-    
-        console.log("Selected item details:", selectedItemDetails);
-    
-        // Call backend to update DB
-        const response = await markItemsAsReturned(request.refNo, selectedItems);
-    
-        console.log("Backend response:", response);
-    
-        // Now send the email notification WITH ITEM DETAILS
-        await sendReturnEmail(request, "Items successfully returned by out petrol leader.", selectedItemDetails);
-         await sendReturnTOPetrolLeaderEmail(request, "Items successfully returned by out petrol leader.", selectedItemDetails);
-        // Show success message
-        showToast(
-          `Successfully marked ${response.updatedCount || selectedItems.length} item(s) as returned.`,
-          "success"
-        );
-    
-        console.log("Bulk return process completed successfully");
-    
-        // Clear selected items
-        setSelectedItems([]);
-    
-        // Refresh / close modal
-        onClose();
-        window.location.reload();
-    
-      } catch (error) {
-        console.error("Error marking items as returned:", error);
-        console.error("Error details:", error.response?.data);
-    
-        showToast(
-          error.message || "Failed to update items. Please try again.",
-          "error"
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+
+      console.log("Selected item details:", selectedItemDetails);
+
+      // Call backend to update DB
+      const response = await markItemsAsReturned(request.refNo, selectedItems);
+
+      console.log("Backend response:", response);
+
+      // Now send the email notification WITH ITEM DETAILS
+      await sendReturnEmail(
+        request,
+        "Items successfully returned by out petrol leader.",
+        selectedItemDetails
+      );
+      await sendReturnTOPetrolLeaderEmail(
+        request,
+        "Items successfully returned by out petrol leader.",
+        selectedItemDetails
+      );
+      // Show success message
+      showToast(
+        `Successfully marked ${
+          response.updatedCount || selectedItems.length
+        } item(s) as returned.`,
+        "success"
+      );
+
+      console.log("Bulk return process completed successfully");
+
+      // Clear selected items
+      setSelectedItems([]);
+
+      // Refresh / close modal
+      onClose();
+      window.location.reload();
+    } catch (error) {
+      console.error("Error marking items as returned:", error);
+      console.error("Error details:", error.response?.data);
+
+      showToast(
+        error.message || "Failed to update items. Please try again.",
+        "error"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSelect = (serialNo) => {
     setSelectedItems((prev) => {
@@ -1652,6 +1946,91 @@ const RequestDetailsModal = ({
       }
       return current || defaultValue;
     };
+
+    const statusDetails = request?.statusDetails || {};
+    const isExecutiveCompleted =
+      statusDetails.executiveOfficerStatus === 2 ||
+      statusDetails.executiveOfficerStatus === 3;
+
+    const isVerifyCompleted =
+      statusDetails.verifyOfficerStatus === 2 ||
+      statusDetails.verifyOfficerStatus === 3;
+
+    const executiveSectionHtml = isExecutiveCompleted
+      ? `
+            <div class="section">
+              <h2 class="section-title">Exerctive Officer Details</h2>
+              <div class="grid">
+                <div class="item"><span class="label">Name:</span> ${safeAccess(
+                  request,
+                  "executiveOfficerData.name"
+                )}</div>
+                <div class="item"><span class="label">Service No:</span> ${safeAccess(
+                  request,
+                  "executiveOfficerData.serviceNo"
+                )}</div>
+                <div class="item"><span class="label">Section:</span> ${safeAccess(
+                  request,
+                  "executiveOfficerData.section"
+                )}</div>
+                <div class="item"><span class="label">Group:</span> ${safeAccess(
+                  request,
+                  "executiveOfficerData.group"
+                )}</div>
+                <div class="item"><span class="label">Designation:</span> ${safeAccess(
+                  request,
+                  "executiveOfficerData.designation"
+                )}</div>
+                <div class="item"><span class="label">Contact:</span> ${safeAccess(
+                  request,
+                  "executiveOfficerData.contactNo"
+                )}</div>
+                <div class="itemComm"><span class="label">Exerctive Officer Comment:</span> ${safeAccess(
+                  request.statusDetails,
+                  "executiveOfficerComment"
+                )}</div>
+              </div>
+            </div>
+    `
+      : "";
+
+    const verifySectionHtml = isVerifyCompleted
+      ? `
+            <div class="section">
+              <h2 class="section-title">Verify Officer Details</h2>
+              <div class="grid">
+                <div class="item"><span class="label">Name:</span> ${safeAccess(
+                  request,
+                  "verifyOfficerData.name"
+                )}</div>
+                <div class="item"><span class="label">Service No:</span> ${safeAccess(
+                  request,
+                  "verifyOfficerData.serviceNo"
+                )}</div>
+                <div class="item"><span class="label">Section:</span> ${safeAccess(
+                  request,
+                  "verifyOfficerData.section"
+                )}</div>
+                <div class="item"><span class="label">Group:</span> ${safeAccess(
+                  request,
+                  "verifyOfficerData.group"
+                )}</div>
+                <div class="item"><span class="label">Designation:</span> ${safeAccess(
+                  request,
+                  "verifyOfficerData.designation"
+                )}</div>
+                <div class="item"><span class="label">Contact:</span> ${safeAccess(
+                  request,
+                  "verifyOfficerData.contactNo"
+                )}</div>
+                <div class="item"><span class="label">Verify Officer Comment:</span> ${safeAccess(
+                  request.statusDetails,
+                  "verifyOfficerComment"
+                )}</div>
+              </div>
+            </div>
+    `
+      : "";
 
     contentDocument.write(`
           <!DOCTYPE html>
@@ -1845,73 +2224,8 @@ const RequestDetailsModal = ({
               </div>
             </div>
   
-            <div class="section">
-              <h2 class="section-title">Exerctive Officer Details</h2>
-              <div class="grid">
-                <div class="item"><span class="label">Name:</span> ${safeAccess(
-                  request,
-                  "executiveOfficerData.name"
-                )}</div>
-                <div class="item"><span class="label">Service No:</span> ${safeAccess(
-                  request,
-                  "executiveOfficerData.serviceNo"
-                )}</div>
-                <div class="item"><span class="label">Section:</span> ${safeAccess(
-                  request,
-                  "executiveOfficerData.section"
-                )}</div>
-                <div class="item"><span class="label">Group:</span> ${safeAccess(
-                  request,
-                  "executiveOfficerData.group"
-                )}</div>
-                <div class="item"><span class="label">Designation:</span> ${safeAccess(
-                  request,
-                  "executiveOfficerData.designation"
-                )}</div>
-                <div class="item"><span class="label">Contact:</span> ${safeAccess(
-                  request,
-                  "executiveOfficerData.contactNo"
-                )}</div>
-                <div class="itemComm"><span class="label">Exerctive Officer Comment:</span> ${safeAccess(
-                  request.statusDetails,
-                  "executiveOfficerComment"
-                )}</div>
-              </div>
-            </div>
-  
-            <div class="section">
-              <h2 class="section-title">Verify Officer Details</h2>
-              <div class="grid">
-                <div class="item"><span class="label">Name:</span> ${safeAccess(
-                  request,
-                  "verifyOfficerData.name"
-                )}</div>
-                <div class="item"><span class="label">Service No:</span> ${safeAccess(
-                  request,
-                  "verifyOfficerData.serviceNo"
-                )}</div>
-                <div class="item"><span class="label">Section:</span> ${safeAccess(
-                  request,
-                  "verifyOfficerData.section"
-                )}</div>
-                <div class="item"><span class="label">Group:</span> ${safeAccess(
-                  request,
-                  "verifyOfficerData.group"
-                )}</div>
-                <div class="item"><span class="label">Designation:</span> ${safeAccess(
-                  request,
-                  "verifyOfficerData.designation"
-                )}</div>
-                <div class="item"><span class="label">Contact:</span> ${safeAccess(
-                  request,
-                  "verifyOfficerData.contactNo"
-                )}</div>
-                <div class="item"><span class="label">Verify Officer Comment:</span> ${safeAccess(
-                  request.statusDetails,
-                  "verifyOfficerComment"
-                )}</div>
-              </div>
-            </div>
+           ${executiveSectionHtml}
+          ${verifySectionHtml}
             
             <!-- Loading Details Section -->
             <div class="section">
@@ -2431,6 +2745,7 @@ const RequestDetailsModal = ({
                             <td className="px-6 py-4">
                               <input
                                 type="checkbox"
+                                disabled={isSuperAdmin}
                                 checked={selectedItems?.includes(item.serialNo)}
                                 onChange={() => handleSelect(item.serialNo)}
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
@@ -2454,9 +2769,11 @@ const RequestDetailsModal = ({
                 <div className="text-right mt-4">
                   <button
                     onClick={handleBulkReturn}
-                    disabled={selectedItems?.length === 0 || loading}
+                    disabled={
+                      isSuperAdmin || selectedItems?.length === 0 || loading
+                    }
                     className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
-                      selectedItems?.length === 0
+                      isSuperAdmin || selectedItems?.length === 0
                         ? "bg-gray-300 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700"
                     }`}
@@ -2910,22 +3227,33 @@ const RequestDetailsModal = ({
           )}
         </div>
         {/* Pleader comment (required for Reject) */}
-        <div className="mt-4">
-          <label
-            htmlFor="pleaderComment"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Comment (required to Reject)
-          </label>
-          <textarea
-            id="pleaderComment"
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="Type the reason for rejection..."
-            className="w-full rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            rows={3}
-          />
-        </div>
+        {currentTab === "navigation" && (
+          <div className="space-y-6">
+            {/* Approval Information */}
+            <div className="bg-gray-50 rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
+                <FaCheckCircle className="mr-2" /> Approval Information
+              </h3>
+            </div>
+            \
+            {activeTab === "pending" && (
+              <div className="bg-white rounded-xl p-4 border border-gray-200">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Add Comment
+                </label>
+                <textarea
+                  value={comment}
+                  disabled={isSuperAdmin}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows="3"
+                  placeholder="Add your comments here..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg
+                     focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex-shrink-0">
           <div className="border-t border-gray-200 p-4 bg-white flex-shrink-0">
@@ -2952,32 +3280,34 @@ const RequestDetailsModal = ({
                 </div>
               )}
 
-              {currentTab === "navigation" && activeTab === "pending" && (
-                <div className="md:w-full space-y-2">
-                  <div className="flex justify-between mt-4">
-                    <button
-                      onClick={goToPreviousTab}
-                      className="px-4 py-2 rounded-lg text-sm font-medium flex items-center bg-gray-200 hover:bg-gray-300 text-gray-700"
-                    >
-                      <FaArrowLeft className="mr-2" /> Previous
-                    </button>
-                    <div className="flex space-x-4">
+              {currentTab === "navigation" &&
+                activeTab === "pending" &&
+                !isSuperAdmin && (
+                  <div className="md:w-full space-y-2">
+                    <div className="flex justify-between mt-4">
                       <button
-                        onClick={() => handleReject(request)}
-                        className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-medium flex items-center"
+                        onClick={goToPreviousTab}
+                        className="px-4 py-2 rounded-lg text-sm font-medium flex items-center bg-gray-200 hover:bg-gray-300 text-gray-700"
                       >
-                        <FaTimes className="mr-2" /> Reject
+                        <FaArrowLeft className="mr-2" /> Previous
                       </button>
-                      <button
-                        onClick={() => handleApprove(request)}
-                        className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium flex items-center"
-                      >
-                        <FaCheck className="mr-2" /> Approve
-                      </button>
+                      <div className="flex space-x-4">
+                        <button
+                          onClick={() => handleReject(request)}
+                          className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-medium flex items-center"
+                        >
+                          <FaTimes className="mr-2" /> Reject
+                        </button>
+                        <button
+                          onClick={() => handleApprove(request)}
+                          className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium flex items-center"
+                        >
+                          <FaCheck className="mr-2" /> Approve
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {currentTab === "navigation" && activeTab !== "pending" && (
                 <div className="flex justify-end w-full">
@@ -3004,23 +3334,23 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  if (images && images.length > 0) {
-    setLoading(true);
+    if (images && images.length > 0) {
+      setLoading(true);
 
-    const urls = images
-      .slice(0, 5)
-      .map(img => getImageUrlSync(img))
-      .filter(Boolean);
+      const urls = images
+        .slice(0, 5)
+        .map((img) => getImageUrlSync(img))
+        .filter(Boolean);
 
-    setImageUrls(urls);
-    setLoading(false);
-  } else {
-    setImageUrls([]);
-    setLoading(false);
-  }
-}, [images]);
+      setImageUrls(urls);
+      setLoading(false);
+    } else {
+      setImageUrls([]);
+      setLoading(false);
+    }
+  }, [images]);
 
-  if (!isOpen) return null;
+  if (!isOpen || imageUrls.length === 0) return null;
 
   const handlePrev = () => {
     setActiveIndex((prev) => (prev === 0 ? imageUrls.length - 1 : prev - 1));
@@ -3029,6 +3359,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
   const handleNext = () => {
     setActiveIndex((prev) => (prev === imageUrls.length - 1 ? 0 : prev + 1));
   };
+
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
       <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl border border-gray-700">

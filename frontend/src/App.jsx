@@ -1,4 +1,6 @@
 import { Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import { PublicClientApplication } from "@azure/msal-browser";
 import Login from "./pages/Login";
 import AzureCallback from "./components/AzureCallback";
 import Home from "./pages/Home";
@@ -15,9 +17,31 @@ import RequestDetails from "./pages/RequestDetails.jsx";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastProvider } from "./components/ToastProvider";
-import EmailForm from "./pages/example";     // DEVOPS Change 12/16/2025 : Example --> example
+import EmailForm from "./pages/Example";
+
+const msalConfig = {
+  auth: {
+    clientId: import.meta.env.VITE_AZURE_CLIENT_ID,
+    authority: `https://login.microsoftonline.com/${
+      import.meta.env.VITE_AZURE_TENANT_ID
+    }`,
+    redirectUri:
+      import.meta.env.VITE_AZURE_REDIRECT_URI ||
+      "http://localhost:5173/callback",
+    navigateToLoginRequestUrl: false,
+  },
+};
+
+const msalInstance = new PublicClientApplication(msalConfig);
 
 const App = () => {
+  useEffect(() => {
+    // Initialize MSAL when app loads
+    msalInstance.initialize().catch((err) => {
+      console.error("MSAL initialization error:", err);
+    });
+  }, []);
+
   return (
     <div className="pt-20">
       <ToastProvider>
@@ -25,6 +49,7 @@ const App = () => {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Login />} />
+          <Route path="/login" element={<Login />} />
           <Route path="/callback" element={<AzureCallback />} />
 
           {/* Protected Routes */}
@@ -36,7 +61,7 @@ const App = () => {
                   "SuperAdmin",
                   "User",
                   "Approver",
-                  "Verifier",
+                  "Security Officer",
                   "Pleader",
                   "Dispatcher",
                 ]}
@@ -44,7 +69,7 @@ const App = () => {
             }
           >
             <Route path="/home" element={<Home />} />
-            <Route path="/newrequest" element={<NewRequest />} />    // Test 1: Change form "NewRequest" to "MyRequests" Test 2: change from "MyRequests" to "NewRequest"
+            <Route path="/newrequest" element={<NewRequest />} />
             <Route path="/myrequests" element={<GatePassRequests />} />
             <Route path="/itemTracker" element={<GatePassItemTracker />} />
             <Route path="/myReceipts" element={<GatePassMyReicept />} />
@@ -71,7 +96,12 @@ const App = () => {
           <Route
             element={
               <ProtectedRoute
-                allowedRoles={["Admin", "SuperAdmin", "Verifier"]}
+                allowedRoles={[
+                  "Admin",
+                  "SuperAdmin",
+                  "Security Officer",
+                  "Pleader",
+                ]}
               />
             }
           >
@@ -81,7 +111,12 @@ const App = () => {
           <Route
             element={
               <ProtectedRoute
-                allowedRoles={["Admin", "SuperAdmin", "Pleader"]}
+                allowedRoles={[
+                  "Admin",
+                  "SuperAdmin",
+                  "Security Officer",
+                  "Pleader",
+                ]}
               />
             }
           >
@@ -95,6 +130,7 @@ const App = () => {
                   "SuperAdmin",
                   "Dispatcher",
                   "Approver",
+                  "Security Officer",
                   "Pleader",
                   "User",
                 ]}
@@ -103,6 +139,7 @@ const App = () => {
           >
             <Route path="/receive" element={<Receive />} />
           </Route>
+
           <Route element={<ProtectedRoute allowedRoles={["SuperAdmin"]} />}>
             <Route path="/request-details" element={<RequestDetails />} />
           </Route>

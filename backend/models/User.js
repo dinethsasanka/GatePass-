@@ -1,8 +1,9 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema(
+  {
     // Keep existing fields for frontend compatibility
-    userType: { type: String, enum: ['SLT', 'Non-SLT'], required: true },
+    userType: { type: String, enum: ["SLT", "Non-SLT"], required: true },
     userId: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     serviceNo: { type: String, required: true },
@@ -12,68 +13,84 @@ const userSchema = new mongoose.Schema({
     group: { type: String, required: true },
     contactNo: { type: String, required: true },
     email: { type: String, required: true },
-    branches: [{ type: String, required: false }],
-    role: { type: String, enum: ['User', 'Approver', 'Verifier', 'RO1','RO2','Dispatcher','Pleader', 'Admin', 'SuperAdmin'], default: 'User' },
-    
+    gradeName: { type: String, required: true },
+    fingerScanLocation: { type: String, default: null },
+    branches: [{ type: String, default: null }],
+    role: {
+      type: String,
+      enum: [
+        "User",
+        "Approver",
+        "Executive",
+        "Dispatcher",
+        "Pleader",
+        "Security Officer",
+        "SuperAdmin",
+      ],
+      default: "User",
+    },
+
     // Azure fields
     azureId: { type: String, unique: true, sparse: true },
     isAzureUser: { type: Boolean, default: false },
     lastAzureSync: { type: Date },
-    
+
     // Additional API fields (optional, for storing full API data)
     apiData: {
-        employeeNumber: String,
-        employeeTitle: String,
-        employeeFirstName: String,
-        employeeInitials: String,
-        employeeSurname: String,
-        employeeOfficePhone: String,
-        employeeMobilePhone: String,
-        employeeOfficialEmail: String,
-        employeeOfficialAddress: String,
-        employeeCostCentreCode: String,
-        employeeCostCentreName: String,
-        employeeSalaryGrade: String,
-        employeeGroupName: String,
-        employeeDivision: String,
-        employeeSection: String,
-        employeePermanentResiAdd: String,
-        fingerScanLocation: String,
-        employeeImmEsServiceNo: String,
-        organizationName: String,
-        supervisorName: String,
-        supervisorSalaryGrade: String,
-        activeAssignmentStatus: String,
-        nicNumber: String,
-        employeeDob: String,
-        orgId: String,
-        empSecId: String,
-        empSecHeadNo: String,
-        empDivId: String,
-        empDivHeadNo: String,
-        empGrpId: String,
-        empGrpHeadNo: String,
-        empPersonType: String,
-        gender: String,
-        leaveAgent: String,
-        leavingReason: String,
-        leavingDate: String,
-        personId: String,
-        currentAssignmentStart: String,
-        payroll: String
-    }
-}, { timestamps: true });
+      employeeNumber: String,
+      employeeTitle: String,
+      employeeFirstName: String,
+      employeeInitials: String,
+      employeeSurname: String,
+      employeeOfficePhone: String,
+      employeeMobilePhone: String,
+      employeeOfficialEmail: String,
+      employeeOfficialAddress: String,
+      employeeCostCentreCode: String,
+      employeeCostCentreName: String,
+      employeeSalaryGrade: String,
+      employeeGroupName: String,
+      employeeDivision: String,
+      employeeSection: String,
+      employeePermanentResiAdd: String,
+      fingerScanLocation: String,
+      employeeImmEsServiceNo: String,
+      organizationName: String,
+      supervisorName: String,
+      supervisorSalaryGrade: String,
+      activeAssignmentStatus: String,
+      nicNumber: String,
+      employeeDob: String,
+      orgId: String,
+      empSecId: String,
+      empSecHeadNo: String,
+      empDivId: String,
+      empDivHeadNo: String,
+      empGrpId: String,
+      empGrpHeadNo: String,
+      empPersonType: String,
+      gender: String,
+      leaveAgent: String,
+      leavingReason: String,
+      leavingDate: String,
+      personId: String,
+      currentAssignmentStart: String,
+      payroll: String,
+    },
+  },
+  { timestamps: true }
+);
 
 // Keep existing static methods
-userSchema.statics.findByRole = function(role) {
-    return this.find({ role: role });
+userSchema.statics.findByRole = function (role) {
+  return this.find({ role: role });
 };
 
-userSchema.statics.findByRoleAndBranch = function(role, branch) {
-    return this.find({ 
-        role: role, 
-        branches: { $in: [branch] } 
-    });
+userSchema.statics.findByRoleAndBranch = function (role, branch) {
+  return this.find({
+    role: role,
+    branches: { $in: [branch] },
+  });
 };
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model("User", userSchema);

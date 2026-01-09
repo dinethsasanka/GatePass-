@@ -12,13 +12,15 @@ import {
   Info,
 } from "lucide-react";
 import {
-  searchSenderByServiceNo,
+  searchEmployeeByServiceNo,
   createGatePassRequest,
-  getExecutiveOfficers,
   searchReceiverByServiceNo,
-  getLocations,
+  getErpLocations,
   getCategories,
+  getExecutiveOfficersForNewRequest,
+  getExecutiveOfficersFromHierarchy,
 } from "../services/RequestService.js";
+import axiosInstance from "../services/axiosConfig.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { emailSent } from "../services/emailService.js";
 import { FileSpreadsheet } from "lucide-react";
@@ -32,7 +34,6 @@ const NewRequest = () => {
   const [companyName, setCompanyName] = useState("");
   const [companyAddress, setCompanyAddress] = useState("");
   const [executiveOfficer, setExecutiveOfficer] = useState("");
-  const [isReceiverAvailable, setIsReceiverAvailable] = useState(false);
   const [receiverServiceNo, setReceiverServiceNo] = useState("");
   const [receiverNIC, setReceiverNIC] = useState("");
   const [receiverName, setReceiverName] = useState("");
@@ -42,6 +43,7 @@ const NewRequest = () => {
   const [executiveOfficers, setExecutiveOfficers] = useState([]);
   const [inLocations, setInLocations] = useState([]);
   const [outLocations, setOutLocations] = useState([]);
+  const [erpLocations, setErpLocations] = useState([]);
   const [categories, setCategories] = useState([]);
   const { showToast } = useToast();
   const [currentItem, setCurrentItem] = useState({
@@ -74,6 +76,12 @@ const NewRequest = () => {
   const [nonSLTTransporterPhone, setNonSLTTransporterPhone] = useState("");
   const [nonSLTTransporterEmail, setNonSLTTransporterEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [execRestriction, setExecRestriction] = useState({
+    restricted: false,
+    reason: null,
+  });
+  const [erpFingerLocation, setErpFingerLocation] = useState(null);
+  const [receiverFingerLocation, setReceiverFingerLocation] = useState(null);
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem("user"));
@@ -149,21 +157,117 @@ const NewRequest = () => {
   }, [user]);
 
   useEffect(() => {
-    getExecutiveOfficers()
-      .then((officers) => {
-        setExecutiveOfficers(officers);
-      })
-      .catch((error) => console.error("Error:", error));
-  }, []);
+    if (!user?.serviceNo) return;
+
+    (async () => {
+      try {
+        const res = await axiosInstance.post("/erp/employee-details", {
+          organizationID: "string",
+          costCenterCode: "string",
+          employeeNo: user.serviceNo,
+        });
+
+        let emp = res.data?.data;
+
+        if (emp?.data?.length) {
+          emp = emp.data[0];
+        }
+
+        if (emp?.fingerScanLocation) {
+          setErpFingerLocation(emp.fingerScanLocation.trim());
+        }
+      } catch (err) {
+        console.warn("Failed to fetch ERP finger scan location");
+      }
+    })();
+  }, [user]);
 
   useEffect(() => {
-    getLocations()
+    if (!user?.serviceNo) return;
+
+    getExecutiveOfficersFromHierarchy(user.serviceNo)
+      .then((data) => {
+        if (data.success && data.officers) {
+          setExecutiveOfficers(data.officers);
+
+          if (data.immediateSupervisor) {
+            setExecutiveOfficer(data.immediateSupervisor.employeeNo);
+          }
+        }
+      })
+      .catch((error) => {
+        console.error("❌ Error fetching ERP hierarchy:", error);
+
+        // Fallback to old method if ERP fails
+        console.log("⚠️ Falling back to local database");
+        getExecutiveOfficersForNewRequest()
+          .then((data) => {
+            setExecutiveOfficers(data.officers || []);
+            setExecRestriction({
+              restricted: data.restricted || false,
+              reason: data.reason || null,
+            });
+          })
+          .catch((fallbackError) => {
+            // Silent fallback error
+          });
+      });
+  }, [user]);
+
+  const fetchErpLocations = async () => {
+    try {
+      const data = await getErpLocations();
+      setErpLocations(data);
+    } catch (error) {
+      console.error("Failed to fetch ERP locations:", error);
+    }
+  };
+
+  useEffect(() => {
+    getErpLocations()
       .then((locations) => {
         setInLocations(locations);
         setOutLocations(locations);
+
+        if (erpFingerLocation) {
+          const match = locations.find(
+            (l) =>
+              l.fingerscanLocation?.trim().toLowerCase() ===
+              erpFingerLocation.toLowerCase()
+          );
+
+          if (match) {
+            setOutLocation(match.locationId);
+          }
+        }
       })
       .catch((error) => console.error("Error:", error));
-  }, []);
+  }, [erpFingerLocation]);
+
+  useEffect(() => {
+    if (!receiverFingerLocation) {
+      setInLocation(""); // allow manual selection
+      return;
+    }
+
+    const match = inLocations.find(
+      (l) =>
+        l.fingerscanLocation?.trim().toLowerCase() ===
+        receiverFingerLocation.toLowerCase()
+    );
+
+    if (match) {
+      setInLocation(match.locationId);
+    }
+  }, [receiverFingerLocation, inLocations]);
+
+  useEffect(() => {
+    if (!receiverServiceNo.trim()) {
+      setReceiverFingerLocation(null);
+      setInLocation("");
+      setReceiverDetails(null);
+    }
+  }, [receiverServiceNo]);
 
   useEffect(() => {
     getCategories()
@@ -256,16 +360,84 @@ const NewRequest = () => {
     }
 
     try {
-      const data = await searchReceiverByServiceNo(receiverServiceNo);
-      if (data) {
-        setReceiverDetails(data);
+      // Fetch employee details from ERP
+      const response = await axiosInstance.post("/erp/employee-details", {
+        organizationID: "string",
+        costCenterCode: "string",
+        employeeNo: receiverServiceNo.trim(),
+      });
+
+      if (response.data && response.data.success && response.data.data) {
+        // ERP returns nested structure: response.data.data.data[0]
+        let empData = response.data.data;
+
+        // If the data itself has a nested data array, extract it
+        if (
+          empData.data &&
+          Array.isArray(empData.data) &&
+          empData.data.length > 0
+        ) {
+          empData = empData.data[0];
+        }
+
+        // Map ERP response to receiver details format
+        const receiverData = {
+          serviceNo:
+            empData.employeeNumber || empData.serviceNo || empData.employeeNo,
+          name:
+            empData.employeeName ||
+            `${empData.employeeFirstName || ""} ${
+              empData.employeeSurname || ""
+            }`.trim() ||
+            empData.name,
+          designation: empData.designation || empData.employeeTitle || "",
+          section:
+            empData.empSection || empData.orgName || empData.section || "",
+          group: empData.empGroup || empData.group || "",
+          contactNo:
+            empData.mobileNo || empData.phoneNo || empData.contactNo || "",
+          email: empData.email || empData.employeeOfficialEmail || "",
+        };
+
+        setReceiverDetails(receiverData);
+
+        if (empData.fingerScanLocation) {
+          setReceiverFingerLocation(empData.fingerScanLocation.trim());
+        } else {
+          setReceiverFingerLocation(null);
+        }
+        showToast("Receiver details loaded from ERP", "success");
       } else {
+        // Fallback to local database search
+        try {
+          const data = await searchReceiverByServiceNo(receiverServiceNo);
+          if (data) {
+            setReceiverDetails(data);
+            showToast("Receiver details loaded from database", "success");
+          } else {
+            setReceiverDetails(null);
+            showToast("Receiver not found", "error");
+          }
+        } catch (fallbackError) {
+          setReceiverDetails(null);
+          showToast("Receiver not found", "error");
+        }
+      }
+    } catch (error) {
+      // Fallback to local database on ERP error
+      try {
+        const data = await searchReceiverByServiceNo(receiverServiceNo);
+        if (data) {
+          setReceiverDetails(data);
+          showToast("Receiver details loaded from database", "success");
+        } else {
+          setReceiverDetails(null);
+          showToast("Receiver not found", "error");
+        }
+      } catch (fallbackError) {
         setReceiverDetails(null);
         showToast("Receiver not found", "error");
       }
-    } catch (error) {
-      setReceiverDetails(null);
-      showToast("Receiver not found", "error");
     }
   };
 
@@ -373,282 +545,280 @@ const NewRequest = () => {
   };
 
   const handleSubmit = async () => {
-  try {
-    // ⭐ VALIDATION 1: Check if items exist
-    if (items.length === 0) {
-      showToast("Please add at least one item before submitting", "warning");
-      return;
-    }
+    try {
+      // ⭐ VALIDATION 1: Check if items exist
+      if (items.length === 0) {
+        showToast("Please add at least one item before submitting", "warning");
+        return;
+      }
 
-    // ⭐ VALIDATION 2: Check executive officer
-    if (!executiveOfficer || !executiveOfficer.trim()) {
-      showToast("Please select an executive officer", "warning");
-      return;
-    }
+      // ⭐ VALIDATION 2: Check executive officer
+      if (!executiveOfficer || !executiveOfficer.trim()) {
+        showToast("Please select an executive officer", "warning");
+        return;
+      }
 
-    // Common validation - outLocation is required for both SLT and Non-SLT
-    if (!outLocation.trim()) {
-      showToast(
-        "Please select the dispatching branch (Out Location)",
-        "warning"
-      );
-      return;
-    }
-
-    // Validation for destination type
-    if (destinationType === "slt") {
-      // SLT Branch validation - inLocation is required
-      if (!inLocation.trim()) {
+      // Common validation - outLocation is required for both SLT and Non-SLT
+      if (!outLocation.trim()) {
         showToast(
-          "Please select the receiving branch (In Location)",
+          "Please select the dispatching branch (Out Location)",
           "warning"
         );
         return;
       }
 
-      // Only if receiver is available
-      if (isReceiverAvailable) {
-        if (!receiverServiceNo.trim()) {
-          showToast("Please enter receiver's service number", "warning");
-          return;
-        }
-
-        if (!receiverDetails) {
+      // Validation for destination type
+      if (destinationType === "slt") {
+        // SLT Branch validation - inLocation is required
+        if (!inLocation.trim()) {
           showToast(
-            "Please search and select a valid receiver before submitting.",
-            "error"
+            "Please select the receiving branch (In Location)",
+            "warning"
           );
           return;
         }
-      }
-    } else {
-      // Non-SLT Organization validation
-      if (!companyName.trim()) {
-        showToast("Please enter company/organization name", "warning");
-        return;
-      }
+      } else {
+        // Non-SLT Organization validation
+        if (!companyName.trim()) {
+          showToast("Please enter company/organization name", "warning");
+          return;
+        }
 
-      if (!companyAddress.trim()) {
-        showToast("Please enter company/organization address", "warning");
-        return;
-      }
-
-      // Only validate receiver details if receiver is available
-      if (isReceiverAvailable) {
-        if (
-          !receiverNIC.trim() ||
-          !receiverName.trim() ||
-          !receiverContact.trim()
-        ) {
-          showToast("Please fill in all receiver details", "warning");
+        if (!companyAddress.trim()) {
+          showToast("Please enter company/organization address", "warning");
           return;
         }
       }
-    }
 
-    // Transport validation
-    if (!transportMethod) {
-      showToast("Please select a transport method", "warning");
+      // Transport validation
+      if (!transportMethod) {
+        showToast("Please select a transport method", "warning");
+        return;
+      }
+
+      if (transportMethod === "Vehicle") {
+        if (!transporterType) {
+          showToast("Please select a transporter type", "warning");
+          return;
+        }
+
+        if (transporterType === "SLT" && !transporterDetails) {
+          showToast("Please search for a valid SLT transporter", "warning");
+          return;
+        }
+
+        if (
+          transporterType === "Non-SLT" &&
+          (!nonSLTTransporterName || !nonSLTTransporterNIC)
+        ) {
+          showToast(
+            "Please fill in all required transporter details",
+            "warning"
+          );
+          return;
+        }
+
+        if (!vehicleNumber || !vehicleModel) {
+          showToast("Please fill in all vehicle details", "warning");
+          return;
+        }
+      }
+
+      if (transportMethod === "By Hand") {
+        if (!transporterType) {
+          showToast("Please select a carrier type", "warning");
+          return;
+        }
+
+        if (transporterType === "SLT" && !transporterDetails) {
+          showToast("Please search for a valid SLT carrier", "warning");
+          return;
+        }
+
+        if (
+          transporterType === "Non-SLT" &&
+          (!nonSLTTransporterName || !nonSLTTransporterNIC)
+        ) {
+          showToast("Please fill in all required carrier details", "warning");
+          return;
+        }
+      }
+
+      // ⭐ All validations passed - proceed with form submission
+      const formData = new FormData();
+
+      // For Non-SLT destinations
+      if (destinationType === "non-slt") {
+        formData.append("outLocation", outLocation);
+        formData.append("inLocation", companyName || "External Organization");
+      } else {
+        // For SLT destinations
+        formData.append("outLocation", outLocation);
+        formData.append("inLocation", inLocation);
+      }
+
+      formData.append("executiveOfficerServiceNo", executiveOfficer);
+
+      // Add destination type flag
+      formData.append("isNonSltPlace", destinationType === "non-slt");
+
+      // ⭐ FIX: Add receiverAvailable flag
+      // Determine if receiver is available based on destination type and whether details exist
+      let receiverAvailable = false;
+
+      if (destinationType === "slt") {
+        // For SLT: receiver is available if receiverDetails exist (searched and found)
+        receiverAvailable = receiverDetails !== null;
+
+        // Append receiverServiceNo if available
+        if (receiverServiceNo.trim()) {
+          formData.append("receiverServiceNo", receiverServiceNo);
+        }
+      } else {
+        // For Non-SLT: receiver is available if at least NIC and Name are provided
+        receiverAvailable =
+          receiverNIC.trim() !== "" && receiverName.trim() !== "";
+
+        // Non-SLT destination fields
+        formData.append("companyName", companyName);
+        formData.append("companyAddress", companyAddress);
+
+        // Append receiver details if available
+        if (receiverNIC.trim()) {
+          formData.append("receiverNIC", receiverNIC);
+        }
+        if (receiverName.trim()) {
+          formData.append("receiverName", receiverName);
+        }
+        if (receiverContact.trim()) {
+          formData.append("receiverContact", receiverContact);
+        }
+      }
+
+      // ⭐ CRITICAL: Append the receiverAvailable flag
+      formData.append("receiverAvailable", receiverAvailable);
+
+      // Add transport details
+      formData.append("transportMethod", transportMethod);
+
+      if (transportMethod === "Vehicle") {
+        formData.append("transporterType", transporterType);
+
+        if (transporterType === "SLT") {
+          formData.append("transporterServiceNo", transporterServiceNo);
+        } else {
+          formData.append("nonSLTTransporterName", nonSLTTransporterName);
+          formData.append("nonSLTTransporterNIC", nonSLTTransporterNIC);
+          formData.append("nonSLTTransporterPhone", nonSLTTransporterPhone);
+          formData.append("nonSLTTransporterEmail", nonSLTTransporterEmail);
+        }
+
+        formData.append("vehicleNumber", vehicleNumber);
+        formData.append("vehicleModel", vehicleModel);
+      }
+
+      if (transportMethod === "By Hand") {
+        formData.append("transporterType", transporterType);
+
+        if (transporterType === "SLT") {
+          formData.append("transporterServiceNo", transporterServiceNo);
+        } else {
+          formData.append("nonSLTTransporterName", nonSLTTransporterName);
+          formData.append("nonSLTTransporterNIC", nonSLTTransporterNIC);
+          formData.append("nonSLTTransporterPhone", nonSLTTransporterPhone);
+          formData.append("nonSLTTransporterEmail", nonSLTTransporterEmail);
+        }
+      }
+
+      const itemsWithFileNames = items.map((item) => ({
+        itemName: item.itemName,
+        serialNo: item.serialNo,
+        itemCategory: item.category,
+        itemReturnable: item.returnable === "Yes",
+        itemModel: item.model || "",
+        itemQuantity: parseInt(item.qty) || 1,
+        returnDate: item.returnDate || null,
+        originalFileNames: item.images.map((img) => img.name),
+      }));
+
+      formData.append("items", JSON.stringify(itemsWithFileNames));
+
+      // ⭐ Add images in order per item
+      items.forEach((item) => {
+        item.images.forEach((image) => {
+          formData.append("itemPhotos", image);
+        });
+      });
+
+      //  Log FormData for debugging
+      console.log("Submitting request with the following data:");
+      for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(key, "-> File:", value.name);
+        } else {
+          console.log(key, "->", value);
+        }
+      }
+
+      setIsSubmitting(true);
+
+      const response = await createGatePassRequest(formData);
+
+      setIsSubmitting(false);
+
+      showToast(
+        `Request created successfully! Reference: ${response.referenceNumber}`,
+        "success"
+      );
+
+      // Send notification email to executive officer
+      try {
+        const selectedOfficer = executiveOfficers.find(
+          (officer) => officer.serviceNo === executiveOfficer
+        );
+
+        if (selectedOfficer) {
+          await sendExecutiveNotificationEmail(
+            selectedOfficer,
+            { outLocation, inLocation, items },
+            response.referenceNumber
+          );
+        } else {
+          console.error("Selected executive officer not found in the list");
+        }
+      } catch (emailError) {
+        console.error("Error sending notification email:", emailError);
+        // Don't fail the whole request if email fails
+      }
+    } catch (error) {
+      setIsSubmitting(false);
+      console.error("Submission error:", error);
+      showToast(
+        `Failed to create request: ${error.message || "Unknown error"}`,
+        "error"
+      );
+    }
+  };
+  /*const handleSearchTransporter = async () => {
+    if (!transporterServiceNo.trim()) {
+      showToast("Please enter a service number", "warning");
       return;
     }
 
-    if (transportMethod === "Vehicle") {
-      if (!transporterType) {
-        showToast("Please select a transporter type", "warning");
-        return;
-      }
-
-      if (transporterType === "SLT" && !transporterDetails) {
-        showToast("Please search for a valid SLT transporter", "warning");
-        return;
-      }
-
-      if (
-        transporterType === "Non-SLT" &&
-        (!nonSLTTransporterName || !nonSLTTransporterNIC)
-      ) {
-        showToast("Please fill in all required transporter details", "warning");
-        return;
-      }
-
-      if (!vehicleNumber || !vehicleModel) {
-        showToast("Please fill in all vehicle details", "warning");
-        return;
-      }
-    }
-
-    if (transportMethod === "By Hand") {
-      if (!transporterType) {
-        showToast("Please select a carrier type", "warning");
-        return;
-      }
-
-      if (transporterType === "SLT" && !transporterDetails) {
-        showToast("Please search for a valid SLT carrier", "warning");
-        return;
-      }
-
-      if (
-        transporterType === "Non-SLT" &&
-        (!nonSLTTransporterName || !nonSLTTransporterNIC)
-      ) {
-        showToast("Please fill in all required carrier details", "warning");
-        return;
-      }
-    }
-
-    // ⭐ All validations passed - proceed with form submission
-    const formData = new FormData();
-
-    // For Non-SLT destinations
-    if (destinationType === "non-slt") {
-      formData.append("outLocation", outLocation);
-      formData.append("inLocation", companyName || "External Organization");
-    } else {
-      // For SLT destinations
-      formData.append("outLocation", outLocation);
-      formData.append("inLocation", inLocation);
-    }
-
-    formData.append("executiveOfficerServiceNo", executiveOfficer);
-    formData.append("receiverAvailable", isReceiverAvailable);
-
-    // Add destination type flag
-    formData.append("isNonSltPlace", destinationType === "non-slt");
-
-    // Add destination-specific fields
-    if (destinationType === "slt") {
-      if (isReceiverAvailable) {
-        formData.append("receiverServiceNo", receiverServiceNo);
-      }
-    } else {
-      // Non-SLT destination fields
-      formData.append("companyName", companyName);
-      formData.append("companyAddress", companyAddress);
-
-      if (isReceiverAvailable) {
-        formData.append("receiverNIC", receiverNIC);
-        formData.append("receiverName", receiverName);
-        formData.append("receiverContact", receiverContact);
-      }
-    }
-
-    // Add transport details
-    formData.append("transportMethod", transportMethod);
-
-    if (transportMethod === "Vehicle") {
-      formData.append("transporterType", transporterType);
-
-      if (transporterType === "SLT") {
-        formData.append("transporterServiceNo", transporterServiceNo);
-      } else {
-        formData.append("nonSLTTransporterName", nonSLTTransporterName);
-        formData.append("nonSLTTransporterNIC", nonSLTTransporterNIC);
-        formData.append("nonSLTTransporterPhone", nonSLTTransporterPhone);
-        formData.append("nonSLTTransporterEmail", nonSLTTransporterEmail);
-      }
-
-      formData.append("vehicleNumber", vehicleNumber);
-      formData.append("vehicleModel", vehicleModel);
-    }
-
-    if (transportMethod === "By Hand") {
-      formData.append("transporterType", transporterType);
-
-      if (transporterType === "SLT") {
-        formData.append("transporterServiceNo", transporterServiceNo);
-      } else {
-        formData.append("nonSLTTransporterName", nonSLTTransporterName);
-        formData.append("nonSLTTransporterNIC", nonSLTTransporterNIC);
-        formData.append("nonSLTTransporterPhone", nonSLTTransporterPhone);
-        formData.append("nonSLTTransporterEmail", nonSLTTransporterEmail);
-      }
-    }
-
-    // Prepare items with their respective images
-    const itemsWithFileNames = items.map((item) => ({
-      itemName: item.itemName,
-      serialNo: item.serialNo,
-      itemCategory: item.category,
-      itemReturnable: item.returnable === "Yes",
-      itemModel: item.model || "",
-      itemQuantity: parseInt(item.qty) || 1,
-      returnDate: item.returnDate || null,
-      originalFileNames: item.images.map((img) => img.name),
-    }));
-
-    formData.append("items", JSON.stringify(itemsWithFileNames));
-
-    // ⭐ Add images in order per item
-    items.forEach((item) => {
-      item.images.forEach((image) => {
-        formData.append("itemPhotos", image);
-      });
-    });
-
-    // ⭐ Log FormData for debugging
-    console.log("Submitting request with the following data:");
-    for (let [key, value] of formData.entries()) {
-      if (value instanceof File) {
-        console.log(key, "-> File:", value.name);
-      } else {
-        console.log(key, "->", value);
-      }
-    }
-
-    setIsSubmitting(true);
-    
-    const response = await createGatePassRequest(formData);
-    
-    setIsSubmitting(false);
-    
-    showToast(
-      `Request created successfully! Reference: ${response.referenceNumber}`,
-      "success"
-    );
-
-    // Send notification email to executive officer
     try {
-      const selectedOfficer = executiveOfficers.find(
-        (officer) => officer.serviceNo === executiveOfficer
-      );
-
-      if (selectedOfficer) {
-        await sendExecutiveNotificationEmail(
-          selectedOfficer,
-          { outLocation, inLocation, items },
-          response.referenceNumber
-        );
+      const data = await searchEmployeeByServiceNo(transporterServiceNo);
+      if (data) {
+        setTransporterDetails(data);
       } else {
-        console.error("Selected executive officer not found in the list");
+        setTransporterDetails(null);
+        showToast("Transporter not found", "error");
       }
-    } catch (emailError) {
-      console.error("Error sending notification email:", emailError);
-      // Don't fail the whole request if email fails
+    } catch (error) {
+      setTransporterDetails(null);
+      showToast("Transporter not found", "error");
     }
+  };*/
 
-    // ⭐ Reset form after successful submission (optional)
-    // Uncomment if you want to reset the form
-    /*
-    setItems([]);
-    setDestinationType("slt");
-    setInLocation("");
-    setOutLocation("");
-    setExecutiveOfficer("");
-    setIsReceiverAvailable(false);
-    setTransportMethod("");
-    // ... reset other fields
-    */
-
-  } catch (error) {
-    setIsSubmitting(false);
-    console.error("Submission error:", error);
-    showToast(
-      `Failed to create request: ${error.message || "Unknown error"}`,
-      "error"
-    );
-  }
-};
   const handleSearchTransporter = async () => {
     if (!transporterServiceNo.trim()) {
       showToast("Please enter a service number", "warning");
@@ -656,13 +826,25 @@ const NewRequest = () => {
     }
 
     try {
-      const data = await searchSenderByServiceNo(transporterServiceNo);
-      if (data) {
-        setTransporterDetails(data);
-      } else {
+      const response = await searchEmployeeByServiceNo(transporterServiceNo);
+
+      const employee = response?.data?.data?.[0];
+
+      if (!employee) {
         setTransporterDetails(null);
         showToast("Transporter not found", "error");
+        return;
       }
+
+      setTransporterDetails({
+        name: `${employee.employeeTitle} ${employee.employeeFirstName} ${employee.employeeSurname}`,
+        designation: employee.designation,
+        section: employee.empSection || "-",
+        group: employee.empGroup || "-",
+        contactNo: employee.mobileNo || "-",
+      });
+
+      showToast("Transporter details loaded successfully", "success");
     } catch (error) {
       setTransporterDetails(null);
       showToast("Transporter not found", "error");
@@ -902,133 +1084,78 @@ const NewRequest = () => {
                 >
                   <option value="">Select Officer</option>
                   {executiveOfficers
-                    .slice()
-                    .sort((a, b) => a.name.localeCompare(b.name))
+                    // .slice()
+                    // .sort((a, b) => a.name.localeCompare(b.name))
                     .map((officer) => (
-                      <option key={officer.serviceNo} value={officer.serviceNo}>
-                        {officer.name} - {officer.designation}
+                      <option
+                        key={officer.employeeNo || officer.serviceNo}
+                        value={officer.employeeNo || officer.serviceNo}
+                      >
+                        {officer.title} {officer.name} ({officer.designation})
                       </option>
                     ))}
                 </select>
+                {execRestriction.restricted && (
+                  <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                    {execRestriction.reason === "HOLIDAY" &&
+                      "Only Senior Executives (Grade A.1–A.3) are allowed on public holidays."}
+
+                    {execRestriction.reason === "WEEKEND" &&
+                      "Only Senior Executives (Grade A.1–A.3) are allowed on during weekends."}
+
+                    {execRestriction.reason === "OFF_HOURS" &&
+                      "Only Senior Executives (Grade A.1–A.3) are allowed on outside working hours."}
+                  </p>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Location Card */}
+          {/* Destination Type Card */}
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
               <h2 className="text-xl font-semibold text-white flex items-center">
                 <MapPin className="mr-2 h-6 w-6" />
-                Location Details
+                Destination Type
               </h2>
             </div>
-            <div className="p-6 space-y-4">
-              {/* Destination Type Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-3">
-                  Destination Type
-                </label>
-                <div className="flex gap-6">
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      name="destinationType"
-                      value="slt"
-                      checked={destinationType === "slt"}
-                      onChange={(e) => setDestinationType(e.target.value)}
-                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span className="ml-2 text-gray-700">SLT Branch</span>
-                  </label>
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="radio"
-                      name="destinationType"
-                      value="non-slt"
-                      checked={destinationType === "non-slt"}
-                      onChange={(e) => setDestinationType(e.target.value)}
-                      className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span className="ml-2 text-gray-700">
-                      Non-SLT Organization
-                    </span>
-                  </label>
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-2">
-                  Out Location (From - Dispatching Branch)
-                </label>
-                <select
-                  value={outLocation}
-                  onChange={(e) => setOutLocation(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select Location</option>
-                  {outLocations
-                    .slice()
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((location) => (
-                      <option key={location._id} value={location.name}>
-                        {location.name}
-                      </option>
-                    ))}
-                </select>
-              </div>
+            <div className="p-6">
+              <label className="block text-sm font-medium text-gray-600 mb-3">
+                Select Destination Type
+              </label>
 
-              {destinationType === "slt" ? (
-                <div>
-                  <label className="block text-sm font-medium text-gray-600 mb-2">
-                    In Location (To - Receiving Branch)
-                  </label>
-                  <select
-                    value={inLocation}
-                    onChange={(e) => setInLocation(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Select Location</option>
-                    {inLocations
-                      .slice()
-                      .sort((a, b) => a.name.localeCompare(b.name))
-                      .map((location) => (
-                        <option key={location._id} value={location.name}>
-                          {location.name}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-2">
-                      Company/Organization Name
-                    </label>
-                    <input
-                      type="text"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                      placeholder="Enter company/organization name"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-600 mb-2">
-                      Company/Organization Address
-                    </label>
-                    <textarea
-                      value={companyAddress}
-                      onChange={(e) => setCompanyAddress(e.target.value)}
-                      placeholder="Enter complete address"
-                      rows="3"
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    />
-                  </div>
-                </>
-              )}
+              <div className="flex gap-6">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="destinationType"
+                    value="slt"
+                    checked={destinationType === "slt"}
+                    onChange={(e) => setDestinationType(e.target.value)}
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-2 text-gray-700">SLT Branch</span>
+                </label>
+
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="radio"
+                    name="destinationType"
+                    value="non-slt"
+                    checked={destinationType === "non-slt"}
+                    onChange={(e) => setDestinationType(e.target.value)}
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="ml-2 text-gray-700">
+                    Non-SLT Organization
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
-          {/* Receiver Details Card */}
+
+          {/* Receiver Details Card - MOVED UP */}
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
               <h2 className="text-xl font-semibold text-white flex items-center">
@@ -1037,148 +1164,211 @@ const NewRequest = () => {
               </h2>
             </div>
             <div className="p-6">
-              {/* Is Receiver Available Question */}
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-3">
-                  Is Receiver Available?
+              {/* Receiver details input */}
+              <div className="space-y-6">
+                {destinationType === "slt" ? (
+                  <>
+                    <div className="flex gap-4">
+                      <input
+                        type="text"
+                        value={receiverServiceNo}
+                        onChange={(e) => setReceiverServiceNo(e.target.value)}
+                        placeholder="Enter receiver's service number"
+                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <button
+                        onClick={handleSearchReceiver}
+                        disabled={!receiverServiceNo.trim()}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <UserCheck className="h-5 w-5" />
+                        Search
+                      </button>
+                    </div>
+
+                    {receiverDetails && (
+                      <div className="mt-6 bg-gray-50 rounded-xl p-6 border border-gray-200">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {[
+                            { label: "Name", value: receiverDetails.name },
+                            {
+                              label: "Designation",
+                              value: receiverDetails.designation,
+                            },
+                            {
+                              label: "Section",
+                              value: receiverDetails.section,
+                            },
+                            { label: "Group", value: receiverDetails.group },
+                            {
+                              label: "Contact No",
+                              value: receiverDetails.contactNo,
+                            },
+                          ].map((field, index) => (
+                            <div key={index}>
+                              <label className="block text-sm font-medium text-gray-600 mb-1">
+                                {field.label}
+                              </label>
+                              <input
+                                className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-700"
+                                type="text"
+                                value={field.value || ""}
+                                readOnly
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-2">
+                        Receiver NIC
+                      </label>
+                      <input
+                        type="text"
+                        value={receiverNIC}
+                        onChange={(e) => setReceiverNIC(e.target.value)}
+                        placeholder="Enter receiver's NIC number"
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-2">
+                        Receiver Name
+                      </label>
+                      <input
+                        type="text"
+                        value={receiverName}
+                        onChange={(e) => setReceiverName(e.target.value)}
+                        placeholder="Enter receiver's full name"
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-2">
+                        Receiver Contact Number
+                      </label>
+                      <input
+                        type="text"
+                        value={receiverContact}
+                        onChange={(e) => setReceiverContact(e.target.value)}
+                        placeholder="Enter receiver's contact number"
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Location Details Card - MOVED DOWN */}
+          <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+              <h2 className="text-xl font-semibold text-white flex items-center">
+                <MapPin className="mr-2 h-6 w-6" />
+                Location Details
+              </h2>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Out Location */}
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-2">
+                  Out Location (From – Dispatching Branch)
                 </label>
-                <div className="flex gap-6">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={isReceiverAvailable === true}
-                      onChange={() => {
-                        setIsReceiverAvailable(true);
-                      }}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
-                    />
-                    <span className="text-gray-700 font-medium">Yes</span>
-                  </label>
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={isReceiverAvailable === false}
-                      onChange={() => {
-                        setIsReceiverAvailable(false);
-                        // Clear receiver details when selecting "No"
-                        setReceiverServiceNo("");
-                        setReceiverDetails(null);
-                        setReceiverNIC("");
-                        setReceiverName("");
-                        setReceiverContact("");
-                      }}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
-                    />
-                    <span className="text-gray-700 font-medium">No</span>
-                  </label>
-                </div>
+                {/* Out Location */}
+                <select
+                  value={outLocation}
+                  onChange={(e) => setOutLocation(e.target.value)}
+                  disabled={!!erpFingerLocation}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500
+    ${erpFingerLocation ? "bg-gray-100 cursor-not-allowed" : ""}
+  `}
+                >
+                  <option value="">Select Location</option>
+                  {outLocations
+                    .slice()
+                    .sort((a, b) =>
+                      a.fingerscanLocation.localeCompare(b.fingerscanLocation)
+                    )
+                    .map((location) => (
+                      <option key={location._id} value={location.locationId}>
+                        {location.fingerscanLocation}
+                      </option>
+                    ))}
+                </select>
               </div>
 
-              {/* Show receiver details input only if "Yes" is selected */}
-              {isReceiverAvailable && (
-                <div className="space-y-6">
-                  {destinationType === "slt" ? (
-                    <>
-                      <div className="flex gap-4">
-                        <input
-                          type="text"
-                          value={receiverServiceNo}
-                          onChange={(e) => setReceiverServiceNo(e.target.value)}
-                          placeholder="Enter receiver's service number"
-                          className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        />
-                        <button
-                          onClick={handleSearchReceiver}
-                          disabled={!receiverServiceNo.trim()}
-                          className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                          <UserCheck className="h-5 w-5" />
-                          Search
-                        </button>
-                      </div>
+              {/* SLT Destination */}
+              {destinationType === "slt" && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">
+                    In Location (To – Receiving Branch)
+                  </label>
+                  {/* In Location */}
+                  <select
+                    value={inLocation}
+                    onChange={(e) => setInLocation(e.target.value)}
+                    disabled={!!receiverFingerLocation}
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500
+    ${receiverFingerLocation ? "bg-gray-100 cursor-not-allowed" : ""}
+  `}
+                  >
+                    <option value="">Select Location</option>
+                    {inLocations
+                      .slice()
+                      .sort((a, b) =>
+                        a.fingerscanLocation.localeCompare(b.fingerscanLocation)
+                      )
 
-                      {receiverDetails && (
-                        <div className="mt-6 bg-gray-50 rounded-xl p-6 border border-gray-200">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {[
-                              { label: "Name", value: receiverDetails.name },
-                              {
-                                label: "Designation",
-                                value: receiverDetails.designation,
-                              },
-                              {
-                                label: "Section",
-                                value: receiverDetails.section,
-                              },
-                              { label: "Group", value: receiverDetails.group },
-                              {
-                                label: "Contact No",
-                                value: receiverDetails.contactNo,
-                              },
-                            ].map((field, index) => (
-                              <div key={index}>
-                                <label className="block text-sm font-medium text-gray-600 mb-1">
-                                  {field.label}
-                                </label>
-                                <input
-                                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-700"
-                                  type="text"
-                                  value={field.value || ""}
-                                  readOnly
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-2">
-                          Receiver NIC
-                        </label>
-                        <input
-                          type="text"
-                          value={receiverNIC}
-                          onChange={(e) => setReceiverNIC(e.target.value)}
-                          placeholder="Enter receiver's NIC number"
-                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-2">
-                          Receiver Name
-                        </label>
-                        <input
-                          type="text"
-                          value={receiverName}
-                          onChange={(e) => setReceiverName(e.target.value)}
-                          placeholder="Enter receiver's full name"
-                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-600 mb-2">
-                          Receiver Contact Number
-                        </label>
-                        <input
-                          type="text"
-                          value={receiverContact}
-                          onChange={(e) => setReceiverContact(e.target.value)}
-                          placeholder="Enter receiver's contact number"
-                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        />
-                      </div>
-                    </>
-                  )}
+                      .map((location) => (
+                        <option key={location._id} value={location.locationId}>
+                          {location.fingerscanLocation}
+                        </option>
+                      ))}
+                  </select>
                 </div>
+              )}
+
+              {/* Non-SLT Destination */}
+              {destinationType === "non-slt" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-2">
+                      Company / Organization Name
+                    </label>
+                    <input
+                      type="text"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Enter company name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-2">
+                      Company / Organization Address
+                    </label>
+                    <textarea
+                      rows="3"
+                      value={companyAddress}
+                      onChange={(e) => setCompanyAddress(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Enter company address"
+                    />
+                  </div>
+                </>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right Column - Items & Receiver */}
+        {/* Right Column - Items & Transport */}
         <div className="lg:col-span-2 space-y-8">
           {/* Items Card */}
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
@@ -1260,7 +1450,6 @@ const NewRequest = () => {
               {showItemForm && (
                 <div className="mb-6 bg-gray-50 rounded-xl p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-2">
                         Serial No

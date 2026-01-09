@@ -2,6 +2,7 @@
 import axios from "axios";
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL;
+import axiosInstance from "./axiosConfig";
 
 const authHeaders = () => {
   const token = localStorage.getItem("token");
@@ -13,7 +14,6 @@ const handleAxios = async (fn, fallbackMessage = "Request failed") => {
     const res = await fn();
     return res.data;
   } catch (err) {
-    // Optional: surface backend message if present
     const msg = err?.response?.data?.message || err?.message || fallbackMessage;
     console.error("[userManagementService]", msg, err?.response || err);
     throw new Error(msg);
@@ -125,6 +125,15 @@ export const updateUserRole = async (userId, { role, branches } = {}) => {
   );
 };
 
+export const assignRoleFromERP = async (payload) =>
+  handleAxios(
+    () =>
+      axios.post(`${API_BASE_URL}/super-admin/users/assign-role`, payload, {
+        headers: authHeaders(),
+      }),
+    "Failed to assign role"
+  );
+
 export const userManagementService = {
   getAllUsers,
   createUser,
@@ -135,6 +144,7 @@ export const userManagementService = {
   getUserByRoleAndBranch,
   getUserByServiceNo, // NEW
   updateUserRole, // NEW
+  assignRoleFromERP,
 };
 
 export default userManagementService;

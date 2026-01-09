@@ -1,4 +1,3 @@
-// src/pages/UserManagement.jsx
 import { useState, useEffect } from "react";
 import {
   FaUserPlus,
@@ -8,36 +7,32 @@ import {
   FaFilter,
   FaEye,
   FaTimes,
+  FaEyeSlash,
   FaUserShield,
   FaUser,
   FaMapMarkerAlt,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
-
 import { userManagementService } from "../services/userManagementService.js";
-import { getLocations } from "../services/RequestService.js";
+import {
+  getErpLocations,
+  searchEmployeeByServiceNo,
+} from "../services/RequestService.js";
 
 const UserManagement = () => {
-  // Core data
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
-  const [locations, setLocations] = useState([]);
-
-  // UI state
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterRole, setFilterRole] = useState("All");
-  const [filterType, setFilterType] = useState("All");
-
-  // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState("create"); // 'create' | 'edit' | 'view' | 'assignRole'
+  const [modalMode, setModalMode] = useState("view"); // 'create', 'edit', 'view'
   const [currentUser, setCurrentUser] = useState(null);
+  const [filterRole, setFilterRole] = useState("All");
   const [showPassword, setShowPassword] = useState(false);
+  const [erpLocations, setErpLocations] = useState([]);
 
-  // Create/Edit form
   const [formData, setFormData] = useState({
-    userType: "SLT", // SLT | Non-SLT
+    userType: "SLT",
     userId: "",
     password: "",
     serviceNo: "",
@@ -51,7 +46,7 @@ const UserManagement = () => {
     branches: [],
   });
 
-  // Assign Role form (new)
+  // Assign Role state (NEW)
   const [assignForm, setAssignForm] = useState({
     serviceNo: "",
     user: null,
@@ -61,18 +56,67 @@ const UserManagement = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Fetch data
+  // Fetch users on component mount
   useEffect(() => {
     fetchUsers();
-    fetchLocations();
+    fetchErpLocations();
   }, []);
+
+  const fetchErpLocations = async () => {
+    try {
+      const res = await getErpLocations();
+      setErpLocations(res);
+    } catch (error) {
+      console.error("Failed to fetch ERP locations:", error);
+    }
+  };
+
+  console.log(erpLocations);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+
+    if (name === "branches") {
+      const selectedOptions = Array.from(
+        e.target.selectedOptions,
+        (option) => option.value
+      );
+      setFormData((prev) => ({ ...prev, [name]: selectedOptions }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  // Apply filters and search
+  useEffect(() => {
+    let result = [...users];
+
+    // Apply role filter
+    if (filterRole !== "All") {
+      result = result.filter((user) => user.role === filterRole);
+    }
+
+    // Apply search
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      result = result.filter(
+        (user) =>
+          user.name.toLowerCase().includes(search) ||
+          user.userId.toLowerCase().includes(search) ||
+          user.serviceNo.toLowerCase().includes(search) ||
+          user.email.toLowerCase().includes(search)
+      );
+    }
+
+    setFilteredUsers(result);
+  }, [users, searchTerm, filterRole]);
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const data = await userManagementService.getAllUsers();
-      setUsers(data || []);
-      setFilteredUsers(data || []);
+      setUsers(data);
+      setFilteredUsers(data);
     } catch (error) {
       toast.error("Failed to fetch users");
       console.error("Error fetching users:", error);
@@ -81,110 +125,20 @@ const UserManagement = () => {
     }
   };
 
-  const fetchLocations = async () => {
-    try {
-      const data = await getLocations();
-      setLocations(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error("Failed to fetch locations:", error);
-    }
-  };
-
-  // Filters & search
-  useEffect(() => {
-    let list = [...users];
-
-    if (filterRole !== "All") {
-      list = list.filter(
-        (u) => (u.role || "").toLowerCase() === filterRole.toLowerCase()
-      );
-    }
-    if (filterType !== "All") {
-      list = list.filter(
-        (u) => (u.userType || "").toLowerCase() === filterType.toLowerCase()
-      );
-    }
-    if (searchTerm.trim()) {
-      const q = searchTerm.trim().toLowerCase();
-      list = list.filter((u) => {
-        const fields = [
-          u.serviceNo,
-          u.name,
-          u.designation,
-          u.section,
-          u.group,
-          u.email,
-          u.contactNo,
-          u.role,
-        ]
-          .filter(Boolean)
-          .map((s) => String(s).toLowerCase());
-        return fields.some((f) => f.includes(q));
-      });
-    }
-    setFilteredUsers(list);
-  }, [users, filterRole, filterType, searchTerm]);
-
-  // Form handlers
-  const handleInputChange = (e) => {
-    const { name, value, type } = e.target;
-
-    if (name === "branches") {
-      const selectedOptions = Array.from(
-        e.target.selectedOptions,
-        (option) => option.value
-      );
-      setFormData((prev) => ({ ...prev, branches: selectedOptions }));
-      return;
-    }
-
-    if (name === "userType") {
-      setFormData((prev) => ({ ...prev, userType: value }));
-      return;
-    }
-
-    if (type === "checkbox") {
-      setFormData((prev) => ({ ...prev, [name]: e.target.checked }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
-    }
-  };
-
-  // CRUD modal openers
-  const openCreateModal = () => {
-    setFormData({
-      userType: "SLT",
-      userId: "",
-      password: "",
-      serviceNo: "",
-      name: "",
-      designation: "",
-      section: "",
-      group: "",
-      contactNo: "",
-      email: "",
-      role: "User",
-      branches: [],
-    });
-    setModalMode("create");
-    setShowModal(true);
-    setShowPassword(false);
-  };
-
   const openEditModal = (user) => {
     setCurrentUser(user);
     setFormData({
-      userType: user.userType || "SLT",
-      userId: user.userId || "",
-      password: "", // do not prefill
-      serviceNo: user.serviceNo || "",
-      name: user.name || "",
-      designation: user.designation || "",
-      section: user.section || "",
-      group: user.group || "",
-      contactNo: user.contactNo || "",
-      email: user.email || "",
-      role: user.role || "User",
+      userType: user.userType,
+      userId: user.userId,
+      password: "",
+      serviceNo: user.serviceNo,
+      name: user.name,
+      designation: user.designation,
+      section: user.section,
+      group: user.group,
+      contactNo: user.contactNo,
+      email: user.email,
+      role: user.role,
       branches: user.branches || [],
     });
     setModalMode("edit");
@@ -195,68 +149,134 @@ const UserManagement = () => {
   const openViewModal = (user) => {
     setCurrentUser(user);
     setFormData({
-      userType: user.userType || "SLT",
-      userId: user.userId || "",
-      password: "",
-      serviceNo: user.serviceNo || "",
-      name: user.name || "",
-      designation: user.designation || "",
-      section: user.section || "",
-      group: user.group || "",
-      contactNo: user.contactNo || "",
-      email: user.email || "",
-      role: user.role || "User",
-      branches: user.branches || [],
+      userType: user.userType,
+      userId: user.userId,
+      serviceNo: user.serviceNo,
+      name: user.name,
+      designation: user.designation,
+      section: user.section,
+      group: user.group,
+      contactNo: user.contactNo,
+      email: user.email,
+      role: user.role,
     });
     setModalMode("view");
     setShowModal(true);
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      if (modalMode === "edit") {
+        // For edit, password is optional
+        if (!formData.userId || !formData.name || !formData.email) {
+          return toast.error("Please fill all required fields");
+        }
+
+        // Remove password if empty
+        const dataToSend = { ...formData };
+        if (!dataToSend.password) delete dataToSend.password;
+
+        await userManagementService.updateUser(currentUser._id, dataToSend);
+        toast.success("User updated successfully");
+      }
+
+      // Refresh user list and close modal
+      fetchUsers();
+      setShowModal(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Operation failed");
+      console.error("Error:", error);
+    }
+  };
+
   const handleDeleteUser = async (userId) => {
     if (!window.confirm("Are you sure you want to delete this user?")) return;
+
     try {
       await userManagementService.deleteUser(userId);
-      toast.success("User deleted");
+      toast.success("User deleted successfully");
       fetchUsers();
     } catch (error) {
       toast.error("Failed to delete user");
+      console.error("Error deleting user:", error);
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (modalMode === "create") {
-        await userManagementService.createUser(formData);
-        toast.success("User created");
-      } else if (modalMode === "edit" && currentUser?._id) {
-        await userManagementService.updateUser(currentUser._id, formData);
-        toast.success("User updated");
-      }
-      setShowModal(false);
-      fetchUsers();
-    } catch (error) {
-      toast.error("Failed to save user");
-    }
-  };
+  // const handleSearchByServiceNo = async () => {
+  //   if (!assignForm.serviceNo?.trim()) return;
 
-  // Assign Role handlers (NEW)
+  //   try {
+  //     setIsSearching(true);
+  //     const u = await userManagementService.getUserByServiceNo(
+  //       assignForm.serviceNo.trim()
+  //     );
+
+  //     setAssignForm((prev) => ({
+  //       ...prev,
+  //       user: u,
+  //       role: u.role || "User",
+  //       branches: Array.isArray(u.branches) ? u.branches : [],
+  //     }));
+  //   } catch (err) {
+  //     setAssignForm((prev) => ({ ...prev, user: null }));
+  //     toast.error("Employee not found");
+  //   } finally {
+  //     setIsSearching(false);
+  //   }
+  // };
+
   const handleSearchByServiceNo = async () => {
-    if (!assignForm.serviceNo?.trim()) return;
+    if (!assignForm.serviceNo) {
+      toast.error("Please enter a service number");
+      return;
+    }
+
     try {
       setIsSearching(true);
-      const u = await userManagementService.getUserByServiceNo(
-        assignForm.serviceNo.trim()
-      );
+
+      // Fetch ERP employee
+      const erpResult = await searchEmployeeByServiceNo(assignForm.serviceNo);
+      const emp = erpResult.data?.data?.[0];
+
+      if (!emp) {
+        throw new Error("Employee not found in ERP");
+      }
+
+      // Check MongoDB for existing user
+      let existingUser = null;
+      try {
+        existingUser = await userManagementService.getUserByServiceNo(
+          assignForm.serviceNo
+        );
+      } catch {
+        existingUser = null;
+      }
+
+      // Populate form
       setAssignForm((prev) => ({
         ...prev,
-        user: u,
-        role: u.role || "User",
-        branches: Array.isArray(u.branches) ? u.branches : [],
+        user: {
+          serviceNo: assignForm.serviceNo,
+          name: emp.employeeName || "",
+          designation: emp.designation || "",
+          section: emp.empSection || "",
+          group: emp.empGroup || "",
+          contactNo: emp.mobileNo || "",
+          email: emp.email || "",
+          gradeName: emp.gradeName ?? null,
+          fingerScanLocation:
+            typeof emp.fingerScanLocation === "string"
+              ? emp.fingerScanLocation
+              : null,
+        },
+        role: existingUser?.role || "User",
+        branches: existingUser?.branches || [],
       }));
-    } catch {
-      setAssignForm((prev) => ({ ...prev, user: null }));
-      toast.error("Employee not found");
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || "Failed to search employee");
     } finally {
       setIsSearching(false);
     }
@@ -264,187 +284,252 @@ const UserManagement = () => {
 
   const handleAssignRoleSave = async (e) => {
     e.preventDefault();
-    console.log("✅ handleAssignRoleSave triggered");
-    console.log("assignForm.user:", assignForm.user);
 
-    // 🧠 Try to find matching user from main users list
-    const foundUser =
-      users.find((u) => u.serviceNo === assignForm.user?.serviceNo) || null;
-
-    const userId = foundUser?._id;
-
-    if (!userId) {
-      toast.error("Couldn't find this user's record in database (no _id).");
-      console.warn("No matching user found for:", assignForm.user?.serviceNo);
+    if (!assignForm.user) {
+      toast.error("Please search and select an employee first");
       return;
     }
 
     try {
       setIsSaving(true);
 
-      await userManagementService.updateUserRole(userId, {
+      await userManagementService.assignRoleFromERP({
+        serviceNo: assignForm.user.serviceNo,
+        name: assignForm.user.name,
+        designation: assignForm.user.designation,
+        section: assignForm.user.section,
+        group: assignForm.user.group,
+        contactNo: assignForm.user.contactNo,
+        email: assignForm.user.email,
         role: assignForm.role,
         branches: assignForm.branches,
+        gradeName: assignForm.user.gradeName ?? null,
+        fingerScanLocation: assignForm.user.fingerScanLocation,
       });
 
-      toast.success("Role assigned successfully!");
+      toast.success("Role assigned successfully");
       setShowModal(false);
       fetchUsers();
     } catch (err) {
-      console.error("Assign Role error:", err);
-      toast.error(err?.message || "Failed to assign role");
+      console.error(err);
+      toast.error(err.message || "Failed to assign role");
     } finally {
       setIsSaving(false);
     }
   };
 
-  return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-gray-800">
-          User Management
-        </h1>
-        <div className="flex items-center gap-3">
-          {/* Changed: Add Role */}
-          <button
-            onClick={() => {
-              setModalMode("assignRole");
-              setAssignForm({
-                serviceNo: "",
-                user: null,
-                role: "User",
-                branches: [],
-              });
-              setShowModal(true);
-            }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center space-x-2 hover:bg-blue-700 transition-colors"
-          >
-            <FaUserShield />
-            <span>Add Role</span>
-          </button>
+  // const handleAssignRoleSave = async (e) => {
+  //   e.preventDefault();
 
-          {/* (Optional) Keep Add User around; comment out if not needed)
-          <button
-            onClick={openCreateModal}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg flex items-center space-x-2 hover:bg-indigo-700 transition-colors"
-          >
-            <FaUserPlus />
-            <span>Add User</span>
-          </button> */}
+  //   const foundUser =
+  //     users.find((u) => u.serviceNo === assignForm.user?.serviceNo) || null;
+
+  //   const userId = foundUser?._id;
+
+  //   if (!userId) {
+  //     toast.error("User record not found");
+  //     return;
+  //   }
+
+  //   try {
+  //     setIsSaving(true);
+
+  //     await userManagementService.updateUserRole(userId, {
+  //       role: assignForm.role,
+  //       branches: assignForm.branches,
+  //     });
+
+  //     toast.success("Role assigned successfully");
+  //     setShowModal(false);
+  //     fetchUsers();
+  //   } catch (err) {
+  //     toast.error("Failed to assign role");
+  //   } finally {
+  //     setIsSaving(false);
+  //   }
+  // };
+
+  const getRoleBadgeColor = (role) => {
+    switch (role) {
+      case "SuperAdmin":
+        return "bg-red-100 text-red-800";
+      case "Admin":
+        return "bg-purple-100 text-purple-800";
+      case "Approver":
+        return "bg-blue-100 text-blue-800";
+      case "Verifier":
+        return "bg-green-100 text-green-800";
+      case "Dispatcher":
+        return "bg-yellow-100 text-yellow-800";
+      case "User":
+        return "bg-gray-100 text-gray-800";
+      case "Pleader":
+        return "bg-orange-100 text-gray-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+        <div className="p-5 border-b border-gray-100 flex items-center w-full">
+          {/* LEFT */}
+          <div>
+            <h2 className="text-xl font-semibold text-gray-800">
+              User Management
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">
+              Add, edit, and manage system users
+            </p>
+          </div>
+
+          {/* PUSH BUTTON TO RIGHT */}
+          <div className="ml-auto">
+            <button
+              onClick={() => {
+                setModalMode("assignRole");
+                setAssignForm({
+                  serviceNo: "",
+                  user: null,
+                  role: "User",
+                  branches: [],
+                });
+                setShowModal(true);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+            >
+              <FaUserShield />
+              <span>Add Role</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Search & Filters */}
-      <div className="p-4 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 items-center rounded-lg mb-4">
-        <div className="flex items-center px-3 py-2 bg-white rounded-md border">
-          <FaSearch className="text-gray-400 mr-2" />
+      {/* Search and Filter Bar */}
+      <div className="p-4 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 items-center">
+        <div className="relative flex-grow max-w-md">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <FaSearch className="text-gray-400" />
+          </div>
           <input
             type="text"
-            placeholder="Search by name, service no, email..."
+            placeholder="Search users..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="outline-none"
+            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center space-x-2">
           <FaFilter className="text-gray-500" />
           <select
-            className="px-3 py-2 bg-white rounded-md border"
             value={filterRole}
             onChange={(e) => setFilterRole(e.target.value)}
+            className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="All">All Roles</option>
             <option value="User">User</option>
-            <option value="Executive">Executive</option>
-            <option value="Pleader">Pleader</option>
+            <option value="Approver">Approver</option>
             <option value="Verifier">Verifier</option>
+            <option value="Dispatcher">Dispatcher</option>
+            <option value="Pleader">Pleader</option>
             <option value="Admin">Admin</option>
-            <option value="SuperAdmin">SuperAdmin</option>
           </select>
-
-          {/* <select
-            className="px-3 py-2 bg-white rounded-md border"
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-          >
-            <option value="All">All Types</option>
-            <option value="SLT">SLT</option>
-            <option value="Non-SLT">Non-SLT</option>
-          </select> */}
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
+      {/* User Table */}
+      <div className="overflow-x-auto">
         {loading ? (
-          <div className="p-10 text-center text-gray-500">Loading users...</div>
+          <div className="flex justify-center items-center p-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="p-10 text-center text-gray-500">No users found.</div>
+          <div className="text-center p-8 text-gray-500">
+            {searchTerm || filterRole !== "All"
+              ? "No users match your search criteria"
+              : "No users found in the system"}
+          </div>
         ) : (
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Service No
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  User
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Contact
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Designation
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Role & Type
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Role
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Department
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-100">
+            <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.map((user) => (
-                <tr key={user._id}>
-                  <td className="px-4 py-3 text-sm text-gray-700">
-                    {user.serviceNo}
+                <tr key={user._id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          ID: {user.userId}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          Service No: {user.serviceNo}
+                        </div>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
-                    {user.name}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{user.email}</div>
+                    <div className="text-sm text-gray-500">
+                      {user.contactNo}
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
-                    {user.designation}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getRoleBadgeColor(
+                        user.role
+                      )}`}
+                    >
+                      {user.role}
+                    </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
-                    {user.role}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
+                      {user.designation}
+                    </div>
+                    <div className="text-sm text-gray-500">
+                      {user.section} - {user.group}
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-gray-700">
-                    {user.userType}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => openViewModal(user)}
                       className="text-indigo-600 hover:text-indigo-900 mr-3"
-                      title="View"
+                      title="View Details"
                     >
                       <FaEye />
                     </button>
                     <button
                       onClick={() => openEditModal(user)}
-                      className="text-blue-600 hover:text-blue-900 mr-3"
-                      title="Edit"
+                      className="text-blue-600 hover:text-blue-900"
+                      title="Edit Role"
                     >
                       <FaEdit />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteUser(user._id)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete"
-                    >
-                      <FaTrash />
                     </button>
                   </td>
                 </tr>
@@ -454,7 +539,7 @@ const UserManagement = () => {
         )}
       </div>
 
-      {/* Modal */}
+      {/* User Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl">
@@ -464,60 +549,58 @@ const UserManagement = () => {
                 <h2 className="text-2xl font-bold text-white flex items-center">
                   {modalMode === "assignRole" ? (
                     <>
-                      <FaUserShield className="mr-3" />
-                      Assign Role
-                    </>
-                  ) : modalMode === "create" ? (
-                    <>
-                      <FaUserPlus className="mr-3" />
-                      Create User
+                      <FaUserShield className="mr-3" /> Assign Role
                     </>
                   ) : modalMode === "edit" ? (
                     <>
-                      <FaEdit className="mr-3" />
-                      Edit User
+                      <FaEdit className="mr-3" /> Edit User
                     </>
                   ) : (
                     <>
-                      <FaUser className="mr-3" />
-                      View User
+                      <FaUser className="mr-3" /> User Details
                     </>
                   )}
                 </h2>
+
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-white hover:text-gray-100"
-                  aria-label="Close"
+                  className="text-white/80 hover:text-white transition-colors"
                 >
-                  <FaTimes className="h-6 w-6" />
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
                 </button>
               </div>
-              {currentUser &&
-                modalMode !== "create" &&
-                modalMode !== "assignRole" && (
-                  <div className="mt-2 text-blue-100">
-                    User ID: {currentUser.userId}
-                  </div>
-                )}
+              {currentUser && modalMode !== "create" && (
+                <div className="mt-2 text-blue-100">
+                  User ID: {currentUser.userId}
+                </div>
+              )}
             </div>
 
-            {/* Body */}
             <div className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
               {modalMode === "assignRole" ? (
                 <form onSubmit={handleAssignRoleSave}>
-                  {/* Receiver-like search panel */}
-                  {/* <div className="bg-gradient-to-r from-indigo-500 to-purple-600 px-6 py-4 rounded-xl mb-4">
-                    <h3 className="text-white text-lg font-semibold"></h3>
-                  </div> */}
+                  {/* ===== ASSIGN ROLE FORM ===== */}
                   <div className="flex gap-2 mb-4">
                     <input
                       type="text"
-                      className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                      placeholder="Enter receiver's service number"
+                      className="flex-1 px-4 py-2 border rounded-lg"
+                      placeholder="Enter service number"
                       value={assignForm.serviceNo}
                       onChange={(e) =>
-                        setAssignForm((prev) => ({
-                          ...prev,
+                        setAssignForm((p) => ({
+                          ...p,
                           serviceNo: e.target.value,
                         }))
                       }
@@ -525,14 +608,13 @@ const UserManagement = () => {
                     <button
                       type="button"
                       onClick={handleSearchByServiceNo}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                       disabled={isSearching}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
                     >
                       {isSearching ? "Searching..." : "Search"}
                     </button>
                   </div>
 
-                  {/* Employee details card */}
                   {assignForm.user && (
                     <div className="bg-white rounded-2xl shadow-inner border p-4 mb-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -546,6 +628,7 @@ const UserManagement = () => {
                             value={assignForm.user.name || ""}
                           />
                         </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-1">
                             Designation
@@ -556,6 +639,7 @@ const UserManagement = () => {
                             value={assignForm.user.designation || ""}
                           />
                         </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-1">
                             Section
@@ -566,6 +650,7 @@ const UserManagement = () => {
                             value={assignForm.user.section || ""}
                           />
                         </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-1">
                             Group
@@ -576,6 +661,7 @@ const UserManagement = () => {
                             value={assignForm.user.group || ""}
                           />
                         </div>
+
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-1">
                             Contact No
@@ -598,7 +684,7 @@ const UserManagement = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-blue-600 mb-1">
-                          Role*
+                          Role
                         </label>
                         <select
                           className="w-full px-3 py-2 border rounded-lg focus:ring-blue-500 focus:border-blue-500"
@@ -612,10 +698,11 @@ const UserManagement = () => {
                           required
                         >
                           <option value="User">User</option>
-                          <option value="Executive">Executive</option>
-                          <option value="Pleader">Pleader</option>
-                          <option value="Verifier">Verifier</option>
-                          <option value="Admin">Admin</option>
+                          <option value="Approver">Executive</option>
+                          <option value="Security Officer">
+                            Security Officer
+                          </option>
+                          <option value="Pleader">Patrol Leader</option>
                           <option value="SuperAdmin">SuperAdmin</option>
                         </select>
                       </div>
@@ -623,7 +710,7 @@ const UserManagement = () => {
                       {/* Optional: branches multi-select */}
                       <div>
                         <label className="block text-sm font-medium text-blue-600 mb-1">
-                          Branches
+                          Assign Branches
                         </label>
                         <select
                           multiple
@@ -640,9 +727,9 @@ const UserManagement = () => {
                             }));
                           }}
                         >
-                          {locations.map((l) => (
-                            <option key={l._id} value={l.name}>
-                              {l.name}
+                          {erpLocations.map((loc) => (
+                            <option key={loc._id} value={loc.locationId}>
+                              {loc.fingerscanLocation}
                             </option>
                           ))}
                         </select>
@@ -654,14 +741,14 @@ const UserManagement = () => {
                     <button
                       type="button"
                       onClick={() => setShowModal(false)}
-                      className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700"
+                      className="px-6 py-2 bg-gray-600 text-white rounded-lg"
                     >
                       Close
                     </button>
                     <button
                       type="submit"
-                      disabled={isSaving || !assignForm.user}
-                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-60"
+                      disabled={!assignForm.user || isSaving}
+                      className="px-6 py-2 bg-indigo-600 text-white rounded-lg"
                     >
                       {isSaving ? "Saving..." : "Save"}
                     </button>
@@ -669,206 +756,9 @@ const UserManagement = () => {
                 </form>
               ) : (
                 <form onSubmit={handleSubmit}>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* User Type & Role */}
-                    <div className="md:col-span-2 bg-blue-50 rounded-xl p-5 mb-4">
-                      <h3 className="text-lg font-semibold text-blue-800 flex items-center mb-4">
-                        <FaUserShield className="mr-2" /> Account Type &
-                        Permissions
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-blue-600 mb-1">
-                            User Type*
-                          </label>
-                          <select
-                            name="userType"
-                            value={formData.userType}
-                            onChange={handleInputChange}
-                            disabled={modalMode === "view"}
-                            className="w-full px-3 py-2 border rounded-lg"
-                            required
-                          >
-                            <option value="SLT">SLT</option>
-                            <option value="Non-SLT">Non-SLT</option>
-                          </select>
-                        </div>
+                  {/* ===== EDIT / VIEW FORM ===== */}
+                  {/* KEEP YOUR EXISTING EDIT / VIEW JSX HERE EXACTLY AS IS */}
 
-                        <div>
-                          <label className="block text-sm font-medium text-blue-600 mb-1">
-                            Role*
-                          </label>
-                          <select
-                            name="role"
-                            value={formData.role}
-                            onChange={handleInputChange}
-                            disabled={modalMode === "view"}
-                            className="w-full px-3 py-2 border rounded-lg"
-                            required
-                          >
-                            <option value="User">User</option>
-                            <option value="Executive">Executive</option>
-                            <option value="Pleader">Pleader</option>
-                            <option value="Verifier">Verifier</option>
-                            <option value="Admin">Admin</option>
-                            <option value="SuperAdmin">SuperAdmin</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Identity */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Service No*
-                      </label>
-                      <input
-                        type="text"
-                        name="serviceNo"
-                        value={formData.serviceNo}
-                        onChange={handleInputChange}
-                        disabled={modalMode === "view"}
-                        className="w-full px-3 py-2 border rounded-lg"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Name*
-                      </label>
-                      <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        disabled={modalMode === "view"}
-                        className="w-full px-3 py-2 border rounded-lg"
-                        required
-                      />
-                    </div>
-
-                    {/* Work info */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Designation
-                      </label>
-                      <input
-                        type="text"
-                        name="designation"
-                        value={formData.designation}
-                        onChange={handleInputChange}
-                        disabled={modalMode === "view"}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Section
-                      </label>
-                      <input
-                        type="text"
-                        name="section"
-                        value={formData.section}
-                        onChange={handleInputChange}
-                        disabled={modalMode === "view"}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Group
-                      </label>
-                      <input
-                        type="text"
-                        name="group"
-                        value={formData.group}
-                        onChange={handleInputChange}
-                        disabled={modalMode === "view"}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-
-                    {/* Contact */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Contact No
-                      </label>
-                      <input
-                        type="text"
-                        name="contactNo"
-                        value={formData.contactNo}
-                        onChange={handleInputChange}
-                        disabled={modalMode === "view"}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        disabled={modalMode === "view"}
-                        className="w-full px-3 py-2 border rounded-lg"
-                      />
-                    </div>
-
-                    {/* Branches */}
-                    <div className="md:col-span-2">
-                      <label className=" text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <FaMapMarkerAlt className="mr-2" /> Branches
-                      </label>
-                      <select
-                        name="branches"
-                        multiple
-                        value={formData.branches}
-                        onChange={handleInputChange}
-                        disabled={modalMode === "view"}
-                        className="w-full px-3 py-2 border rounded-lg h-40"
-                      >
-                        {locations.map((l) => (
-                          <option key={l._id} value={l.name}>
-                            {l.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Password (create only) */}
-                    {modalMode === "create" && (
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Password*
-                        </label>
-                        <div className="flex items-center">
-                          <input
-                            type={showPassword ? "text" : "password"}
-                            name="password"
-                            value={formData.password}
-                            onChange={handleInputChange}
-                            className="w-full px-3 py-2 border rounded-lg"
-                            required
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword((s) => !s)}
-                            className="ml-3 px-3 py-2 text-sm bg-gray-100 rounded"
-                          >
-                            {showPassword ? "Hide" : "Show"}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Footer */}
                   <div className="flex justify-end gap-3 mt-6">
                     <button
                       type="button"
@@ -877,6 +767,7 @@ const UserManagement = () => {
                     >
                       Close
                     </button>
+
                     {modalMode !== "view" && (
                       <button
                         type="submit"

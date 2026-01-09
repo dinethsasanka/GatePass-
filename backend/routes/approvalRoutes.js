@@ -5,6 +5,7 @@ const router = express.Router();
 const approvalController = require("../controllers/approvalController");
 
 // Auth middleware must be enabled so we can apply role-based logic
+// Auth middleware
 const { protect } = require("../middleware/authMiddleware");
 
 // Lists (Executive Officer)

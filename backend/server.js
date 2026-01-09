@@ -7,7 +7,6 @@ const http = require("http");
 const path = require("path"); 
 const { Server } = require("socket.io");
 const connectDB = require("./config/db");
-const healthRouter = require('./routes/health');   // DEVOPS Change 12/16/2025
 
 // 1) Load env first
 dotenv.config();
@@ -18,7 +17,8 @@ connectDB();
 
 // 3) Init express BEFORE any app.use(...)
 const app = express();
-const server = http.createServer(app); 
+const server = http.createServer(app);
+
 // 4) Setup Socket.IO with CORS
 const io = new Server(server, {
   cors: {
@@ -41,9 +41,11 @@ app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 //console.log('📁 Static files serving from:', path.join(__dirname, 'uploads'));
 
 // 7) Route imports
+
+// 4) Route imports
+const executiveRoutes = require("./routes/executiveRoutes");
+
 const authRoutes = require("./routes/authRoutes");
-const requestRoutes = require("./routes/requestRoutes");
-const userRoutes = require("./routes/userRoutes");
 const itemRoutes = require("./routes/itemRoutes");
 const myReceiptRoutes = require("./routes/myReceiptRoutes");
 const myRequestRoutes = require("./routes/myRequestRoutes");
@@ -55,10 +57,14 @@ const receiveRoutes = require("./routes/receiveRoutes");
 const emailRoutes = require("./routes/emailRoutes");
 const superAdminRoutes = require("./routes/superAdminRoutes");
 const adminRequestRoutes = require("./routes/adminRequestRoutes");
+const erpRoutes = require("./routes/erpRoutes");
 
 // 8) Mount routes (only ONCE each)
-app.use('/api', healthRouter);  // DEVOPS Change 12/16/2025
 app.use("/api/auth", authRoutes);
+const requestRoutes = require("./routes/requestRoutes");
+app.use("/api/executives", executiveRoutes);
+
+const userRoutes = require("./routes/userRoutes");
 app.use("/api/requests", requestRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/item", itemRoutes);
@@ -72,6 +78,7 @@ app.use("/api/super-admin", superAdminRoutes);
 app.use("/api/receive", receiveRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/admin", adminRequestRoutes);
+app.use("/api/erp", erpRoutes);
 
 // 9) Health check (optional)
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -139,6 +146,3 @@ server.listen(PORT, () => {
   console.log(`📡 Socket.IO ready for real-time updates`);
   
 });
-
-// TEST 3. update 12/23
-// TEST 4. update 12/24 10.41PM

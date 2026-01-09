@@ -1,4 +1,5 @@
 import axios from "axios";
+import axiosInstance from "./axiosConfig";
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL;
 const authHeaders = () => ({
@@ -8,13 +9,7 @@ const authHeaders = () => ({
 // Create a new status
 export const createStatus = async (statusData) => {
   try {
-    // const response = await axios.post(`${API_BASE_URL}/dispatch/create`, statusData);
-    const response = await axios.post(
-      `${API_BASE_URL}/dispatch/create`,
-      statusData,
-      { headers: authHeaders() }
-    );
-
+    const response = await axiosInstance.post(`/dispatch/create`, statusData);
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || "Failed to create status");
@@ -24,11 +19,7 @@ export const createStatus = async (statusData) => {
 // Get all pending statuses
 export const getPendingStatuses = async () => {
   try {
-    // const response = await axios.get(`${API_BASE_URL}/dispatch/pending`);
-    const response = await axios.get(`${API_BASE_URL}/dispatch/pending`, {
-      headers: authHeaders(),
-    });
-
+    const response = await axiosInstance.get(`/dispatch/pending`);
     return response.data;
   } catch (error) {
     throw new Error("Failed to fetch pending statuses");
@@ -38,11 +29,7 @@ export const getPendingStatuses = async () => {
 // Get all approved statuses
 export const getApprovedStatuses = async () => {
   try {
-    // const response = await axios.get(`${API_BASE_URL}/dispatch/approved`);
-    const response = await axios.get(`${API_BASE_URL}/dispatch/approved`, {
-      headers: authHeaders(),
-    });
-
+    const response = await axiosInstance.get(`/dispatch/approved`);
     return response.data;
   } catch (error) {
     throw new Error("Failed to fetch approved statuses");
@@ -52,10 +39,7 @@ export const getApprovedStatuses = async () => {
 // Get all rejected statuses
 export const getRejectedStatuses = async () => {
   try {
-    // const response = await axios.get(`${API_BASE_URL}/dispatch/rejected`);
-    const response = await axios.get(`${API_BASE_URL}/dispatch/rejected`, {
-      headers: authHeaders(),
-    });
+    const response = await axiosInstance.get(`/dispatch/rejected`);
     return response.data;
   } catch (error) {
     throw new Error("Failed to fetch approved statuses");
@@ -65,10 +49,9 @@ export const getRejectedStatuses = async () => {
 // Approve a request (update status)
 export const approveStatus = async (referenceNumber, comment) => {
   try {
-    const response = await axios.put(
-      `${API_BASE_URL}/dispatch/${referenceNumber}/approve`,
-      { comment },
-      { headers: authHeaders() }
+    const response = await axiosInstance.put(
+      `/dispatch/${referenceNumber}/approve`,
+      { comment }
     );
     return response.data;
   } catch (error) {
@@ -81,10 +64,9 @@ export const approveStatus = async (referenceNumber, comment) => {
 // Reject a request (update status)
 export const rejectStatus = async (referenceNumber, comment) => {
   try {
-    const response = await axios.put(
-      `${API_BASE_URL}/dispatch/${referenceNumber}/reject`,
-      { comment },
-      { headers: authHeaders() }
+    const response = await axiosInstance.put(
+      `/dispatch/${referenceNumber}/reject`,
+      { comment }
     );
     return response.data;
   } catch (error) {

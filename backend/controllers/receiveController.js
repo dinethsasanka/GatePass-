@@ -80,6 +80,37 @@ async function findPetrolLeaderForInLocation(inLocation) {
   }).lean();
 }
 
+// Helper to find executive from request
+async function findExecutiveFromRequest(reqDoc) {
+  if (!reqDoc || !reqDoc.executiveOfficerServiceNo) return null;
+
+  return await User.findOne({
+    serviceNo: String(reqDoc.executiveOfficerServiceNo),
+  }).lean();
+}
+
+// Helper to find verifier from request (by outLocation)
+async function findVerifierFromRequest(reqDoc) {
+  if (!reqDoc) return null;
+
+  return await User.findOne({
+    role: "Verifier",
+    isActive: true,
+    branches: { $in: [reqDoc.outLocation] },
+  }).lean();
+}
+
+// Helper to find dispatcher from request (by inLocation)
+async function findDispatcherFromRequest(reqDoc) {
+  if (!reqDoc) return null;
+
+  return await User.findOne({
+    role: "Dispatcher",
+    isActive: true,
+    branches: { $in: [reqDoc.inLocation] },
+  }).lean();
+}
+
 // ------------- create (kept) -------------
 const createStatus = async (req, res) => {
   try {
@@ -195,7 +226,15 @@ const getApproved = async (req, res) => {
       ? null
       : req.user?.serviceNo || req.query.serviceNo || null;
 
-    const rows = await Status.find({ recieveOfficerStatus: 2 })
+    // Get all reference numbers that have been rejected at any level
+    const rejectedRefs = await Status.find({
+      rejectedBy: { $exists: true },
+    }).distinct("referenceNumber");
+
+    const rows = await Status.find({
+      recieveOfficerStatus: 2, // Receiver approved
+      referenceNumber: { $nin: rejectedRefs }, // Exclude rejected references
+    })
       .populate("request")
       .sort({ updatedAt: -1 })
       .lean();
@@ -366,10 +405,25 @@ const updateRejected = async (req, res) => {
     const { comment } = req.body;
     const { referenceNumber } = req.params;
 
+    console.log("=== RECEIVER REJECTION DEBUG ===");
+    console.log(
+      "req.user:",
+      req.user?.serviceNo,
+      "branches:",
+      req.user?.branches
+    );
+
     if (!comment || !comment.trim()) {
       return res
         .status(400)
         .json({ message: "Rejection comment is required." });
+    }
+
+    // First, get the branch from req.user if available
+    let rejectedByBranch = null;
+    if (req.user && req.user.branches && req.user.branches.length > 0) {
+      rejectedByBranch = req.user.branches[0];
+      console.log("Using rejectedByBranch from req.user:", rejectedByBranch);
     }
 
     let statusDoc = await Status.findOneAndUpdate(
@@ -377,6 +431,13 @@ const updateRejected = async (req, res) => {
       {
         recieveOfficerStatus: 3,
         recieveOfficerComment: comment.trim(),
+        afterStatus: 12, // CRITICAL: Mark as Receiver Rejected so other levels can see it
+        // Track rejection information
+        rejectedBy: "Receiver",
+        rejectedByServiceNo: req.user?.serviceNo || null,
+        rejectedAt: new Date(),
+        rejectionLevel: 4, // Receiver level (highest in hierarchy)
+        rejectedByBranch: rejectedByBranch, // Set branch immediately
       },
       { new: true }
     ).populate("request");
@@ -384,28 +445,126 @@ const updateRejected = async (req, res) => {
     if (!statusDoc)
       return res.status(404).json({ message: "Status not found" });
 
+    // Fallback: if branch not set, try to fetch from database
+    if (!statusDoc.rejectedByBranch && req.user?.serviceNo) {
+      try {
+        const receiverUser = await User.findOne({
+          serviceNo: req.user.serviceNo,
+        }).lean();
+        console.log(
+          "Receiver User Found (fallback):",
+          receiverUser?.serviceNo,
+          "Branches:",
+          receiverUser?.branches
+        );
+        if (
+          receiverUser &&
+          receiverUser.branches &&
+          receiverUser.branches.length > 0
+        ) {
+          statusDoc.rejectedByBranch = receiverUser.branches[0];
+          await statusDoc.save();
+          console.log(
+            "Set rejectedByBranch (fallback):",
+            receiverUser.branches[0]
+          );
+        } else {
+          console.log("No branches found for receiver");
+        }
+      } catch (userErr) {
+        console.error("Failed to fetch receiver branch:", userErr);
+      }
+    } else if (!statusDoc.rejectedByBranch) {
+      console.log("No serviceNo in req.user for receiver");
+    }
+
     if (statusDoc.request) {
       statusDoc.request.status = 12;
       await statusDoc.request.save();
     }
+    console.log(
+      "Receiver rejection saved with rejectedByBranch:",
+      statusDoc.rejectedByBranch
+    );
 
-    // Notify Petrol Leader (In-location)
+    // Notify ALL lower levels in hierarchy about the rejection
+
+    // 1. Notify Requester (User)
     try {
-      const inLocation = statusDoc.request?.inLocation;
-      const pleader = await findPetrolLeaderForInLocation(inLocation);
-      if (pleader && pleader.email) {
+      const requester = await findRequesterFromRequest(statusDoc.request);
+      if (requester && requester.email) {
         const subject = `Gate Pass rejected by Receiver: ${referenceNumber}`;
         const html = `
-          <p>Dear ${pleader.name || "Petrol Leader"},</p>
-          <p>The following gate pass was <b>rejected by the Receiver/Collector</b>.</p>
+          <p>Dear ${requester.name || "Requester"},</p>
+          <p>Your gate pass request has been <b>rejected by the Receiver/Collector</b>.</p>
           <p><b>Reference:</b> ${referenceNumber}</p>
           <p><b>Reason:</b> ${statusDoc.recieveOfficerComment}</p>
-          <p>Please review on the Petrol Leader page.</p>
+          <p>You can view this under <i>My Requests – Rejected</i>.</p>
         `;
-        await sendEmail(pleader.email, subject, html);
+        await sendEmail(requester.email, subject, html);
       }
     } catch (mailErr) {
-      console.error("Email (Receiver reject→Petrol Leader) failed:", mailErr);
+      console.error("Email (Receiver reject→Requester) failed:", mailErr);
+    }
+
+    // 2. Notify Executive Officer
+    try {
+      const executive = await findExecutiveFromRequest(statusDoc.request);
+      if (executive && executive.email) {
+        const subject = `Gate Pass rejected at Receiver stage: ${referenceNumber}`;
+        const html = `
+          <p>Dear ${executive.name || "Executive Officer"},</p>
+          <p>A gate pass request has been <b>rejected by the Receiver/Collector</b>.</p>
+          <p><b>Reference:</b> ${referenceNumber}</p>
+          <p><b>Reason:</b> ${statusDoc.recieveOfficerComment}</p>
+          <p>This will be visible under your Rejected section for tracking.</p>
+        `;
+        await sendEmail(executive.email, subject, html);
+      }
+    } catch (mailErr) {
+      console.error("Email (Receiver reject→Executive) failed:", mailErr);
+    }
+
+    // 3. Notify Verifier (Petrol Leader 1)
+    try {
+      const verifier = await findVerifierFromRequest(statusDoc.request);
+      if (verifier && verifier.email) {
+        const subject = `Gate Pass rejected at Receiver stage: ${referenceNumber}`;
+        const html = `
+          <p>Dear ${verifier.name || "Verifier"},</p>
+          <p>A gate pass request has been <b>rejected by the Receiver/Collector</b>.</p>
+          <p><b>Reference:</b> ${referenceNumber}</p>
+          <p><b>Reason:</b> ${statusDoc.recieveOfficerComment}</p>
+          <p>This will be visible under your Rejected section for tracking.</p>
+        `;
+        await sendEmail(verifier.email, subject, html);
+      }
+    } catch (mailErr) {
+      console.error("Email (Receiver reject→Verifier) failed:", mailErr);
+    }
+
+    // 4. Notify Dispatcher (Petrol Leader 2)
+    try {
+      const dispatcher = await findDispatcherFromRequest(statusDoc.request);
+      if (dispatcher && dispatcher.email) {
+        const subject = `Gate Pass rejected at Receiver stage: ${referenceNumber}`;
+        const html = `
+          <p>Dear ${dispatcher.name || "Dispatcher"},</p>
+          <p>A gate pass request has been <b>rejected by the Receiver/Collector</b>.</p>
+          <p><b>Reference:</b> ${referenceNumber}</p>
+          <p><b>Reason:</b> ${statusDoc.recieveOfficerComment}</p>
+          <p>This will be visible under your Rejected section for tracking.</p>
+        `;
+        await sendEmail(dispatcher.email, subject, html);
+      }
+    } catch (mailErr) {
+      console.error("Email (Receiver reject→Dispatcher) failed:", mailErr);
+    }
+
+    // Emit real-time event for rejection
+    const io = req.app.get("io");
+    if (io && statusDoc.request) {
+      emitRequestRejection(io, statusDoc.request, "Receiver");
     }
 
     return res.status(200).json(statusDoc);

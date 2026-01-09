@@ -19,11 +19,11 @@ const {
     cancelRequest
 } = require('../controllers/requestController');
 
-// ⭐ Configure multer for memory storage
+// Configure multer for memory storage
 // Files will be stored in req.files as Buffer objects
 const storage = multer.memoryStorage();
 
-// ⭐ File filter to accept only images
+// File filter to accept only images
 const fileFilter = (req, file, cb) => {
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     
@@ -34,7 +34,7 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// ⭐ Configure multer with storage, limits, and file filter
+// Configure multer with storage, limits, and file filter
 const upload = multer({
     storage: storage,
     limits: {
@@ -44,7 +44,7 @@ const upload = multer({
     fileFilter: fileFilter
 });
 
-// ⭐ Routes with updated multer configuration
+// Routes with updated multer configuration
 router.post('/', protect, upload.array('itemPhotos', 50), createRequest);
 router.get('/', protect, getRequests);
 router.get('/image/:path', protect, getRequestImage);

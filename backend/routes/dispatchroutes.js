@@ -10,11 +10,12 @@ const {
   updateRejected,
   markItemsAsReturned,
 } = require("../controllers/dispatchController");
+
+
+// Auth middleware
 const { protect } = require("../middleware/authMiddleware");
 
 // Status routes
-// router.post('/create', createStatus);
-
 router.post("/create", protect, createStatus);
 router.get("/pending", protect, getPending);
 router.get("/approved", protect, getApproved);

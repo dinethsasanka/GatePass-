@@ -11,12 +11,14 @@ import {
   updateReturnableItem,
   addReturnableItemToRequest,
 } from "../services/receiveService.js";
+import { getEmployeeDetails } from "../services/erpService";
 import { toast } from "react-toastify";
 
 import {
   getImageUrl,
   getImageUrlSync,
   searchReceiverByServiceNo,
+  searchEmployeeByServiceNo,
 } from "../services/RequestService";
 import { emailSent } from "../services/emailService.js";
 import { useToast } from "../components/ToastProvider.jsx";
@@ -659,6 +661,11 @@ const Receive = () => {
               unLoadUserData,
               statusDetails,
               receiveOfficerData,
+              rejectedBy: status.rejectedBy,
+              rejectedByServiceNo: status.rejectedByServiceNo,
+              rejectedByBranch: status.rejectedByBranch,
+              rejectedAt: status.rejectedAt,
+              rejectionLevel: status.rejectionLevel,
             };
           })
         );
@@ -711,13 +718,18 @@ const Receive = () => {
   }, []); // run once on mount
 
   const handleApprove = async (item) => {
+    if (isSuper) {
+      showToast("Super Admin has view-only access", "warning");
+      return;
+    }
     try {
-      // Prepare unloading details based on staff type
+      // 🔹 Prepare unloading details object
       let unloadingDetails = {
         unloadingLocation: item.inLocation,
         staffType: staffType,
       };
 
+      // 🔹 SLT Employee (ERP-based)
       if (staffType === "SLT") {
         if (!searchedEmployee) {
           showToast(
@@ -726,96 +738,64 @@ const Receive = () => {
           );
           return;
         }
+
+        // ✅ Save ONLY service number (ERP verified)
         unloadingDetails.staffServiceNo = searchedEmployee.serviceNo;
-      } else {
-        // Validate non-SLT staff details
-        if (!nonSltStaffDetails.name || !nonSltStaffDetails.nic) {
+      }
+      // 🔹 Non-SLT Employee
+      else {
+        if (
+          !nonSltStaffDetails.name ||
+          !nonSltStaffDetails.nic ||
+          !nonSltStaffDetails.contactNo
+        ) {
           showToast(
-            "Please fill in all required non-SLT staff details",
+            "Please fill all Non-SLT unloading staff details",
             "warning"
           );
           return;
         }
 
-        unloadingDetails = {
-          ...unloadingDetails,
-          nonSLTStaffName: nonSltStaffDetails.name,
-          nonSLTStaffCompany: nonSltStaffDetails.companyName,
-          nonSLTStaffNIC: nonSltStaffDetails.nic,
-          nonSLTStaffContact: nonSltStaffDetails.contactNo,
-          nonSLTStaffEmail: nonSltStaffDetails.email,
-        };
+        unloadingDetails.nonSLTStaffName = nonSltStaffDetails.name;
+        unloadingDetails.nonSLTStaffCompany = nonSltStaffDetails.companyName;
+        unloadingDetails.nonSLTStaffNIC = nonSltStaffDetails.nic;
+        unloadingDetails.nonSLTStaffContact = nonSltStaffDetails.contactNo;
+        unloadingDetails.nonSLTStaffEmail = nonSltStaffDetails.email;
       }
 
-      // Format the approved item BEFORE API call for optimistic UI update
-      const approvedItem = {
-        refNo: item.refNo,
-        name: item.name,
-        inLocation: item.inLocation,
-        outLocation: item.outLocation,
-        createdAt: item.createdAt,
-        items: item.items || [],
-        comment: comment,
-        requestDetails: { ...item.requestDetails },
-        senderDetails: item.senderDetails,
-        receiverDetails: item.receiverDetails,
-      };
-
-      // OPTIMISTIC UPDATE: Update UI immediately before API call
-      setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
-      setApprovedItems([approvedItem, ...approvedItems]);
-
-      // Reset modal and comment immediately
-      setShowModal(false);
-      setStaffType("");
-      setComment("");
-
-      // Show immediate success feedback
-      showToast("Request received successfully", "success");
-
-      // Call API in the background (don't await)
-      approveStatus(
+      // 🔹 Call backend approve API
+      await approveStatus(
         item.refNo,
         comment,
         unloadingDetails,
         userDetails.serviceNo,
         selectedReturnableItems
-      )
-        .then(async (updatedStatus) => {
-          // Trigger refetch of approved items to get fresh data from server
-          setRefetchTrigger((prev) => prev + 1);
+      );
 
-          // Send email in background (non-blocking)
-          sendApproveEmail(item, comment).catch((err) => {
-            console.error("Failed to send approval email:", err);
-          });
-        })
-        .catch((error) => {
-          // Rollback on error
-          console.error("Error approving status:", error.message);
-          setPendingItems((prev) => [item, ...prev]);
-          setApprovedItems((prev) =>
-            prev.filter((i) => i.refNo !== item.refNo)
-          );
-          showToast("Failed to receive request. Please try again.", "error");
-        });
+      showToast("Request received successfully", "success");
+
+      // 🔹 Refresh list / close modal
+      fetchPendingRequests();
+      closeModal();
     } catch (error) {
-      console.error("Error in handleApprove:", error.message);
+      console.error("Receive approval failed:", error);
       showToast("Failed to receive request", "error");
     }
   };
 
   const sendReturnEmail = async (request, comment, itemDetails = []) => {
-  try {
-    if (!request.senderDetails?.email) {
-      showToast("Sender email not available", "error");
-      return;
-    }
+    try {
+      if (!request.senderDetails?.email) {
+        showToast("Sender email not available", "error");
+        return;
+      }
 
-    const emailSubject = `Returnable Items Update: ${request.refNo}`;
+      const emailSubject = `Returnable Items Update: ${request.refNo}`;
 
-    // Create items table for email
-    const itemsTable = itemDetails.length > 0 ? `
+      // Create items table for email
+      const itemsTable =
+        itemDetails.length > 0
+          ? `
       <div style="margin: 20px 0;">
         <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned Items</h3>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
@@ -828,30 +808,49 @@ const Receive = () => {
             </tr>
           </thead>
           <tbody>
-            ${itemDetails.map(item => `
+            ${itemDetails
+              .map(
+                (item) => `
               <tr>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemName || 'N/A'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.serialNo || 'N/A'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemCategory || 'N/A'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemQuantity || '1'}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.itemName || "N/A"
+                }</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.serialNo || "N/A"
+                }</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.itemCategory || "N/A"
+                }</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.itemQuantity || "1"
+                }</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
-    ` : '';
+    `
+          : "";
 
-    const emailBody = `
+      const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <div style="text-align: center; margin-bottom: 20px;">
           <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable Items Update</h2>
-          <p style="color: #757575; font-size: 14px;">Reference Number: ${request.refNo}</p>
+          <p style="color: #757575; font-size: 14px;">Reference Number: ${
+            request.refNo
+          }</p>
         </div>
         
         <div style="margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
           <p>Dear ${request.senderDetails.name},</p>
           
-          <p>We would like to inform you that ${itemDetails.length} returnable item(s) under reference number <b>${request.refNo}</b> have been returned by the Receiver.</p>
+          <p>We would like to inform you that ${
+            itemDetails.length
+          } returnable item(s) under reference number <b>${
+        request.refNo
+      }</b> have been returned by the Receiver.</p>
           <p>You can view it under your <i>Completed</i> or relevant section.</p>
         </div>
 
@@ -864,18 +863,18 @@ const Receive = () => {
       </div>
     `;
 
-    await emailSent({
-      to: request.senderDetails.email,
-      subject: emailSubject,
-      html: emailBody,
-    });
+      await emailSent({
+        to: request.senderDetails.email,
+        subject: emailSubject,
+        html: emailBody,
+      });
 
-    showToast("Return notification email sent to requester", "success");
-  } catch (error) {
-    console.error("Failed to send return email:", error);
-    showToast("Failed to send return email", "error");
-  }
-};
+      showToast("Return notification email sent to requester", "success");
+    } catch (error) {
+      console.error("Failed to send return email:", error);
+      showToast("Failed to send return email", "error");
+    }
+  };
 
   const sendApproveEmail = async (request, comment) => {
     try {
@@ -1012,6 +1011,10 @@ const Receive = () => {
   };
 
   const handleReject = async (item) => {
+    if (isSuper) {
+      showToast("Super Admin has view-only access", "warning");
+      return;
+    }
     try {
       if (!comment || comment.trim() === "") {
         showToast("Comment is required to reject the item.", "warning");
@@ -1072,12 +1075,34 @@ const Receive = () => {
   const handleModelOpen = async (item) => {
     setSelectedItem(item);
 
-    if (item.requestDetails?.transport?.transporterServiceNo) {
+    if (item.requestDetails?.transport.transporterServiceNo) {
       try {
-        const transport = await searchReceiverByServiceNo(
-          item.requestDetails?.transport?.transporterServiceNo
+        const transportResponse = await searchEmployeeByServiceNo(
+          item.requestDetails.transport.transporterServiceNo
         );
-        setTransportData(transport);
+
+        console.log("Transport response:", transportResponse); // Debug log
+
+        // Extract the employee data from the nested response
+        const employee = transportResponse?.data?.data?.[0];
+
+        if (employee) {
+          setTransportData({
+            name: `${employee.employeeTitle || ""} ${
+              employee.employeeFirstName || ""
+            } ${employee.employeeSurname || ""}`.trim(),
+            serviceNo:
+              employee.employeeNo ||
+              item.requestDetails.transport.transporterServiceNo,
+            designation: employee.designation || "-",
+            section: employee.empSection || "-",
+            group: employee.empGroup || "-",
+            contactNo: employee.mobileNo || "-",
+          });
+        } else {
+          console.log("No employee data found");
+          setTransportData(null);
+        }
       } catch (error) {
         console.error("Error fetching transporter details:", error);
         setTransportData(null);
@@ -1431,6 +1456,11 @@ const Receive = () => {
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
                   Date & Time
                 </th>
+                {activeTab === "rejected" && (
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Rejected By
+                  </th>
+                )}
                 <th className="px-6 py-4 text-right text-sm font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -1477,6 +1507,15 @@ const Receive = () => {
                       {item.createdAt}
                     </div>
                   </td>
+                  {activeTab === "rejected" && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {item.rejectedByBranch
+                          ? `${item.rejectedByBranch} ${item.rejectedBy || ""}`
+                          : item.rejectedBy || "N/A"}
+                      </div>
+                    </td>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button
                       onClick={() => {
@@ -1540,6 +1579,7 @@ const Receive = () => {
         sendReturnEmail={sendReturnEmail}
         staffType={staffType}
         setStaffType={setStaffType}
+        isSuper={isSuper}
         // user={user}
         // receiver={receiver}
       />
@@ -1569,6 +1609,7 @@ const RequestDetailsModal = ({
   sendReturnEmail,
   setStaffType,
   staffType,
+  isSuper,
 }) => {
   // Initialize with the correct value from request
   const [selectedExecutive, setSelectedExecutive] = useState("");
@@ -1583,16 +1624,14 @@ const RequestDetailsModal = ({
   const [loading, setLoading] = useState(false);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [newItem, setNewItem] = useState({
-    itemName: '',
-    serialNo: '',
-    itemCategory: '',
-    itemModel: '',
+    itemName: "",
+    serialNo: "",
+    itemCategory: "",
+    itemModel: "",
     itemQuantity: 1,
-    returnDate: '',
-    status: 'returnable'
+    returnDate: "",
+    status: "returnable",
   });
-   
-  
 
   const tabOrder =
     activeTab === "pending"
@@ -1604,7 +1643,6 @@ const RequestDetailsModal = ({
   // States for loading/unloading details
 
   const [serviceId, setServiceId] = useState("");
-  //const [searchedEmployee, setSearchedEmployee] = useState(null);
 
   // States for transportation details
   const [transportStaffType, setTransportStaffType] = useState("SLT");
@@ -1643,99 +1681,135 @@ const RequestDetailsModal = ({
     }
 
     try {
-      setSearchedEmployee(null); // Reset previous results
+      setLoading(true);
+      setSearchedEmployee(null);
 
-      const userData = await searchUserByServiceNo(serviceId);
-      if (userData) {
-        setSearchedEmployee(userData);
-        showToast("Employee found", "success");
-      } else {
-        showToast("No employee found with that service number", "error");
+      const response = await getEmployeeDetails(serviceId);
+
+      console.log("ERP response:", response); // ✅ keep for debug
+
+      const employee = response?.data?.data?.[0];
+
+      if (!employee) {
+        showToast("Employee not found in ERP", "error");
+        return;
       }
+
+      const mappedEmployee = {
+        name: employee.employeeName,
+        serviceNo: employee.employeeNumber,
+        email: employee.email,
+        section: employee.empSection,
+        group: employee.empGroup,
+        designation: employee.designation,
+        contactNo: employee.mobileNo,
+      };
+
+      setSearchedEmployee(mappedEmployee);
+      showToast("Employee found from ERP", "success");
     } catch (error) {
-      console.error("Error searching for employee:", error);
-      showToast("Error searching for employee", "error");
+      console.error("ERP employee search failed:", error);
+      showToast("Failed to fetch employee from ERP", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleBulkReturn = async () => {
-  if (selectedItems.length === 0) {
-    showToast("Please select at least one item to return", "warning");
-    return;
-  }
+    if (isSuper) {
+      showToast("Super Admin has view-only access", "warning");
+      return;
+    }
 
-  const confirmed = window.confirm(
-    `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
-  );
+    if (selectedItems.length === 0) {
+      showToast("Please select at least one item to return", "warning");
+      return;
+    }
 
-  if (!confirmed) return;
-
-  setLoading(true);
-
-  try {
-    console.log("Starting bulk return process...");
-    console.log("Selected serial numbers:", selectedItems);
-    console.log("Reference number:", request.refNo);
-
-    // Get full details of selected items
-    const selectedItemDetails = request.items.filter(item => 
-      selectedItems.includes(item.serialNo)
+    const confirmed = window.confirm(
+      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
     );
 
-    console.log("Selected item details:", selectedItemDetails);
+    if (!confirmed) return;
 
-    // Call backend to update DB
-    const response = await markItemsAsReturned(request.refNo, selectedItems);
+    setLoading(true);
 
-    console.log("Backend response:", response);
+    try {
+      console.log("Starting bulk return process...");
+      console.log("Selected serial numbers:", selectedItems);
+      console.log("Reference number:", request.refNo);
 
-    // Now send the email notification WITH ITEM DETAILS
-    await sendReturnEmail(request, "Items successfully returned by receiver.", selectedItemDetails);
+      // Get full details of selected items
+      const selectedItemDetails = request.items.filter((item) =>
+        selectedItems.includes(item.serialNo)
+      );
 
-    // Show success message
-    showToast(
-      `Successfully marked ${response.updatedCount || selectedItems.length} item(s) as returned.`,
-      "success"
-    );
+      console.log("Selected item details:", selectedItemDetails);
 
-    console.log("Bulk return process completed successfully");
+      // Call backend to update DB
+      const response = await markItemsAsReturned(request.refNo, selectedItems);
 
-    // Clear selected items
-    setSelectedItems([]);
+      console.log("Backend response:", response);
 
-    // Refresh / close modal
-    onClose();
-    window.location.reload();
+      // Now send the email notification WITH ITEM DETAILS
+      await sendReturnEmail(
+        request,
+        "Items successfully returned by receiver.",
+        selectedItemDetails
+      );
 
-  } catch (error) {
-    console.error("Error marking items as returned:", error);
-    console.error("Error details:", error.response?.data);
+      // Show success message
+      showToast(
+        `Successfully marked ${
+          response.updatedCount || selectedItems.length
+        } item(s) as returned.`,
+        "success"
+      );
 
-    showToast(
-      error.message || "Failed to update items. Please try again.",
-      "error"
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+      console.log("Bulk return process completed successfully");
+
+      // Clear selected items
+      setSelectedItems([]);
+
+      // Refresh / close modal
+      onClose();
+      window.location.reload();
+    } catch (error) {
+      console.error("Error marking items as returned:", error);
+      console.error("Error details:", error.response?.data);
+
+      showToast(
+        error.message || "Failed to update items. Please try again.",
+        "error"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleAddNewItem = async () => {
-  if (!newItem.itemName || !newItem.serialNo || !newItem.itemCategory) {
-    alert('Please fill in all required fields (Item Name, Serial No, Category)');
-    return;
-  }
+    if (isSuper) {
+      showToast("Super Admin has view-only access", "warning");
+      return;
+    }
 
-  try {
-    await addReturnableItemToRequest(request.refNo, newItem);
-    alert("Returnable item added successfully!");
-    setShowAddItemModal(false);
-    window.location.reload();
-    // optionally refresh data here
-  } catch (error) {
-    console.error(error);
-    alert("Failed to add item: " + error.message);
-  }
-};
+    if (!newItem.itemName || !newItem.serialNo || !newItem.itemCategory) {
+      alert(
+        "Please fill in all required fields (Item Name, Serial No, Category)"
+      );
+      return;
+    }
+
+    try {
+      await addReturnableItemToRequest(request.refNo, newItem);
+      alert("Returnable item added successfully!");
+      setShowAddItemModal(false);
+      window.location.reload();
+      // optionally refresh data here
+    } catch (error) {
+      console.error(error);
+      alert("Failed to add item: " + error.message);
+    }
+  };
 
   /*const handleBulkReturn = async () => {
   if (selectedItems.length === 0) return;
@@ -2031,12 +2105,12 @@ const RequestDetailsModal = ({
           <div class="grid">
             <div class="item">
               <span class="label">Name:</span> ${
-                request.senderDetails?.name || "N/A"
+                request.unLoadUserData?.name || "N/A"
               }
             </div>
             <div class="item">
               <span class="label">Service No:</span> ${
-                request.senderDetails?.serviceNo || "N/A"
+                request.unLoadUserData?.serviceNo || "N/A"
               }
             </div>
             <div class="item">
@@ -3406,6 +3480,7 @@ const RequestDetailsModal = ({
                       <div className="flex items-center mb-4">
                         <input
                           type="text"
+                          disabled={isSuper}
                           value={serviceId}
                           onChange={(e) => setServiceId(e.target.value)}
                           placeholder="Enter Service ID"
@@ -3413,7 +3488,12 @@ const RequestDetailsModal = ({
                         />
                         <button
                           onClick={handleEmployeeSearch}
-                          className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-r-lg transition-colors"
+                          disabled={isSuper}
+                          className={`px-4 py-3 rounded-r-lg ${
+                            isSuper
+                              ? "bg-gray-300 cursor-not-allowed"
+                              : "bg-blue-500 hover:bg-blue-600 text-white"
+                          }`}
                         >
                           <FaSearch />
                         </button>
@@ -3483,6 +3563,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuper}
                           value={nonSltStaffDetails.name}
                           onChange={(e) =>
                             setNonSltStaffDetails({
@@ -3500,6 +3581,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuper}
                           value={nonSltStaffDetails.companyName}
                           onChange={(e) =>
                             setNonSltStaffDetails({
@@ -3517,6 +3599,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuper}
                           value={nonSltStaffDetails.nic}
                           onChange={(e) =>
                             setNonSltStaffDetails({
@@ -3534,6 +3617,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuper}
                           value={nonSltStaffDetails.contactNo}
                           onChange={(e) =>
                             setNonSltStaffDetails({
@@ -3551,6 +3635,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="email"
+                          disabled={isSuper}
                           value={nonSltStaffDetails.email}
                           onChange={(e) =>
                             setNonSltStaffDetails({
@@ -3608,6 +3693,7 @@ const RequestDetailsModal = ({
                       <div className="flex items-center mb-4">
                         <input
                           type="text"
+                          disabled={isSuper}
                           value={transportServiceId}
                           onChange={(e) =>
                             setTransportServiceId(e.target.value)
@@ -3694,6 +3780,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuper}
                           value={nonSltTransportDetails.name}
                           onChange={(e) =>
                             setNonSltTransportDetails({
@@ -3711,6 +3798,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuper}
                           value={nonSltTransportDetails.companyName}
                           onChange={(e) =>
                             setNonSltTransportDetails({
@@ -3728,6 +3816,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuper}
                           value={nonSltTransportDetails.nic}
                           onChange={(e) =>
                             setNonSltTransportDetails({
@@ -3745,6 +3834,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuper}
                           value={nonSltTransportDetails.contactNo}
                           onChange={(e) =>
                             setNonSltTransportDetails({
@@ -3774,6 +3864,7 @@ const RequestDetailsModal = ({
                     </label>
                     <input
                       type="text"
+                      disabled={isSuper}
                       value={vehicleDetails.vehicleNumber}
                       onChange={(e) =>
                         setVehicleDetails({
@@ -3813,17 +3904,18 @@ const RequestDetailsModal = ({
           )}
 
           {/* Returnable Items Tab */}
-           {/* Returnable Items Tab */}
-            {currentTab === "returnable" && (
-              <div className="space-y-6">
-                <div className="bg-gray-50 rounded-xl p-6">
-                  {/* Header with Add Button */}
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                      <FaClipboardCheck className="mr-2" /> Returnable Items
-                    </h3>
-                    
-                    {/* Add New Item Button */}
+          {/* Returnable Items Tab */}
+          {currentTab === "returnable" && (
+            <div className="space-y-6">
+              <div className="bg-gray-50 rounded-xl p-6">
+                {/* Header with Add Button */}
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                    <FaClipboardCheck className="mr-2" /> Returnable Items
+                  </h3>
+
+                  {/* Add New Item Button */}
+                  {!isSuper && (
                     <button
                       onClick={() => setShowAddItemModal(true)}
                       className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium flex items-center transition-colors shadow-sm"
@@ -3831,366 +3923,423 @@ const RequestDetailsModal = ({
                       <FaPlus className="mr-2" />
                       Add New Item
                     </button>
-                  </div>
+                  )}
+                </div>
 
-                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                    <p className="text-amber-700 text-sm">
-                      Select items using checkboxes and click the Return Selected button.
-                      {activeTab === "pending" && (
-                        <span className="block mt-1 text-xs">
-                          <strong>Note:</strong> Any edits to Model or Serial Number
-                          will be saved locally and applied when you approve the request.
-                        </span>
-                      )}
-                    </p>
-                  </div>
+                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-amber-700 text-sm">
+                    Select items using checkboxes and click the Return Selected
+                    button.
+                    {activeTab === "pending" && (
+                      <span className="block mt-1 text-xs">
+                        <strong>Note:</strong> Any edits to Model or Serial
+                        Number will be saved locally and applied when you
+                        approve the request.
+                      </span>
+                    )}
+                  </p>
+                </div>
 
-                  {/* Bulk Return Button */}
-                  {(request.items || []).filter(
-                    (item) => item.status === "returnable" && 
+                {/* Bulk Return Button */}
+                {(request.items || []).filter(
+                  (item) =>
+                    item.status === "returnable" &&
                     !(request.returnableItems || []).find(
                       (ri) => ri.serialNo === item.serialNo
                     )?.returned
-                  ).length > 0 && (
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.length > 0 && selectedItems.length === (request.items || []).filter(
-                            (item) => item.status === "returnable" && 
-                            !(request.returnableItems || []).find(
-                              (ri) => ri.serialNo === item.serialNo
-                            )?.returned
-                          ).length}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              const allUnreturnedItems = (request.items || [])
-                                .filter((item) => item.status === "returnable" && 
-                                  !(request.returnableItems || []).find(
-                                    (ri) => ri.serialNo === item.serialNo
-                                  )?.returned
-                                )
-                                .map(item => item.serialNo);
-                              setSelectedItems(allUnreturnedItems);
-                            } else {
-                              setSelectedItems([]);
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                        <span className="text-sm text-gray-600">
-                          {selectedItems.length > 0 
-                            ? `${selectedItems.length} item(s) selected` 
-                            : 'Select all'}
-                        </span>
-                      </div>
-                      <button
-                        onClick={handleBulkReturn}
-                        disabled={selectedItems.length === 0 || loading}
-                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {loading ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            <span>Processing...</span>
-                          </>
-                        ) : (
-                          <>
-                            <FaCheck className="mr-2" />
-                            Return Selected ({selectedItems.length})
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="overflow-x-auto rounded-xl border border-gray-200">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">
-                            <input
-                              type="checkbox"
-                              checked={selectedItems.length > 0 && selectedItems.length === (request.items || []).filter(
-                                (item) => item.status === "returnable" && 
+                ).length > 0 && (
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        disabled={isSuper}
+                        checked={
+                          selectedItems.length > 0 &&
+                          selectedItems.length ===
+                            (request.items || []).filter(
+                              (item) =>
+                                item.status === "returnable" &&
                                 !(request.returnableItems || []).find(
                                   (ri) => ri.serialNo === item.serialNo
                                 )?.returned
-                              ).length}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  const allUnreturnedItems = (request.items || [])
-                                    .filter((item) => item.status === "returnable" && 
+                            ).length
+                        }
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const allUnreturnedItems = (request.items || [])
+                              .filter(
+                                (item) =>
+                                  item.status === "returnable" &&
+                                  !(request.returnableItems || []).find(
+                                    (ri) => ri.serialNo === item.serialNo
+                                  )?.returned
+                              )
+                              .map((item) => item.serialNo);
+                            setSelectedItems(allUnreturnedItems);
+                          } else {
+                            setSelectedItems([]);
+                          }
+                        }}
+                      />
+                      <span className="text-sm text-gray-600">
+                        {selectedItems.length > 0
+                          ? `${selectedItems.length} item(s) selected`
+                          : "Select all"}
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleBulkReturn}
+                      disabled={selectedItems.length === 0 || loading}
+                      className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          <span>Processing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FaCheck className="mr-2" />
+                          Return Selected ({selectedItems.length})
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                <div className="overflow-x-auto rounded-xl border border-gray-200">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">
+                          <input
+                            type="checkbox"
+                            disabled={isSuper}
+                            checked={
+                              selectedItems.length > 0 &&
+                              selectedItems.length ===
+                                (request.items || []).filter(
+                                  (item) =>
+                                    item.status === "returnable" &&
+                                    !(request.returnableItems || []).find(
+                                      (ri) => ri.serialNo === item.serialNo
+                                    )?.returned
+                                ).length
+                            }
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                const allUnreturnedItems = (request.items || [])
+                                  .filter(
+                                    (item) =>
+                                      item.status === "returnable" &&
                                       !(request.returnableItems || []).find(
                                         (ri) => ri.serialNo === item.serialNo
                                       )?.returned
-                                    )
-                                    .map(item => item.serialNo);
-                                  setSelectedItems(allUnreturnedItems);
-                                } else {
-                                  setSelectedItems([]);
-                                }
-                              }}
-                              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Item
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Serial No
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Category
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Model
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Quantity
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Return Date
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Status
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            Actions
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {(request.items || [])
-                          .filter((item) => item.status === "returnable")
-                          .map((item, idx) => {
-                            const returnableItem = (request.returnableItems || []).find(
-                              (ri) => ri.serialNo === item.serialNo
-                            );
-
-                            const isEditing = editingItemSerialNo === item.serialNo;
-                            const isReturned = !!returnableItem?.returned;
-
-                            return (
-                              <tr
-                                key={idx}
-                                className={`hover:bg-gray-50 ${
-                                  isReturned ? "bg-green-50" : ""
-                                }`}
-                              >
-                                <td className="px-4 py-4">
-                                  {!isReturned && (
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedItems.includes(item.serialNo)}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedItems([...selectedItems, item.serialNo]);
-                                        } else {
-                                          setSelectedItems(selectedItems.filter(s => s !== item.serialNo));
-                                        }
-                                      }}
-                                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                    />
-                                  )}
-                                </td>
-                                <td className="px-6 py-4 font-medium">{item.itemName}</td>
-                                <td className="px-6 py-4">
-                                  {isEditing ? (
-                                    <input
-                                      type="text"
-                                      value={editValues.serialNo}
-                                      onChange={(e) =>
-                                        setEditValues({
-                                          ...editValues,
-                                          serialNo: e.target.value,
-                                        })
-                                      }
-                                      className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                      placeholder="Enter serial number"
-                                    />
-                                  ) : (
-                                    item.serialNo
-                                  )}
-                                </td>
-                                <td className="px-6 py-4">{item.itemCategory}</td>
-                                <td className="px-6 py-4">
-                                  {isEditing ? (
-                                    <input
-                                      type="text"
-                                      value={editValues.itemModel}
-                                      onChange={(e) =>
-                                        setEditValues({
-                                          ...editValues,
-                                          itemModel: e.target.value,
-                                        })
-                                      }
-                                      className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                      placeholder="Enter model"
-                                    />
-                                  ) : (
-                                    item.itemModel || "N/A"
-                                  )}
-                                </td>
-                                <td className="px-6 py-4">{item.itemQuantity}</td>
-                                <td className="px-6 py-4">
-                                  {item.returnDate
-                                    ? new Date(item.returnDate).toLocaleDateString()
-                                    : "N/A"}
-                                </td>
-                                
-                                <td className="px-6 py-4 text-sm text-gray-700">
-                                  {item.status ? item.status : "No status found"}
-                                </td>
-                                
-                                <td className="px-6 py-4">
-                                  <div className="flex space-x-2">
-                                    {!isReturned && (
-                                      <>
-                                        {isEditing ? (
-                                          <>
-                                            <button
-                                              onClick={() =>
-                                                handleSaveReturnableItem(item.serialNo)
-                                              }
-                                              className="p-2 text-green-600 hover:text-green-800 transition-colors"
-                                              title="Save changes"
-                                            >
-                                              <FaCheck />
-                                            </button>
-                                            <button
-                                              onClick={handleCancelEdit}
-                                              className="p-2 text-red-600 hover:text-red-800 transition-colors"
-                                              title="Cancel editing"
-                                            >
-                                              <FaTimes />
-                                            </button>
-                                          </>
-                                        ) : (
-                                          <button
-                                            onClick={() => handleEditReturnableItem(item)}
-                                            className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
-                                            title="Edit model and serial number"
-                                          >
-                                            <FaEdit />
-                                          </button>
-                                        )}
-                                      </>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Empty state */}
-                  {(request.items || []).filter((item) => item.status === "returnable")
-                    .length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-8">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                        <FaBoxOpen className="text-2xl text-gray-400" />
-                      </div>
-                      <p className="text-gray-500 mb-2">No returnable items found</p>
-                      <p className="text-gray-400 text-sm">
-                        This request doesn't contain any items marked as returnable
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Add New Item Modal */}
-            {showAddItemModal && (
-              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
-                  {/* Modal Header */}
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6">
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-2xl font-bold text-white flex items-center">
-                        <FaPlus className="mr-3" /> Add New Returnable Item
-                      </h2>
-                      <button
-                        onClick={() => setShowAddItemModal(false)}
-                        className="text-white/80 hover:text-white transition-colors"
-                      >
-                        <FaTimes className="text-xl" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Modal Content */}
-                  <div className="p-6 max-h-[70vh] overflow-y-auto">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Item Name <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={newItem.itemName}
-                          onChange={(e) => setNewItem({...newItem, itemName: e.target.value})}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter item name"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Serial Number <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={newItem.serialNo}
-                          onChange={(e) => setNewItem({...newItem, serialNo: e.target.value})}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter serial number"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Category <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={newItem.itemCategory}
-                          onChange={(e) => setNewItem({...newItem, itemCategory: e.target.value})}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter category"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                  )
+                                  .map((item) => item.serialNo);
+                                setSelectedItems(allUnreturnedItems);
+                              } else {
+                                setSelectedItems([]);
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Item
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Serial No
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Category
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Model
-                        </label>
-                        <input
-                          type="text"
-                          value={newItem.itemModel}
-                          onChange={(e) => setNewItem({...newItem, itemModel: e.target.value})}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter model"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Quantity
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={newItem.itemQuantity}
-                          onChange={(e) => setNewItem({...newItem, itemQuantity: parseInt(e.target.value) || 1})}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      </div>
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Return Date
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {(request.items || [])
+                        .filter((item) => item.status === "returnable")
+                        .map((item, idx) => {
+                          const returnableItem = (
+                            request.returnableItems || []
+                          ).find((ri) => ri.serialNo === item.serialNo);
 
-                      {/*<div>
+                          const isEditing =
+                            editingItemSerialNo === item.serialNo;
+                          const isReturned = !!returnableItem?.returned;
+
+                          return (
+                            <tr
+                              key={idx}
+                              className={`hover:bg-gray-50 ${
+                                isReturned ? "bg-green-50" : ""
+                              }`}
+                            >
+                              <td className="px-4 py-4">
+                                {!isReturned && (
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedItems.includes(
+                                      item.serialNo
+                                    )}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedItems([
+                                          ...selectedItems,
+                                          item.serialNo,
+                                        ]);
+                                      } else {
+                                        setSelectedItems(
+                                          selectedItems.filter(
+                                            (s) => s !== item.serialNo
+                                          )
+                                        );
+                                      }
+                                    }}
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                  />
+                                )}
+                              </td>
+                              <td className="px-6 py-4 font-medium">
+                                {item.itemName}
+                              </td>
+                              <td className="px-6 py-4">
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={editValues.serialNo}
+                                    onChange={(e) =>
+                                      setEditValues({
+                                        ...editValues,
+                                        serialNo: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Enter serial number"
+                                  />
+                                ) : (
+                                  item.serialNo
+                                )}
+                              </td>
+                              <td className="px-6 py-4">{item.itemCategory}</td>
+                              <td className="px-6 py-4">
+                                {isEditing ? (
+                                  <input
+                                    type="text"
+                                    value={editValues.itemModel}
+                                    onChange={(e) =>
+                                      setEditValues({
+                                        ...editValues,
+                                        itemModel: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="Enter model"
+                                  />
+                                ) : (
+                                  item.itemModel || "N/A"
+                                )}
+                              </td>
+                              <td className="px-6 py-4">{item.itemQuantity}</td>
+                              <td className="px-6 py-4">
+                                {item.returnDate
+                                  ? new Date(
+                                      item.returnDate
+                                    ).toLocaleDateString()
+                                  : "N/A"}
+                              </td>
+
+                              <td className="px-6 py-4 text-sm text-gray-700">
+                                {item.status ? item.status : "No status found"}
+                              </td>
+
+                              <td className="px-6 py-4">
+                                <div className="flex space-x-2">
+                                  {!isReturned && (
+                                    <>
+                                      {isEditing ? (
+                                        <>
+                                          <button
+                                            onClick={() =>
+                                              handleSaveReturnableItem(
+                                                item.serialNo
+                                              )
+                                            }
+                                            className="p-2 text-green-600 hover:text-green-800 transition-colors"
+                                            title="Save changes"
+                                          >
+                                            <FaCheck />
+                                          </button>
+                                          <button
+                                            onClick={handleCancelEdit}
+                                            className="p-2 text-red-600 hover:text-red-800 transition-colors"
+                                            title="Cancel editing"
+                                          >
+                                            <FaTimes />
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <button
+                                          onClick={() =>
+                                            handleEditReturnableItem(item)
+                                          }
+                                          className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
+                                          title="Edit model and serial number"
+                                        >
+                                          <FaEdit />
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Empty state */}
+                {(request.items || []).filter(
+                  (item) => item.status === "returnable"
+                ).length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-8">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <FaBoxOpen className="text-2xl text-gray-400" />
+                    </div>
+                    <p className="text-gray-500 mb-2">
+                      No returnable items found
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      This request doesn't contain any items marked as
+                      returnable
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Add New Item Modal */}
+          {showAddItemModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-white flex items-center">
+                      <FaPlus className="mr-3" /> Add New Returnable Item
+                    </h2>
+                    <button
+                      onClick={() => setShowAddItemModal(false)}
+                      className="text-white/80 hover:text-white transition-colors"
+                    >
+                      <FaTimes className="text-xl" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Item Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newItem.itemName}
+                        onChange={(e) =>
+                          setNewItem({ ...newItem, itemName: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter item name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Serial Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newItem.serialNo}
+                        onChange={(e) =>
+                          setNewItem({ ...newItem, serialNo: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter serial number"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Category <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newItem.itemCategory}
+                        onChange={(e) =>
+                          setNewItem({
+                            ...newItem,
+                            itemCategory: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter category"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Model
+                      </label>
+                      <input
+                        type="text"
+                        value={newItem.itemModel}
+                        onChange={(e) =>
+                          setNewItem({ ...newItem, itemModel: e.target.value })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter model"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newItem.itemQuantity}
+                        onChange={(e) =>
+                          setNewItem({
+                            ...newItem,
+                            itemQuantity: parseInt(e.target.value) || 1,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/*<div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Expected Return Date
                         </label>
@@ -4201,35 +4350,37 @@ const RequestDetailsModal = ({
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>*/}
-                    </div>
-
-                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-blue-700 text-sm">
-                        <strong>Note:</strong> Fields marked with <span className="text-red-500">*</span> are required.
-                        This item will be added to the current gate pass request as a returnable item.
-                      </p>
-                    </div>
                   </div>
 
-                  {/* Modal Footer */}
-                  <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-200">
-                    <button
-                      onClick={() => setShowAddItemModal(false)}
-                      className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleAddNewItem}
-                      className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center"
-                    >
-                      <FaPlus className="mr-2" />
-                      Add Item
-                    </button>
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-blue-700 text-sm">
+                      <strong>Note:</strong> Fields marked with{" "}
+                      <span className="text-red-500">*</span> are required. This
+                      item will be added to the current gate pass request as a
+                      returnable item.
+                    </p>
                   </div>
                 </div>
+
+                {/* Modal Footer */}
+                <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-200">
+                  <button
+                    onClick={() => setShowAddItemModal(false)}
+                    className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddNewItem}
+                    className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center"
+                  >
+                    <FaPlus className="mr-2" />
+                    Add Item
+                  </button>
+                </div>
               </div>
-            )}
+            </div>
+          )}
 
           {/* Navigation/Approval Tab */}
           {currentTab === "navigation" && (
@@ -4352,26 +4503,40 @@ const RequestDetailsModal = ({
                       </ul>
                     </div>
                     <div>
-                      <h4 className="font-medium text-gray-700 mb-2">Returnable Items</h4>
+                      <h4 className="font-medium text-gray-700 mb-2">
+                        Returnable Items
+                      </h4>
 
-                    {request.items?.filter((item) => item.status === "returnable"  || 
-                    item.status === "return to Sender" || 
-                    item.status === "return to Out Location Petrol Leader"||item.status === "return to Petrol Leader"||item.status === "return to Executive Officer")?.length > 0 ? (
-                      <ul className="list-disc list-inside space-y-1 text-gray-600">
-                        {request.items
-                          .filter((item) => item.status === "returnable"  || 
-                          item.status === "return to Sender" || 
-                          item.status === "return to Out Location Petrol Leader"||item.status === "return to Petrol Leader"||item.status === "return to Executive Officer")
-                          .map((item, index) => (
-                            <li key={index}>
-                              {item.itemName} - {item.serialNo}
-                            </li>
-                          ))}
-                      </ul>
-                    ) : (
-                      <p className="text-gray-500">No returnable items</p>
-                    )}
-                  </div>
+                      {request.items?.filter(
+                        (item) =>
+                          item.status === "returnable" ||
+                          item.status === "return to Sender" ||
+                          item.status ===
+                            "return to Out Location Petrol Leader" ||
+                          item.status === "return to Petrol Leader" ||
+                          item.status === "return to Executive Officer"
+                      )?.length > 0 ? (
+                        <ul className="list-disc list-inside space-y-1 text-gray-600">
+                          {request.items
+                            .filter(
+                              (item) =>
+                                item.status === "returnable" ||
+                                item.status === "return to Sender" ||
+                                item.status ===
+                                  "return to Out Location Petrol Leader" ||
+                                item.status === "return to Petrol Leader" ||
+                                item.status === "return to Executive Officer"
+                            )
+                            .map((item, index) => (
+                              <li key={index}>
+                                {item.itemName} - {item.serialNo}
+                              </li>
+                            ))}
+                        </ul>
+                      ) : (
+                        <p className="text-gray-500">No returnable items</p>
+                      )}
+                    </div>
                     {DispatchStatus !== true && (
                       <div>
                         <h4 className="font-medium text-gray-700 mb-2">
@@ -4440,51 +4605,54 @@ const RequestDetailsModal = ({
               )}
 
               {/* Comments Section - Only show in Navigation tab */}
-              {currentTab === "navigation" && activeTab === "pending" && (
-                <div className="md:w-full space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Comment
-                  </label>
-                  <textarea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    placeholder="Add your comments here..."
-                    rows={2}
-                  ></textarea>
+              {currentTab === "navigation" &&
+                activeTab === "pending" &&
+                !isSuper && (
+                  <div className="md:w-full space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Comment
+                    </label>
+                    <textarea
+                      value={comment}
+                      disabled={isSuperAdmin}
+                      onChange={(e) => setComment(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Add your comments here..."
+                      rows={2}
+                    ></textarea>
 
-                  <div className="flex justify-between mt-4">
-                    {/* Previous Button - Aligned Left */}
-                    <button
-                      onClick={goToPreviousTab}
-                      disabled={currentTab === tabOrder[0]}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center ${
-                        currentTab === tabOrder[0]
-                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                      }`}
-                    >
-                      <FaArrowLeft className="mr-2" /> Previous
-                    </button>
+                    <div className="flex justify-between mt-4">
+                      {/* Previous Button - Aligned Left */}
+                      <button
+                        onClick={goToPreviousTab}
+                        disabled={currentTab === tabOrder[0]}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center ${
+                          currentTab === tabOrder[0]
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                        }`}
+                      >
+                        <FaArrowLeft className="mr-2" /> Previous
+                      </button>
 
-                    {/* Approve & Reject Buttons - Aligned Right */}
-                    <div className="flex space-x-4">
-                      <button
-                        onClick={() => handleReject(request)}
-                        className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-medium flex items-center"
-                      >
-                        <FaTimes className="mr-2" /> Reject
-                      </button>
-                      <button
-                        onClick={() => handleApprove(request)}
-                        className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium flex items-center"
-                      >
-                        <FaCheck className="mr-2" /> Receive
-                      </button>
+                      {/* Approve & Reject Buttons - Aligned Right */}
+                      <div className="flex space-x-4">
+                        <button
+                          onClick={() => handleReject(request)}
+                          className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-medium flex items-center"
+                        >
+                          <FaTimes className="mr-2" /> Reject
+                        </button>
+                        <button
+                          onClick={() => handleApprove(request)}
+                          className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium flex items-center"
+                        >
+                          <FaCheck className="mr-2" /> Receive
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           </div>
         </div>
@@ -4500,21 +4668,21 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  if (images && images.length > 0) {
-    setLoading(true);
+    if (images && images.length > 0) {
+      setLoading(true);
 
-    const urls = images
-      .slice(0, 5)
-      .map(img => getImageUrlSync(img))
-      .filter(Boolean);
+      const urls = images
+        .slice(0, 5)
+        .map((img) => getImageUrlSync(img))
+        .filter(Boolean);
 
-    setImageUrls(urls);
-    setLoading(false);
-  } else {
-    setImageUrls([]);
-    setLoading(false);
-  }
-}, [images]);
+      setImageUrls(urls);
+      setLoading(false);
+    } else {
+      setImageUrls([]);
+      setLoading(false);
+    }
+  }, [images]);
 
   if (!isOpen) return null;
 

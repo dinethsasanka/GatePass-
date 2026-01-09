@@ -41,7 +41,9 @@ const createRequest = async (req, res) => {
 
     // Process items with images
     const processedItems = await processCSVItems(parsedItems, req.files);
-    console.log('✅ Processed items:', processedItems.length);
+    // Process items with images
+    
+    console.log('Processed items:', processedItems.length);
 
     // ✅ Filter and create returnableItems array
     const returnableItems = processedItems
@@ -180,21 +182,21 @@ const processCSVItems = async (csvItems, files) => {
           const file = fileMap[fileName];
           if (file) {
             try {
-              // ⭐ uploadImage returns { url: '...', path: '...' }
+              // uploadImage returns { url: '...', path: '...' }
               const uploadedImage = await uploadImage(file, "items");
               
-              // ⭐ CRITICAL: Verify the structure before pushing
+              // CRITICAL: Verify the structure before pushing
               if (uploadedImage && uploadedImage.url && uploadedImage.path) {
                 itemPhotos.push(uploadedImage);
-                console.log(`✅ Uploaded image for item ${index + 1}:`, uploadedImage.url);
+                console.log(`Uploaded image for item ${index + 1}:`, uploadedImage.url);
               } else {
-                console.error(`❌ Invalid image object structure:`, uploadedImage);
+                console.error(`Invalid image object structure:`, uploadedImage);
               }
             } catch (error) {
-              console.error(`❌ Error uploading image ${fileName}:`, error);
+              console.error(` Error uploading image ${fileName}:`, error);
             }
           } else {
-            console.warn(`⚠️ File not found in fileMap: ${fileName}`);
+            console.warn(`File not found in fileMap: ${fileName}`);
           }
         }
       }
@@ -246,7 +248,50 @@ const getRequestByEmployeeServiceNo = async (req, res) => {
     if (!requests.length) {
       return res.status(404).json({ message: "No requests found" });
     }
-    res.json(requests);
+
+    // Enhance requests with latest Status information
+    const enhancedRequests = await Promise.all(
+      requests.map(async (request) => {
+        // Find the latest Status for this request
+        const latestStatus = await Status.findOne({
+          referenceNumber: request.referenceNumber,
+        })
+          .sort({ updatedAt: -1 })
+          .lean();
+
+        // Create enhanced request object
+        const requestObj = request.toObject();
+
+        if (latestStatus) {
+          // Add status information
+          requestObj.statusInfo = {
+            afterStatus: latestStatus.afterStatus,
+            rejectedBy: latestStatus.rejectedBy,
+            rejectedByServiceNo: latestStatus.rejectedByServiceNo,
+            rejectedByBranch: latestStatus.rejectedByBranch,
+            rejectedAt: latestStatus.rejectedAt,
+            rejectionLevel: latestStatus.rejectionLevel,
+            executiveOfficerStatus: latestStatus.executiveOfficerStatus,
+            verifyOfficerStatus: latestStatus.verifyOfficerStatus,
+            recieveOfficerStatus: latestStatus.recieveOfficerStatus,
+            comment:
+              latestStatus.comment ||
+              latestStatus.executiveOfficerComment ||
+              latestStatus.verifyOfficerComment ||
+              latestStatus.recieveOfficerComment,
+          };
+
+          // Update the main status field if afterStatus exists
+          if (latestStatus.afterStatus) {
+            requestObj.status = latestStatus.afterStatus;
+          }
+        }
+
+        return requestObj;
+      })
+    );
+
+    res.json(enhancedRequests);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -13,6 +13,9 @@ const {
   addReturnableItemToRequest,
 } = require("../controllers/receiveController");
 
+// Auth middleware
+
+
 // Status routes
 // router.post("/create", createStatus);
 router.post("/create", protect, createStatus);

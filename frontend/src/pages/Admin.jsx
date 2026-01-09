@@ -1,17 +1,9 @@
-import { useState } from "react";
-import { adminService } from "../services/adminService.js";
-import {
-  FaPlus,
-  FaUpload,
-  FaMapMarkerAlt,
-  FaTag,
-  FaFileUpload,
-  FaChartBar,
-  FaUsers,
-  FaHistory,
-  FaCog,
-} from "react-icons/fa";
-import UserManagement from "./UserManagement.jsx";
+import { useState, useEffect } from 'react';
+import { adminService } from '../services/adminService.js';
+import { FaPlus, FaUpload, FaMapMarkerAlt, FaTag, FaFileUpload, FaChartBar, FaUsers, FaHistory, FaCog, FaCloud, FaEdit, FaTrash, FaExclamationCircle } from 'react-icons/fa';
+import { toast } from 'react-toastify';
+import UserManagement from './UserManagement.jsx';
+import ErpEmployeeImport from '../components/ErpEmployeeImport.jsx';
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("users");
@@ -21,28 +13,109 @@ const AdminDashboard = () => {
   const [categoryFile, setCategoryFile] = useState(null);
   const [bulkFiles, setBulkFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  
+  const [locations, setLocations] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [editingLocation, setEditingLocation] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [editLocationValue, setEditLocationValue] = useState('');
+  const [editCategoryValue, setEditCategoryValue] = useState('');
+  
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({ message: '', onConfirm: null, type: '' });
 
   const role = localStorage.getItem("role");
 
+  useEffect(() => {
+    if (activeTab === 'manage') {
+      fetchLocations();
+      fetchCategories();
+    }
+  }, [activeTab]);
+
+  const fetchLocations = async () => {
+    try {
+      const data = await adminService.getLocations();
+      setLocations(data);
+    } catch (error) {
+      toast.error('Failed to fetch locations');
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const data = await adminService.getCategories();
+      setCategories(data);
+    } catch (error) {
+      toast.error('Failed to fetch categories');
+    }
+  };
+
+  const showConfirm = (message, onConfirm, type = 'add') => {
+    setConfirmConfig({ message, onConfirm, type });
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirm = () => {
+    if (confirmConfig.onConfirm) {
+      confirmConfig.onConfirm();
+    }
+    setShowConfirmModal(false);
+  };
+
+  const handleCancel = () => {
+    setShowConfirmModal(false);
+  };
+
   const handleLocationSubmit = async () => {
-    setIsUploading(true);
-    await adminService.addLocation(location);
-    setLocation("");
-    setIsUploading(false);
+    showConfirm(
+      `Are you sure you want to add "${location}" as a new location?`,
+      async () => {
+        setIsUploading(true);
+        try {
+          await adminService.addLocation(location);
+          setLocation('');
+          toast.success('Location added successfully');
+          fetchLocations();
+        } catch (error) {
+          toast.error('Failed to add location');
+        }
+        setIsUploading(false);
+      },
+      'add'
+    );
   };
 
   const handleCategorySubmit = async () => {
-    setIsUploading(true);
-    await adminService.addCategory(category);
-    setCategory("");
-    setIsUploading(false);
+    showConfirm(
+      `Are you sure you want to add "${category}" as a new category?`,
+      async () => {
+        setIsUploading(true);
+        try {
+          await adminService.addCategory(category);
+          setCategory('');
+          toast.success('Category added successfully');
+          fetchCategories();
+        } catch (error) {
+          toast.error('Failed to add category');
+        }
+        setIsUploading(false);
+      },
+      'add'
+    );
   };
 
   const handleLocationUpload = async () => {
     if (locationFile) {
       setIsUploading(true);
-      await adminService.bulkUploadLocations(locationFile);
-      setLocationFile(null);
+      try {
+        await adminService.bulkUploadLocations(locationFile);
+        setLocationFile(null);
+        toast.success('Locations uploaded successfully');
+        fetchLocations();
+      } catch (error) {
+        toast.error('Failed to upload locations');
+      }
       setIsUploading(false);
     }
   };
@@ -50,84 +123,104 @@ const AdminDashboard = () => {
   const handleCategoryUpload = async () => {
     if (categoryFile) {
       setIsUploading(true);
-      await adminService.bulkUploadCategories(categoryFile);
-      setCategoryFile(null);
+      try {
+        await adminService.bulkUploadCategories(categoryFile);
+        setCategoryFile(null);
+        toast.success('Categories uploaded successfully');
+        fetchCategories();
+      } catch (error) {
+        toast.error('Failed to upload categories');
+      }
       setIsUploading(false);
     }
   };
 
+  const handleUpdateLocation = async (id) => {
+    try {
+      await adminService.updateLocation(id, editLocationValue);
+      toast.success('Location updated successfully');
+      setEditingLocation(null);
+      setEditLocationValue('');
+      fetchLocations();
+    } catch (error) {
+      toast.error('Failed to update location');
+    }
+  };
+
+  const handleDeleteLocation = async (id) => {
+    const locationToDelete = locations.find(l => l._id === id);
+    showConfirm(
+      `Are you sure you want to delete "${locationToDelete?.name}"?`,
+      async () => {
+        try {
+          await adminService.deleteLocation(id);
+          toast.success('Location deleted successfully');
+          fetchLocations();
+        } catch (error) {
+          toast.error('Failed to delete location');
+        }
+      },
+      'delete'
+    );
+  };
+
+  const handleUpdateCategory = async (id) => {
+    try {
+      await adminService.updateCategory(id, editCategoryValue);
+      toast.success('Category updated successfully');
+      setEditingCategory(null);
+      setEditCategoryValue('');
+      fetchCategories();
+    } catch (error) {
+      toast.error('Failed to update category');
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    const categoryToDelete = categories.find(c => c._id === id);
+    showConfirm(
+      `Are you sure you want to delete "${categoryToDelete?.name}"?`,
+      async () => {
+        try {
+          await adminService.deleteCategory(id);
+          toast.success('Category deleted successfully');
+          fetchCategories();
+        } catch (error) {
+          toast.error('Failed to delete category');
+        }
+      },
+      'delete'
+    );
+  };
+
+  const startEditLocation = (loc) => {
+    setEditingLocation(loc._id);
+    setEditLocationValue(loc.name);
+  };
+
+  const startEditCategory = (cat) => {
+    setEditingCategory(cat._id);
+    setEditCategoryValue(cat.name);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Header */}
-      <div className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <div className="h-10 w-10 rounded-lg bg-blue-600 flex items-center justify-center">
-                <span className="text-white font-bold text-xl">SLT</span>
-              </div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                Gate Pass Management
-              </h1>
-            </div>
-            <div className="flex items-center space-x-4">
-              {/* Profile and notification elements can go here */}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
-      <div className="max-w mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex gap-6">
           {/* Sidebar */}
-          <div className="w-64 pr-8">
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="w-64 shrink-0">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden sticky top-8">
               <div className="p-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
                 <h2 className="text-lg font-semibold">Admin Controls</h2>
               </div>
-              <nav className="p-2">
-                {/* <button
-                  onClick={() => setActiveTab("manage")}
-                  className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${
-                    activeTab === "manage"
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600 hover:bg-gray-50"
-                  }`}
-                >
-                  <FaTag className="flex-shrink-0" />
-                  <span className="font-medium">Manage Data</span>
-                </button> */}
-                {role === "SuperAdmin" && (
-                  <button
-                    onClick={() => setActiveTab("users")}
-                    className={`flex items-center space-x-3 w-full px-4 py-3 rounded-lg transition-colors ${
-                      activeTab === "users"
-                        ? "bg-blue-50 text-blue-600"
-                        : "text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    <FaUsers className="flex-shrink-0" />
-                    <span className="font-medium">User Management</span>
-                  </button>
-                )}
-              </nav>
-            </div>
-
-            <div className="mt-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl shadow-md p-6 text-white">
-              <h3 className="font-semibold text-lg mb-2">Need Help?</h3>
-              <p className="text-sm mb-4 opacity-90">
-                Access documentation or contact support for assistance
-              </p>
-              <button className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 transition-colors py-2 rounded-lg text-sm font-medium text-blue-600">
-                View Resources
-              </button>
-            </div>
-          </div>
+              </div>
+              </div>
+              
 
           {/* Main Content Area */}
-          <div className="flex-1">
-            {activeTab === "manage" && (
+          <div className="flex-1 min-w-0">
+            {activeTab === 'manage' && (
               <div className="space-y-6">
                 <div className="bg-white rounded-xl shadow-md overflow-hidden">
                   <div className="p-5 border-b border-gray-100">
@@ -269,110 +362,148 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* CSV Format Guide */}
-                <div className="bg-white rounded-xl shadow-md p-6">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                      <FaFileUpload className="text-blue-600" />
-                    </div>
-                    <div className="ml-4">
-                      <h3 className="text-lg font-semibold text-gray-800">
-                        CSV File Format Guide
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Ensure your CSV files follow the correct format:
-                      </p>
-                      <ul className="mt-3 space-y-2">
-                        <li className="flex items-start space-x-2">
-                          <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 flex-shrink-0 text-blue-600 text-xs font-bold">
-                            1
-                          </span>
-                          <div>
-                            <p className="text-sm font-medium text-gray-700">
-                              Locations
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Header should be{" "}
-                              <code className="bg-gray-100 px-1 rounded">
-                                location
-                              </code>
-                              , each row contains a location name.
-                            </p>
-                          </div>
-                        </li>
-                        <li className="flex items-start space-x-2">
-                          <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-blue-100 flex-shrink-0 text-blue-600 text-xs font-bold">
-                            2
-                          </span>
-                          <div>
-                            <p className="text-sm font-medium text-gray-700">
-                              Categories
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Header should be{" "}
-                              <code className="bg-gray-100 px-1 rounded">
-                                category
-                              </code>
-                              , each row contains a category name.
-                            </p>
-                          </div>
-                        </li>
-                      </ul>
+                    {/* Locations List */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                          <FaMapMarkerAlt className="text-blue-500 mr-2" />
+                          Existing Locations ({locations.length})
+                        </h3>
+                        <div className="border border-gray-200 rounded-lg max-h-96 overflow-y-auto">
+                          {locations.length === 0 ? (
+                            <div className="p-4 text-center text-gray-500 text-sm">No locations added yet</div>
+                          ) : (
+                            <ul className="divide-y divide-gray-200">
+                              {locations.map((loc) => (
+                                <li key={loc._id} className="p-3 hover:bg-gray-50 transition-colors">
+                                  {editingLocation === loc._id ? (
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        value={editLocationValue}
+                                        onChange={(e) => setEditLocationValue(e.target.value)}
+                                        className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        autoFocus
+                                      />
+                                      <button
+                                        onClick={() => handleUpdateLocation(loc._id)}
+                                        className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingLocation(null);
+                                          setEditLocationValue('');
+                                        }}
+                                        className="px-3 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm text-gray-800">{loc.name}</span>
+                                      <div className="flex space-x-2">
+                                        <button
+                                          onClick={() => startEditLocation(loc)}
+                                          className="text-blue-600 hover:text-blue-800 p-1"
+                                          title="Edit location"
+                                        >
+                                          <FaEdit />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteLocation(loc._id)}
+                                          className="text-red-600 hover:text-red-800 p-1"
+                                          title="Delete location"
+                                        >
+                                          <FaTrash />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Categories List */}
+                      <div>
+                        <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                          <FaTag className="text-blue-500 mr-2" />
+                          Existing Categories ({categories.length})
+                        </h3>
+                        <div className="border border-gray-200 rounded-lg max-h-96 overflow-y-auto">
+                          {categories.length === 0 ? (
+                            <div className="p-4 text-center text-gray-500 text-sm">No categories added yet</div>
+                          ) : (
+                            <ul className="divide-y divide-gray-200">
+                              {categories.map((cat) => (
+                                <li key={cat._id} className="p-3 hover:bg-gray-50 transition-colors">
+                                  {editingCategory === cat._id ? (
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        value={editCategoryValue}
+                                        onChange={(e) => setEditCategoryValue(e.target.value)}
+                                        className="flex-1 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        autoFocus
+                                      />
+                                      <button
+                                        onClick={() => handleUpdateCategory(cat._id)}
+                                        className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingCategory(null);
+                                          setEditCategoryValue('');
+                                        }}
+                                        className="px-3 py-1 bg-gray-400 text-white text-xs rounded hover:bg-gray-500"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-sm text-gray-800">{cat.name}</span>
+                                      <div className="flex space-x-2">
+                                        <button
+                                          onClick={() => startEditCategory(cat)}
+                                          className="text-blue-600 hover:text-blue-800 p-1"
+                                          title="Edit category"
+                                        >
+                                          <FaEdit />
+                                        </button>
+                                        <button
+                                          onClick={() => handleDeleteCategory(cat._id)}
+                                          className="text-red-600 hover:text-red-800 p-1"
+                                          title="Delete category"
+                                        >
+                                          <FaTrash />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Submit Button */}
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={isUploading}
-                    className={`px-6 py-3 rounded-lg text-white font-medium flex items-center ${
-                      isUploading
-                        ? "bg-gray-400 cursor-not-allowed"
-                        : "bg-blue-500 hover:bg-blue-600"
-                    }`}
-                  >
-                    {isUploading ? (
-                      <>
-                        <svg
-                          className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                          xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <FaPlus className="mr-2" /> Submit Data
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
             )}
-
-            {activeTab === "users" && <UserManagement />}
-
-            {activeTab !== "manage" && activeTab !== "users" && (
+            
+            {activeTab === 'users' && <UserManagement />}
+            
+            {activeTab === 'erp' && <ErpEmployeeImport />}
+            
+            {activeTab !== 'manage' && activeTab !== 'users' && activeTab !== 'erp' && (
               <div className="bg-white rounded-xl shadow-md p-8 flex flex-col items-center justify-center h-96">
                 <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-500 mb-4">
                   {activeTab === "analytics" && <FaChartBar size={24} />}
@@ -393,8 +524,51 @@ const AdminDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Custom Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4" style={{ backgroundColor: 'rgba(0, 0, 0, 0.15)' }}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full animate-fadeIn">
+            <div className={`p-6 rounded-t-xl ${confirmConfig.type === 'delete' ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-blue-500 to-blue-600'}`}>
+              <div className="flex items-center space-x-3">
+                <div className={`p-3 rounded-full ${confirmConfig.type === 'delete' ? 'bg-red-100' : 'bg-blue-100'}`}>
+                  <FaExclamationCircle className={`text-2xl ${confirmConfig.type === 'delete' ? 'text-red-600' : 'text-blue-600'}`} />
+                </div>
+                <h3 className="text-xl font-semibold text-white">
+                  {confirmConfig.type === 'delete' ? 'Confirm Deletion' : 'Confirm Action'}
+                </h3>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <p className="text-gray-700 text-lg mb-6">{confirmConfig.message}</p>
+              
+              <div className="flex space-x-3 justify-end">
+                <button
+                  onClick={handleCancel}
+                  className="px-5 py-2.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  className={`px-5 py-2.5 text-white rounded-lg font-medium transition-colors ${
+                    confirmConfig.type === 'delete' 
+                      ? 'bg-red-600 hover:bg-red-700' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  {confirmConfig.type === 'delete' ? 'Delete' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+    
   );
-};
+  }
+
 
 export default AdminDashboard;

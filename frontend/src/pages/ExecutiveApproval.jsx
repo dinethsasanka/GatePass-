@@ -8,11 +8,12 @@ import {
   rejectStatus,
   searchUserByServiceNo,
   markItemsAsReturned,
-} from "../services/ApproveService.js";  // DEVOPS Change 12/16/2025 : approveService  --> ApproveService
+} from "../services/approveService.js";
 import {
   getImageUrl,
-  searchReceiverByServiceNo,
   getImageUrlSync,
+  searchReceiverByServiceNo,
+  searchEmployeeByServiceNo,
   getGatePassRequest,
 } from "../services/RequestService.js";
 import { useToast } from "../components/ToastProvider.jsx";
@@ -65,6 +66,8 @@ const ExecutiveApproval = () => {
   const [dateTo, setDateTo] = useState("");
 
   const user = JSON.parse(localStorage.getItem("user"));
+  const role = user?.role?.toUpperCase();
+  const isSuperAdmin = role === "SUPERADMIN";
 
   // Real-time auto-refetch when new requests come in or status changes
   useAutoRefetch(
@@ -148,7 +151,9 @@ const ExecutiveApproval = () => {
                 transportData,
                 inLocation: status.request?.inLocation,
                 outLocation: status.request?.outLocation,
-                createdAt: new Date(status.createdAt).toLocaleString(),
+                createdAt: new Date(
+                  status.request?.createdAt || status.createdAt
+                ).toLocaleString(),
                 items: status.request?.items || [],
                 comment: status.executiveOfficerComment || "",
                 request: status.request,
@@ -253,7 +258,9 @@ const ExecutiveApproval = () => {
               transportData: transportData,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
-              createdAt: new Date(status.createdAt).toLocaleString(),
+              createdAt: new Date(
+                status.request?.createdAt || status.createdAt
+              ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.executiveOfficerComment || "",
               request: status.request,
@@ -360,7 +367,9 @@ const ExecutiveApproval = () => {
               transportData: transportData,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
-              createdAt: new Date(status.createdAt).toLocaleString(),
+              createdAt: new Date(
+                status.request?.createdAt || status.createdAt
+              ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.executiveOfficerComment,
               request: status.request,
@@ -465,11 +474,18 @@ const ExecutiveApproval = () => {
               transportData: transportData,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
-              createdAt: new Date(status.createdAt).toLocaleString(),
+              createdAt: new Date(
+                status.request?.createdAt || status.createdAt
+              ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.executiveOfficerComment,
               request: status.request,
               requestDetails: { ...status.request },
+              rejectedBy: status.rejectedBy,
+              rejectedByServiceNo: status.rejectedByServiceNo,
+              rejectedByBranch: status.rejectedByBranch,
+              rejectedAt: status.rejectedAt,
+              rejectionLevel: status.rejectionLevel,
             };
           })
         );
@@ -509,11 +525,14 @@ const ExecutiveApproval = () => {
 
       // Format the approved item in the same structure as your UI expects
       const approvedItem = {
+        ...item, // Keep all item properties
         refNo: updatedStatus.referenceNumber,
         name: updatedStatus.request?.name,
         inLocation: updatedStatus.request?.inLocation,
         outLocation: updatedStatus.request?.outLocation,
-        createdAt: new Date(updatedStatus.createdAt).toLocaleString(),
+        createdAt: new Date(
+          updatedStatus.request?.createdAt || updatedStatus.createdAt
+        ).toLocaleString(),
         items: updatedStatus.request?.items || [],
         comment: updatedStatus.executiveOfficerComment,
         requestDetails: { ...updatedStatus.request },
@@ -523,27 +542,34 @@ const ExecutiveApproval = () => {
       setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
       setApprovedItems([...approvedItems, approvedItem]);
 
+      // Send email to petrol leader
+      await sendApprovalEmailToPetrolLeader(approvedItem, comment);
+
       // Reset modal and comment
       setShowModal(false);
       setComment("");
-      showToast("Request approved successfully", "success");
+      showToast(
+        "Request approved successfully and notified petrol leader",
+        "success"
+      );
     } catch (error) {
       console.error("Error approving status:", error.message);
       showToast("Failed to approve request", "error");
     }
   };
-
   const sendReturnEmail = async (request, comment, itemDetails = []) => {
     try {
       if (!request.senderDetails?.email) {
         showToast("Sender email not available", "error");
         return;
       }
-  
+
       const emailSubject = `Returnable Items Update: ${request.refNo}`;
-  
+
       // Create items table for email
-      const itemsTable = itemDetails.length > 0 ? `
+      const itemsTable =
+        itemDetails.length > 0
+          ? `
         <div style="margin: 20px 0;">
           <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned Items</h3>
           <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
@@ -556,30 +582,49 @@ const ExecutiveApproval = () => {
               </tr>
             </thead>
             <tbody>
-              ${itemDetails.map(item => `
+              ${itemDetails
+                .map(
+                  (item) => `
                 <tr>
-                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemName || 'N/A'}</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.serialNo || 'N/A'}</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemCategory || 'N/A'}</td>
-                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemQuantity || '1'}</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                    item.itemName || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                    item.serialNo || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                    item.itemCategory || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                    item.itemQuantity || "1"
+                  }</td>
                 </tr>
-              `).join('')}
+              `
+                )
+                .join("")}
             </tbody>
           </table>
         </div>
-      ` : '';
-  
+      `
+          : "";
+
       const emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <div style="text-align: center; margin-bottom: 20px;">
             <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable Items Update</h2>
-            <p style="color: #757575; font-size: 14px;">Reference Number: ${request.refNo}</p>
+            <p style="color: #757575; font-size: 14px;">Reference Number: ${
+              request.refNo
+            }</p>
           </div>
           
           <div style="margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
             <p>Dear ${request.senderDetails.name},</p>
             
-            <p>We would like to inform you that ${itemDetails.length} returnable item(s) under reference number <b>${request.refNo}</b> have been returned by the Receiver.</p>
+            <p>We would like to inform you that ${
+              itemDetails.length
+            } returnable item(s) under reference number <b>${
+        request.refNo
+      }</b> have been returned by the Receiver.</p>
             <p>You can view it under your <i>Completed</i> or relevant section.</p>
           </div>
   
@@ -591,20 +636,19 @@ const ExecutiveApproval = () => {
           </div>
         </div>
       `;
-  
+
       await emailSent({
         to: request.senderDetails.email,
         subject: emailSubject,
         html: emailBody,
       });
-  
+
       showToast("Return notification email sent to requester", "success");
     } catch (error) {
       console.error("Failed to send return email:", error);
       showToast("Failed to send return email", "error");
     }
   };
-
 
   // Add this function inside the ExecutiveApproval component
   const sendRejectionEmail = async (request, comment) => {
@@ -688,6 +732,171 @@ const ExecutiveApproval = () => {
     }
   };
 
+  // Add this function RIGHT AFTER the sendRejectionEmail function
+  // (around line 398-399 in your code)
+
+  const sendApprovalEmailToPetrolLeader = async (request, comment) => {
+    try {
+      // Get petrol leader email based on location or other criteria
+      const petrolLeaderEmail = await getPetrolLeaderEmail(request);
+
+      if (!petrolLeaderEmail) {
+        console.log("No petrol leader email found for this request");
+        return;
+      }
+
+      const emailSubject = `Gate Pass Request ${request.refNo} - Executive Approved`;
+
+      const emailBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #2fd33dff; margin-bottom: 5px;">Gate Pass - Executive Approved</h2>
+          <p style="color: #757575; font-size: 14px;">Reference Number: ${
+            request.refNo
+          }</p>
+        </div>
+        
+        <div style="margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
+          <p>Dear Petrol Leader,</p>
+          <p>A gate pass request has been approved by the Executive Officer and is now awaiting your final review.</p>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Request Details</h3>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+            <tr>
+              <td style="padding: 8px 0; color: #757575; width: 40%;">Reference No:</td>
+              <td style="padding: 8px 0; font-weight: bold;">${
+                request.refNo
+              }</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #757575;">Requester:</td>
+              <td style="padding: 8px 0;">${
+                request.senderDetails?.name || "N/A"
+              }</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #757575;">From Location:</td>
+              <td style="padding: 8px 0;">${request.outLocation}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #757575;">To Location:</td>
+              <td style="padding: 8px 0;">${request.inLocation}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #757575;">Executive Comment:</td>
+              <td style="padding: 8px 0; font-style: italic;">${
+                comment || "No comment provided"
+              }</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; color: #757575;">Approved Date:</td>
+              <td style="padding: 8px 0;">${new Date().toLocaleDateString()}</td>
+            </tr>
+          </table>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Items (${
+            request.items.length
+          })</h3>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+              <tr style="background-color: #f5f5f5;">
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Item Name</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial No</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${request.items
+                .map(
+                  (item) => `
+                <tr>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                    item.itemName || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                    item.serialNo || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                    item.itemQuantity || "1"
+                  }</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+        
+        <div style="margin-bottom: 20px; padding: 15px; background-color: #e8f5e9; border-radius: 4px; border-left: 4px solid #4caf50;">
+          <p><strong>Action Required:</strong> Please review this approved request in your Petrol Leader dashboard.</p>
+          <p style="margin-top: 10px;">
+            <a href="${window.location.origin}/petrol-leader/approvals" 
+               style="background-color: #4caf50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">
+              View in Dashboard
+            </a>
+          </p>
+        </div>
+        
+        <div style="font-size: 12px; color: #757575; margin-top: 30px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+          <p>This is an automated email from the SLT Gate Pass Management System. Please do not reply to this email.</p>
+          <p>&copy; ${new Date().getFullYear()} Sri Lanka Telecom. All rights reserved.</p>
+        </div>
+      </div>
+    `;
+
+      await emailSent({
+        to: petrolLeaderEmail,
+        subject: emailSubject,
+        html: emailBody,
+      });
+
+      console.log(
+        "Approval notification sent to petrol leader:",
+        petrolLeaderEmail
+      );
+    } catch (error) {
+      console.error("Failed to send approval email to petrol leader:", error);
+    }
+  };
+
+  // Add this helper function as well
+  const getPetrolLeaderEmail = async (request) => {
+    try {
+      // Method 1: Hardcoded for testing (use this first)
+      // return "petrol.leader@slt.lk";
+
+      // Method 2: Get from location
+      const location = request.inLocation || request.outLocation || "";
+
+      // Define location-based email mapping
+      const locationEmailMap = {
+        Colombo: "petrol.colombo@slt.lk",
+        Kandy: "petrol.kandy@slt.lk",
+        Galle: "petrol.galle@slt.lk",
+        Matara: "petrol.matara@slt.lk",
+        Jaffna: "petrol.jaffna@slt.lk",
+        // Add more locations as needed
+      };
+
+      // Find matching location
+      for (const [key, email] of Object.entries(locationEmailMap)) {
+        if (location.toLowerCase().includes(key.toLowerCase())) {
+          return email;
+        }
+      }
+
+      // Default petrol leader email
+      return "petrol.leader@slt.lk";
+    } catch (error) {
+      console.error("Error getting petrol leader email:", error);
+      return "petrol.leader@slt.lk"; // Fallback
+    }
+  };
+
   const handleReject = async (item) => {
     try {
       if (!comment || comment.trim() === "") {
@@ -707,7 +916,9 @@ const ExecutiveApproval = () => {
         name: updatedStatus.request?.name,
         inLocation: updatedStatus.request?.inLocation,
         outLocation: updatedStatus.request?.outLocation,
-        createdAt: new Date(updatedStatus.createdAt).toLocaleString(),
+        createdAt: new Date(
+          updatedStatus.request?.createdAt || updatedStatus.createdAt
+        ).toLocaleString(),
         items: updatedStatus.request?.items || [],
         comment: updatedStatus.executiveOfficerComment,
         requestDetails: { ...updatedStatus.request },
@@ -726,24 +937,42 @@ const ExecutiveApproval = () => {
   };
 
   const handleModelOpen = async (item) => {
-    setSelectedItem(item);
+  setSelectedItem(item);
 
-    if (item.requestDetails?.transport.transporterServiceNo) {
-      try {
-        const transport = await searchReceiverByServiceNo(
-          item.requestDetails.transport.transporterServiceNo
-        );
-        setTransportData(transport);
-      } catch (error) {
-        console.error("Error fetching transporter details:", error);
+  if (item.requestDetails?.transport.transporterServiceNo) {
+    try {
+      const transportResponse = await searchEmployeeByServiceNo(
+        item.requestDetails.transport.transporterServiceNo
+      );
+      
+      console.log("Transport response:", transportResponse); // Debug log
+      
+      // Extract the employee data from the nested response
+      const employee = transportResponse?.data?.data?.[0];
+      
+      if (employee) {
+        setTransportData({
+          name: `${employee.employeeTitle || ""} ${employee.employeeFirstName || ""} ${employee.employeeSurname || ""}`.trim(),
+          serviceNo: employee.employeeNo || item.requestDetails.transport.transporterServiceNo,
+          designation: employee.designation || "-",
+          section: employee.empSection || "-",
+          group: employee.empGroup || "-",
+          contactNo: employee.mobileNo || "-"
+        });
+      } else {
+        console.log("No employee data found");
         setTransportData(null);
       }
-    } else {
-      setTransportData(item.requestDetails?.transport || null);
+    } catch (error) {
+      console.error("Error fetching transporter details:", error);
+      setTransportData(null);
     }
+  } else {
+    setTransportData(item.requestDetails?.transport || null);
+  }
 
-    setShowModal(true);
-  };
+  setShowModal(true);
+};
 
   // Enhanced filtering function
   const applyFilters = (items) => {
@@ -1090,6 +1319,11 @@ const ExecutiveApproval = () => {
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
                   Date & Time
                 </th>
+                {activeTab === "rejected" && (
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Rejected By
+                  </th>
+                )}
                 <th className="px-6 py-4 text-right text-sm font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -1146,6 +1380,15 @@ const ExecutiveApproval = () => {
                       {item.createdAt}
                     </div>
                   </td>
+                  {activeTab === "rejected" && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {item.rejectedByBranch
+                          ? `${item.rejectedByBranch} ${item.rejectedBy || ""}`
+                          : item.rejectedBy || "N/A"}
+                      </div>
+                    </td>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button
                       onClick={() => {
@@ -1204,6 +1447,7 @@ const ExecutiveApproval = () => {
         setComment={setComment}
         showToast={showToast}
         transporterDetails={transportData}
+        isSuperAdmin={isSuperAdmin}
         // user={user}
         // receiver={receiver}
       />
@@ -1225,6 +1469,7 @@ const RequestDetailsModal = ({
   sendReturnEmail,
   showToast,
   transporterDetails,
+  isSuperAdmin,
 }) => {
   // Initialize with the correct value from request
   const [selectedExecutive, setSelectedExecutive] = useState("");
@@ -1242,54 +1487,59 @@ const RequestDetailsModal = ({
       showToast("Please select at least one item to return", "warning");
       return;
     }
-  
+
     const confirmed = window.confirm(
       `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
     );
-  
+
     if (!confirmed) return;
-  
+
     setLoading(true);
-  
+
     try {
       console.log("Starting bulk return process...");
       console.log("Selected serial numbers:", selectedItems);
       console.log("Reference number:", request.refNo);
-  
+
       // Get full details of selected items
-      const selectedItemDetails = request.items.filter(item => 
+      const selectedItemDetails = request.items.filter((item) =>
         selectedItems.includes(item.serialNo)
       );
-  
+
       console.log("Selected item details:", selectedItemDetails);
-  
+
       // Call backend to update DB
       const response = await markItemsAsReturned(request.refNo, selectedItems);
-  
+
       console.log("Backend response:", response);
-  
+
       // Now send the email notification WITH ITEM DETAILS
-      await sendReturnEmail(request, "Items successfully returned by executive officer.", selectedItemDetails);
-  
+      await sendReturnEmail(
+        request,
+        "Items successfully returned by executive officer.",
+        selectedItemDetails
+      );
+
       // Show success message
       showToast(
-        `Successfully marked ${response.updatedCount || selectedItems.length} item(s) as returned.`,
+        `Successfully marked ${
+          response.updatedCount || selectedItems.length
+        } item(s) as returned.`,
         "success"
       );
-  
+
       console.log("Bulk return process completed successfully");
-  
+
       // Clear selected items
       setSelectedItems([]);
-  
+
       // Refresh / close modal
       onClose();
       window.location.reload();
-  
     } catch (error) {
       console.error("Error marking items as returned:", error);
       console.error("Error details:", error.response?.data);
-  
+
       showToast(
         error.message || "Failed to update items. Please try again.",
         "error"
@@ -1732,9 +1982,11 @@ const RequestDetailsModal = ({
             <div className="text-right mt-4">
               <button
                 onClick={handleBulkReturn}
-                disabled={selectedItems?.length === 0 || loading}
+                disabled={
+                  isSuperAdmin || selectedItems?.length === 0 || loading
+                }
                 className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
-                  selectedItems?.length === 0
+                  isSuperAdmin || selectedItems?.length === 0
                     ? "bg-gray-300 cursor-not-allowed"
                     : "bg-blue-600 hover:bg-blue-700"
                 }`}
@@ -2170,7 +2422,7 @@ const RequestDetailsModal = ({
 
         {/* Fixed bottom section for comments and buttons */}
         <div className="flex-shrink-0">
-          {activeTab === "pending" && (
+          {activeTab === "pending" && !isSuperAdmin && (
             <div className="border-t border-gray-200 bg-white">
               <div className="mb-3 mt-3 mr-6 ml-6">
                 {/* <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
@@ -2179,10 +2431,11 @@ const RequestDetailsModal = ({
 
                 <div className="mb-3">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Approval Comment
+                    Add Comment
                   </label>
                   <textarea
                     value={comment}
+                    disabled={isSuperAdmin}
                     onChange={(e) => setComment(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows="1"
@@ -2256,21 +2509,21 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  if (images && images.length > 0) {
-    setLoading(true);
+    if (images && images.length > 0) {
+      setLoading(true);
 
-    const urls = images
-      .slice(0, 5)
-      .map(img => getImageUrlSync(img))
-      .filter(Boolean);
+      const urls = images
+        .slice(0, 5)
+        .map((img) => getImageUrlSync(img))
+        .filter(Boolean);
 
-    setImageUrls(urls);
-    setLoading(false);
-  } else {
-    setImageUrls([]);
-    setLoading(false);
-  }
-}, [images]);
+      setImageUrls(urls);
+      setLoading(false);
+    } else {
+      setImageUrls([]);
+      setLoading(false);
+    }
+  }, [images]);
 
   if (!isOpen) return null;
 
@@ -2283,104 +2536,104 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
   };
 
   return (
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl border border-gray-700">
-          <div className="relative">
-            {/* Main display area */}
-            <div className="h-80 md:h-96 overflow-hidden relative bg-black flex items-center justify-center">
-              <img
-                src={imageUrls[activeIndex]}
-                alt={`${itemName} ${activeIndex + 1}`}
-                className="max-h-full max-w-full object-contain"
-              />
-  
-              {/* Navigation arrows */}
-              {imageUrls.length > 1 && (
-                <>
-                  <button
-                    onClick={handlePrev}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-all"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      className="w-6 h-6"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 19l-7-7 7-7"
-                      />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={handleNext}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-all"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      className="w-6 h-6"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
-                </>
-              )}
-  
-              {/* Image counter */}
-              <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-                {activeIndex + 1} / {imageUrls.length}
-              </div>
-            </div>
-  
-            {/* Header with close button */}
-            <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold text-white">{itemName}</h3>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
+      <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl border border-gray-700">
+        <div className="relative">
+          {/* Main display area */}
+          <div className="h-80 md:h-96 overflow-hidden relative bg-black flex items-center justify-center">
+            <img
+              src={imageUrls[activeIndex]}
+              alt={`${itemName} ${activeIndex + 1}`}
+              className="max-h-full max-w-full object-contain"
+            />
+
+            {/* Navigation arrows */}
+            {imageUrls.length > 1 && (
+              <>
                 <button
-                  onClick={onClose}
-                  className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
+                  onClick={handlePrev}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-all"
                 >
-                  <FaTimes />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    className="w-6 h-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 19l-7-7 7-7"
+                    />
+                  </svg>
                 </button>
-              </div>
+                <button
+                  onClick={handleNext}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-all"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    className="w-6 h-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 5l7 7-7 7"
+                    />
+                  </svg>
+                </button>
+              </>
+            )}
+
+            {/* Image counter */}
+            <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
+              {activeIndex + 1} / {imageUrls.length}
             </div>
           </div>
-  
-          {/* Thumbnail gallery */}
-          <div className="p-4 flex justify-center gap-2 bg-gray-900 overflow-x-auto">
-            {imageUrls.map((url, index) => (
-              <div
-                key={index}
-                onClick={() => setActiveIndex(index)}
-                className={`w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer transition-all transform hover:scale-105 ${
-                  index === activeIndex
-                    ? "ring-2 ring-blue-500 scale-105"
-                    : "opacity-70"
-                }`}
+
+          {/* Header with close button */}
+          <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-semibold text-white">{itemName}</h3>
+              <button
+                onClick={onClose}
+                className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
               >
-                <img
-                  src={url}
-                  alt={`${itemName} thumbnail ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            ))}
+                <FaTimes />
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Thumbnail gallery */}
+        <div className="p-4 flex justify-center gap-2 bg-gray-900 overflow-x-auto">
+          {imageUrls.map((url, index) => (
+            <div
+              key={index}
+              onClick={() => setActiveIndex(index)}
+              className={`w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer transition-all transform hover:scale-105 ${
+                index === activeIndex
+                  ? "ring-2 ring-blue-500 scale-105"
+                  : "opacity-70"
+              }`}
+            >
+              <img
+                src={url}
+                alt={`${itemName} thumbnail ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
 export default ExecutiveApproval;

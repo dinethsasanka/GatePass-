@@ -4,14 +4,27 @@ import {
   getAdminRequestsByRef,
 } from "../services/adminRequestService.js";
 import { useToast } from "../components/ToastProvider.jsx";
-import { FaSearch, FaSync, FaInfoCircle, FaEye, FaBoxOpen, FaUser, FaMapMarkerAlt, FaUserCheck, FaTimes, FaTruck, FaFilePdf,FaUndo } from "react-icons/fa";
 import {
-  getImageUrl,
+  FaSearch,
+  FaSync,
+  FaInfoCircle,
+  FaEye,
+  FaBoxOpen,
+  FaUser,
+  FaMapMarkerAlt,
+  FaUserCheck,
+  FaTimes,
+  FaTruck,
+  FaFilePdf,
+} from "react-icons/fa";
+import {
+  getImageUrlSync,
   searchReceiverByServiceNo,
   getGatePassRequest,
 } from "../services/RequestService.js";
 import { jsPDF } from "jspdf";
 import logoUrl from "../assets/SLTMobitel_Logo.png";
+import { searchSenderByServiceNo } from "../services/RequestService.js";
 
 const STAGE_ORDER = ["Executive", "Verify", "Petrol Leader", "Receive"];
 
@@ -24,18 +37,51 @@ const formatDateTime = (value) => {
   return d.toLocaleString();
 };
 
-// Image Viewer Modal Component
+const getStatusClass = (status = "") => {
+  const baseStyles =
+    "inline-block px-3 py-1.5 rounded-full text-xl font-semibold leading-none";
+
+  if (status.includes("Pending"))
+    return `${baseStyles} bg-amber-100 text-amber-800`;
+
+  if (status.includes("Approved"))
+    return `${baseStyles} bg-emerald-100 text-emerald-800`;
+
+  if (status.includes("Rejected"))
+    return `${baseStyles} bg-rose-100 text-rose-800`;
+
+  return `${baseStyles} bg-gray-100 text-gray-800`;
+};
+
+//  PDF-only status class helper (DO NOT use Tailwind here)
+const getPdfStatusClass = (status = "") => {
+  if (status.includes("Approved")) return "status status-approved";
+  if (status.includes("Rejected")) return "status status-rejected";
+  return "status status-pending";
+};
+
+// ----------------------------------------------------
+// Image Viewer Modal
+// ----------------------------------------------------
 const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
   const [imageUrls, setImageUrls] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (images && images.length > 0) {
-      Promise.all(
-        images.slice(0, 5).map((image) => getImageUrl(image.path))
-      ).then((urls) => {
-        setImageUrls(urls.filter((url) => url !== null));
-      });
+      setLoading(true);
+
+      const urls = images
+        .slice(0, 5)
+        .map((img) => getImageUrlSync(img))
+        .filter(Boolean);
+
+      setImageUrls(urls);
+      setLoading(false);
+    } else {
+      setImageUrls([]);
+      setLoading(false);
     }
   }, [images]);
 
@@ -62,48 +108,28 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
               />
             )}
 
-            <button
-              onClick={handlePrev}
-              className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-all"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                className="w-6 h-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
+            {imageUrls.length > 1 && (
+              <>
+                <button
+                  onClick={handlePrev}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-all"
+                >
+                  ‹
+                </button>
 
-            <button
-              onClick={handleNext}
-              className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-all"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                className="w-6 h-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
+                <button
+                  onClick={handleNext}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-white/20 p-2 rounded-full text-white transition-all"
+                >
+                  ›
+                </button>
+              </>
+            )}
 
             <div className="absolute bottom-4 right-4 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-              {activeIndex + 1} / {imageUrls.length}
+              {imageUrls.length > 0
+                ? `${activeIndex + 1} / ${imageUrls.length}`
+                : "0 / 0"}
             </div>
           </div>
 
@@ -144,7 +170,38 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
   );
 };
 
-// Request Details Modal Component
+const getOfficerStatusLabel = (stage, statusCode) => {
+  if (!statusCode) return "Pending";
+
+  switch (stage) {
+    case "Executive":
+      if (statusCode === 3) return "Rejected";
+      if (statusCode >= 2) return "Approved";
+      return "Pending";
+
+    case "Verify": // sender-side pleader
+      if (statusCode === 6) return "Rejected";
+      if (statusCode >= 5) return "Approved";
+      return "Pending";
+
+    case "PetrolLeader": // receiver-side pleader
+      if (statusCode === 9) return "Rejected";
+      if (statusCode >= 8) return "Approved";
+      return "Pending";
+
+    case "Receive":
+      if (statusCode === 12) return "Rejected";
+      if (statusCode >= 11) return "Approved";
+      return "Pending";
+
+    default:
+      return "Pending";
+  }
+};
+
+// ----------------------------------------------------
+// Request Details Modal
+// ----------------------------------------------------
 const RequestDetailsModal = ({
   isOpen,
   onClose,
@@ -152,42 +209,16 @@ const RequestDetailsModal = ({
   user,
   receiver,
   transporterDetails,
+  fullRequest,
+  fullRequestLoading,
 }) => {
-  // Initialize with the correct value from request
-  const [selectedExecutive, setSelectedExecutive] = useState("");
+  const { showToast } = useToast();
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedItemImages, setSelectedItemImages] = useState([]);
   const [selectedItemName, setSelectedItemName] = useState("");
-  const [executiveOfficers, setExecutiveOfficers] = useState([]);
-  const [updateSuccess, setUpdateSuccess] = useState(false);
-  const [selectedItems, setSelectedItems] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  // NEW: editable items (for Sender)
-  const [editedItems, setEditedItems] = useState([]);
-  const [saveItemsSuccess, setSaveItemsSuccess] = useState(false);
-  const [saveItemsError, setSaveItemsError] = useState("");
-
-  
-
-
-
-
-  
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   if (!isOpen || !request) return null;
-
-  
-
-  const handleSelect = (serialNo) => {
-    setSelectedItems((prev) => {
-      if (prev.includes(serialNo)) {
-        return prev.filter((sn) => sn !== serialNo);
-      } else {
-        return [...prev, serialNo];
-      }
-    });
-  };
 
   const handleViewImages = (item) => {
     setSelectedItemImages(item.itemPhotos || []);
@@ -195,769 +226,679 @@ const RequestDetailsModal = ({
     setIsImageModalOpen(true);
   };
 
-  const printReport = (
-      request,
-      transporterDetails,
-      loadingStaff,
-      selectedReturnableItems
-    ) => {
-      // Create a temporary iframe to hold the printable content
-      const printFrame = document.createElement("iframe");
-      printFrame.style.position = "absolute";
-      printFrame.style.top = "-9999px";
-      document.body.appendChild(printFrame);
-  
-      const contentDocument = printFrame.contentDocument;
-  
-      // Create the print content with styling
-      contentDocument.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <title>SLT Gate Pass - ${request.refNo}</title>
-          <style>
-            body {
-              font-family: Arial, sans-serif;
-              margin: 20px;
-              color: #333;
-            }
-            .header {
-              text-align: center;
-              margin-bottom: 20px;
-              padding-bottom: 10px;
-              border-bottom: 1px solid #eee;
-            }
-            .logo {
-              max-height: 60px;
-              margin-bottom: 10px;
-            }
-            .title {
-              font-size: 24px;
-              color: #003399;
-              margin: 0;
-            }
-            .ref {
-              font-size: 14px;
-              color: #666;
-              margin: 5px 0;
-            }
-            .date {
-              font-size: 12px;
-              color: #888;
-              margin: 5px 0 15px;
-            }
-            .section {
-              margin-bottom: 20px;
-            }
-            .section-title {
-              font-size: 16px;
-              font-weight: bold;
-              margin-bottom: 10px;
-              padding-bottom: 5px;
-              border-bottom: 1px solid #eee;
-            }
-            .grid {
-              display: grid;
-              grid-template-columns: 1fr 1fr;
-              gap: 15px;
-            }
-            .item {
-              margin-bottom: 5px;
-            }
-            .itemComm{
-              margin-bottom: 40px;
-            }
-            .label {
-              font-weight: bold;
-              color: #555;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin: 15px 0;
-            }
-            th, td {
-              padding: 8px;
-              text-align: left;
-              border-bottom: 1px solid #ddd;
-            }
-            th {
-              background-color: #f5f5f5;
-              font-weight: bold;
-            }
-            .signature-section {
-              display: grid;
-              grid-template-columns: 1fr 1fr 1fr;
-              gap: 20px;
-              margin-top: 40px;
-            }
-            .signature-box {
-              height: 70px;
-              border-bottom: 1px solid #ccc;
-            }
-            .signature-title {
-              text-align: center;
-              font-weight: bold;
-              margin-top: 5px;
-            }
-            .footer {
-              margin-top: 30px;
-              text-align: center;
-              font-size: 10px;
-              color: #999;
-            }
-            @media print {
-              body {
-                margin: 0;
-                padding: 15px;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <img src=${logoUrl} alt="SLT Logo" class="logo" />
-            <h1 class="title">SLT Gate Pass</h1>
-            <p class="ref">Reference: ${request.refNo}</p>
-            <p class="date">Generated on: ${new Date().toLocaleDateString()}</p>
-          </div>
-          
-          <div class="section">
-            <h2 class="section-title">Sender Details</h2>
-            <div class="grid">
-              <div class="item">
-                <span class="label">Name:</span> ${
-                  user?.name || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Service No:</span> ${
-                  user?.serviceNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Section:</span> ${
-                  user?.section || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Group:</span> ${
-                  user?.group || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Designation:</span> ${
-                  user?.designation || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Contact:</span> ${
-                  user?.contactNo || "N/A"
-                }
-              </div>
-            </div>
-          </div>
-  
-          <div class="section">
-            <h2 class="section-title">Receiver Details</h2>
-            <div class="grid">
-              <div class="item">
-                <span class="label">Name:</span> ${
-                  receiver?.name || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Service No:</span> ${
-                  receiver?.serviceNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Section:</span> ${
-                  receiver?.section || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Group:</span> ${
-                  receiver?.group || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Designation:</span> ${
-                  receiver?.designation || "N/A"
-                  
-                }
-              </div>
-              <div class="item">
-                <span class="label">Contact:</span> ${
-                  receiver?.contactNo || "N/A"
-                }
-              </div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <h2 class="section-title">Location Details</h2>
-            <div class="grid">
-              <div class="item">
-                <span class="label">From:</span> ${request.outLocation || "N/A"}
-              </div>
-              <div class="item">
-                <span class="label">To:</span> ${request.inLocation || "N/A"}
-              </div>
-            </div>
-          </div>
-          
-          <div class="section">
-            <h2 class="section-title">Transport Details</h2>
-            <div class="grid">
-              <div class="item">
-                <span class="label">Method:</span> ${
-                  request?.transportData?.transportMethod || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Type:</span> ${
-                  request?.transportData?.transporterType || "N/A"
-                }
-              </div>
-              ${
-                request?.transportData?.transporterType === "SLT"
-                  ? `
-                
-              <div class="item">
-                <span class="label">Transporter:</span> ${
-                  transporterDetails?.name || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Service No:</span> ${
-                  transporterDetails?.serviceNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Contact:</span> ${
-                  transporterDetails?.contactNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Section:</span> ${
-                  transporterDetails?.section || "N/A"
-                }
-              </div>
-              
-              ${
-                request?.transportData?.transportMethod === "Vehicle"
-                  ? `
-              <div class="item">
-                <span class="label">Vehicle No:</span> ${
-                  request?.requestDetails?.vehicleNumber || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Vehicle Model:</span> ${
-                  request?.requestDetails?.vehicleModel || "N/A"
-                }
-              </div>
-              `
-                  : ""
-              } 
-              `
-                  : `
-              <div class="item">
-                <span class="label">Transporter:</span> ${
-                  request?.transportData?.nonSLTTransporterName || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Service No:</span> ${
-                  request?.transportData?.nonSLTTransporterEmail || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Contact:</span> ${
-                  request?.transportData?.nonSLTTransporterNIC || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Section:</span> ${
-                  request?.transportData?.nonSLTTransporterPhone || "N/A"
-                }
-              </div>
-              
-              ${
-                request?.transportData?.transportMethod === "Vehicle"
-                  ? `
-              <div class="item">
-                <span class="label">Vehicle No:</span> ${
-                  request?.requestDetails?.vehicleNumber || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Vehicle Model:</span> ${
-                  request?.requestDetails?.vehicleModel || "N/A"
-                }
-              </div>
-              `
-                  : ""
-              }
-              `
-              }
-            </div>
-          </div>
-  
-          <div class="section">
-            <h2 class="section-title">Exerctive Officer Details</h2>
-            <div class="grid">
-              <div class="item">
-                <span class="label">Name:</span> ${
-                  request.executiveOfficerData?.name || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Service No:</span> ${
-                  request.executiveOfficerData?.serviceNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Section:</span> ${
-                  request.executiveOfficerData?.section || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Group:</span> ${
-                  request.executiveOfficerData?.group || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Designation:</span> ${
-                  request.executiveOfficerData?.designation || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Contact:</span> ${
-                  request.executiveOfficerData?.contactNo || "N/A"
-                }
-              </div>
-              <div class="itemComm">
-                <span class="label">Exerctive Officer Comment:</span> ${
-                  request.statusDetails?.executiveOfficerComment || "N/A"
-                }
-              </div>
-            </div>
-          </div>
-  
-          <div class="section">
-            <h2 class="section-title">Verify Officer Details</h2>
-            <div class="grid">
-              <div class="item">
-                <span class="label">Name:</span> ${
-                  request.verifyOfficerData?.name || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Service No:</span> ${
-                  request.verifyOfficerData?.serviceNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Section:</span> ${
-                  request.verifyOfficerData?.section || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Group:</span> ${
-                  request.verifyOfficerData?.group || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Designation:</span> ${
-                  request.verifyOfficerData?.designation || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Contact:</span> ${
-                  request.verifyOfficerData?.contactNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Verify Officer Comment:</span> ${
-                  request.statusDetails?.verifyOfficerComment || "N/A"
-                }
-              </div>
-            </div>
-          </div>
-          
-          <!-- Loading Details Section -->
-      <div class="section">
-        <h2 class="section-title">Loading Details</h2>
-        <div class="grid">
-          <div class="item">
-            <span class="label">Loading Location:</span> ${
-              request?.requestDetails?.loading?.loadingLocation || "N/A"
-            }
-          </div>
-          <div class="item">
-            <span class="label">Loading Time:</span> ${
-              request?.requestDetails?.loading?.loadingTime
-                ? new Date(
-                    request.requestDetails.loading.loadingTime
-                  ).toLocaleString()
-                : "N/A"
-            }
-          </div>
-          <div class="item">
-            <span class="label">Staff Type:</span> ${
-              request?.requestDetails?.loading?.staffType || "N/A"
-            }
-          </div>
-          
-          ${
-            request?.requestDetails?.loading?.staffType === "SLT"
-              ? `
-            <div class="item">
-              <span class="label">Staff Service No:</span> ${
-                request?.requestDetails?.loading?.staffServiceNo || "N/A"
-              }
-            </div>
-            <div class="item">
-                <span class="label">Name:</span> ${
-                  request.loadUserData?.serviceNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Service No:</span> ${
-                  request.loadUserData?.name || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Section:</span> ${
-                  request.loadUserData?.section || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Group:</span> ${
-                  request.loadUserData?.group || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Designation:</span> ${
-                  request.loadUserData?.designation || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Contact:</span> ${
-                  request.loadUserData?.contactNo || "N/A"
-                }
-              </div>
-          `
-              : `
-            <div class="item">
-              <span class="label">Staff Name:</span> ${
-                request?.requestDetails?.loading?.nonSLTStaffName || "N/A"
-              }
-            </div>
-            <div class="item">
-              <span class="label">Company:</span> ${
-                request?.requestDetails?.loading?.nonSLTStaffCompany || "N/A"
-              }
-            </div>
-            <div class="item">
-              <span class="label">NIC:</span> ${
-                request?.requestDetails?.loading?.nonSLTStaffNIC || "N/A"
-              }
-            </div>
-            <div class="item">
-              <span class="label">Contact:</span> ${
-                request?.requestDetails?.loading?.nonSLTStaffContact || "N/A"
-              }
-            </div>
-            <div class="item">
-              <span class="label">Email:</span> ${
-                request?.requestDetails?.loading?.nonSLTStaffEmail || "N/A"
-              }
-            </div>
-          `
-          }
-        </div>
-      </div>
-  
-      <div class="section">
-            <h2 class="section-title">Receive Officer Details</h2>
-            <div class="grid">
-              <div class="item">
-                <span class="label">Name:</span> ${
-                  receiver?.name || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Service No:</span> ${
-                   receiver?.serviceNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Section:</span> ${
-                   receiver?.section || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Group:</span> ${
-                   receiver?.group || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Designation:</span> ${
-                   receiver?.designation || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Contact:</span> ${
-                   receiver?.contactNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Receive Officer Comment:</span> ${
-                   receiver?.recieveOfficerComment || "N/A"
-                }
-              </div>
-            </div>
-          </div>
-          
-          <!-- Loading Details Section -->
-      <div class="section">
-        <h2 class="section-title">Unloading Details</h2>
-        <div class="grid">
-          <div class="item">
-            <span class="label">Loading Location:</span> ${
-              request?.requestDetails?.unLoading?.loadingLocation || "N/A"
-            }
-          </div>
-          <div class="item">
-            <span class="label">Loading Time:</span> ${
-              request?.requestDetails?.unLoading?.loadingTime
-                ? new Date(
-                    request.requestDetails.unLoading.loadingTime
-                  ).toLocaleString()
-                : "N/A"
-            }
-          </div>
-          <div class="item">
-            <span class="label">Staff Type:</span> ${
-              request?.requestDetails?.unLoading?.staffType || "N/A"
-            }
-          </div>
-          
-          ${
-            request?.requestDetails?.unLoading?.staffType === "SLT"
-              ? `
-            <div class="item">
-              <span class="label">Staff Service No:</span> ${
-                request?.requestDetails?.unLoading?.staffServiceNo || "N/A"
-              }
-            </div>
-            <div class="item">
-                <span class="label">Name:</span> ${
-                  request.unLoadUserData?.serviceNo || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Service No:</span> ${
-                  request.unLoadUserData?.name || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Section:</span> ${
-                  request.unLoadUserData?.section || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Group:</span> ${
-                  request.unLoadUserData?.group || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Designation:</span> ${
-                  request.unLoadUserData?.designation || "N/A"
-                }
-              </div>
-              <div class="item">
-                <span class="label">Contact:</span> ${
-                  request.unLoadUserData?.contactNo || "N/A"
-                }
-              </div>
-          `
-              : `
-            <div class="item">
-              <span class="label">Staff Name:</span> ${
-                request?.requestDetails?.unLoading?.nonSLTStaffName || "N/A"
-              }
-            </div>
-            <div class="item">
-              <span class="label">Company:</span> ${
-                request?.requestDetails?.unLoading?.nonSLTStaffCompany || "N/A"
-              }
-            </div>
-            <div class="item">
-              <span class="label">NIC:</span> ${
-                request?.requestDetails?.unLoading?.nonSLTStaffNIC || "N/A"
-              }
-            </div>
-            <div class="item">
-              <span class="label">Contact:</span> ${
-                request?.requestDetails?.unLoading?.nonSLTStaffContact || "N/A"
-              }
-            </div>
-            <div class="item">
-              <span class="label">Email:</span> ${
-                request?.requestDetails?.unLoading?.nonSLTStaffEmail || "N/A"
-              }
-            </div>
-          `
-          }
-        </div>
-      </div>
-  
-          <div class="section">
-            <h2 class="section-title">Items</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th>Item Name</th>
-                  <th>Serial No</th>
-                  <th>Category</th>
-                  <th>Quantity</th>
-                  <th>Model</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(request.items || [])
-                  .map(
-                    (item) => `
-                  <tr>
-                    <td>${item?.itemName || "-"}</td>
-                    <td>${item?.serialNo || "-"}</td>
-                    <td>${item?.itemCategory || "-"}</td>
-                    <td>${item?.itemQuantity || "-"}</td>
-                    <td>${item?.itemModel || "-"}</td>
-                  </tr>
-                `
-                  )
-                  .join("")}
-              </tbody>
-            </table>
-          </div>
-          
-          <div class="section">
-        <h2 class="section-title">Selected Returnable Items</h2>
-        ${
-          request?.requestDetails?.returnableItems || []
-            ? `<table>
-              <thead>
-                <tr>
-                  <th>Item Name</th>
-                  <th>Serial No</th>
-                  <th>Category</th>
-                  <th>Return Quantity</th>
-                  <th>Model</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${(request?.requestDetails?.returnableItems || [])
-                  .map(
-                    (item) => `
-                  <tr>
-                    <td>${item?.itemName || "-"}</td>
-                    <td>${item?.serialNo || "-"}</td>
-                    <td>${item?.itemCategory || "-"}</td>
-                    <td>${item?.returnQuantity || item?.itemQuantity || "-"}</td>
-                    <td>${item?.itemModel || "-"}</td>
-                  </tr>
-                `
-                  )
-                  .join("")}
-              </tbody>
-            </table>`
-            : "<p>No returnable items selected</p>"
-        }
-      </div>
-          
-          
-          <div class="footer">
-            This is an electronically generated document and does not require signature.
-          </div>
-        </body>
-        </html>
-      `);
-  
-      contentDocument.close();
-  
-      // Wait for content to load then print
-      printFrame.onload = function () {
-        printFrame.contentWindow.focus();
-        printFrame.contentWindow.print();
-  
-        // Remove the iframe after printing
-        setTimeout(() => {
-          document.body.removeChild(printFrame);
-        }, 1000);
-      };
-    };
-  
+  // helper: treat statusCode 2/3 as completed
+  const isCompleted = (statusCode) => statusCode === 2 || statusCode === 3;
 
-  const generateItemDetailsPDF = (items, refNo) => {
-     const doc = new jsPDF();
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 20;
-    
-        // Add SLT logo
-        try {
-          doc.addImage(logoUrl, "PNG", margin, 10, 40, 20);
-        } catch (error) {
-          console.error("Error adding logo:", error);
+  // Build all officer details (executive, verify, pleaders, receiver) and call printReport
+  const handleGenerateAdminPdf = async () => {
+    try {
+      setPdfLoading(true);
+
+      // 1) Get admin rows for this reference (includes stage + actors)
+      const admin = await getAdminRequestsByRef(request.referenceNumber);
+      const rowsByRef = Array.isArray(admin.rows) ? admin.rows : [];
+      const statusDetails = admin.statusDetails || {};
+      const baseRequest = rowsByRef[0]?.request || request || {};
+      const statusCode = baseRequest.status;
+
+      console.log("ADMIN REF DATA", admin);
+      console.log("ROWS BY REF", rowsByRef);
+      console.log(
+        "ROW STAGES + ACTORS",
+        rowsByRef.map((r) => ({ stage: r.stage, actors: r.actors }))
+      );
+      console.log("STATUS DETAILS", statusDetails);
+
+      // helper: row for a given stage
+      const getStageRow = (stageName) =>
+        rowsByRef.find((r) => r.stage === stageName) || {};
+
+      // helper: pull *some* service number out of row.actors,
+      const extractServiceNo = (row) => {
+        if (!row || !row.actors) return null;
+
+        const stack = Object.values(row.actors);
+
+        while (stack.length) {
+          const value = stack.pop();
+
+          // direct serviceNo string
+          if (typeof value === "string") {
+            return value;
+          }
+
+          // nested object (very common in your backend)
+          if (value && typeof value === "object") {
+            Object.values(value).forEach((v) => stack.push(v));
+          }
         }
-    
-        // Header
-        doc.setFontSize(18);
-        doc.setTextColor(0, 51, 153); // SLT blue color
-        doc.text("SLT Gate Pass - Item Details", pageWidth / 2, 20, {
-          align: "center",
-        });
-    
-        doc.setFontSize(12);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Reference: ${request.refNo}`, pageWidth / 2, 30, {
-          align: "center",
-        });
-    
-        // Add current date
-        const currentDate = new Date().toLocaleDateString();
-        doc.setFontSize(10);
-        doc.text(`Generated on: ${currentDate}`, pageWidth - margin, 20, {
-          align: "right",
-        });
-    
-        // Horizontal line
-        doc.setDrawColor(220, 220, 220);
-        doc.line(margin, 35, pageWidth - margin, 35);
-    
-        // Items Table
-        doc.setFontSize(14);
-        doc.setTextColor(0, 0, 0);
-        doc.text("Item Details", margin, 45);
-    
-        // Table header
-        let yPos = 55;
-        doc.setFontSize(10);
-        doc.setTextColor(80, 80, 80);
-        doc.setDrawColor(200, 200, 200);
-    
-        // Define column widths
-        const col1Width = 60; // Item Name
-        const col2Width = 40; // Serial No
-        const col3Width = 30; // Category
-        const col4Width = 20; // Quantity
-        const col5Width = 30; // Status
-    
-        // Draw table header
+
+        return null;
+      };
+
+      // 2) Work out service numbers for each role
+
+      // Executive
+      const execSvc =
+        statusDetails.executiveOfficerServiceNo ||
+        baseRequest.executiveOfficerServiceNo ||
+        extractServiceNo(getStageRow("Executive"));
+
+      // Sender-side pleader (Verify stage)
+      const verifySvc =
+        statusDetails.verifyOfficerServiceNo ||
+        extractServiceNo(getStageRow("Verify"));
+
+      // Receiver-side pleader (Petrol Leader stage)
+      const pleaderSvc =
+        statusDetails.petrolLeaderServiceNo ||
+        extractServiceNo(getStageRow("Petrol Leader"));
+
+      // Final receiver officer (Receive stage / receiverServiceNo)
+      const receiverOfficerSvc =
+        statusDetails.recieveOfficerServiceNo ||
+        statusDetails.recieveOfficerServiceNumber ||
+        baseRequest.receiverServiceNo ||
+        extractServiceNo(getStageRow("Receive"));
+
+      const getEmployee = async (svc) => {
+        if (!svc) return null;
+        try {
+          return await searchReceiverByServiceNo(svc);
+        } catch {
+          return null;
+        }
+      };
+      console.log("VERIFY STAGE ACTORS:", getStageRow("Verify")?.actors);
+      console.log("PETROL STAGE ACTORS:", getStageRow("Petrol Leader")?.actors);
+      console.log("VERIFY SVC:", verifySvc);
+      console.log("PETROL SVC:", pleaderSvc);
+
+      const [
+        executiveOfficerData,
+        verifyOfficerData,
+        pleaderOfficerData,
+        receiverOfficerData,
+      ] = await Promise.all([
+        getEmployee(execSvc),
+        getEmployee(verifySvc),
+        getEmployee(pleaderSvc),
+        getEmployee(receiverOfficerSvc),
+      ]);
+
+      // 4) Build uniform officer objects with "N/A" fallbacks
+      const buildOfficer = (data, svc) => ({
+        serviceNo: data?.serviceNo || svc || "N/A",
+        name: data?.name || "N/A",
+        section: data?.section || "N/A",
+        group: data?.group || "N/A",
+        designation: data?.designation || "N/A",
+        contactNo: data?.contactNo || "N/A",
+      });
+
+      const senderDetails = {
+        serviceNo: user?.serviceNo || baseRequest.employeeServiceNo || "N/A",
+        name: user?.name || "N/A",
+        section: user?.section || "N/A",
+        group: user?.group || "N/A",
+        designation: user?.designation || "N/A",
+        contactNo: user?.contactNo || "N/A",
+      };
+
+      const receiverDetails = request.isNonSltPlace
+        ? {
+            name: request.receiverName || "N/A",
+            nic: request.receiverNIC || "N/A",
+            contactNo: request.receiverContact || "N/A",
+            companyName: request.companyName || "N/A",
+          }
+        : {
+            serviceNo:
+              receiver?.serviceNo || baseRequest.receiverServiceNo || "N/A",
+            name: receiver?.name || "N/A",
+            section: receiver?.section || "N/A",
+            group: receiver?.group || "N/A",
+            designation: receiver?.designation || "N/A",
+            contactNo: receiver?.contactNo || "N/A",
+          };
+
+      const reportData = {
+        refNo: baseRequest.referenceNumber || request.referenceNumber,
+
+        senderDetails,
+        receiverDetails,
+
+        outLocation: baseRequest.outLocation,
+        inLocation: baseRequest.inLocation,
+        items: baseRequest.items || [],
+        transportData: baseRequest.transport || {},
+        requestDetails: baseRequest,
+        statusDetails,
+
+        executiveOfficerData: {
+          ...buildOfficer(executiveOfficerData, execSvc),
+          approvalStatus: getOfficerStatusLabel("Executive", statusCode),
+        },
+
+        verifyOfficerData: {
+          ...buildOfficer(verifyOfficerData, verifySvc),
+          approvalStatus: getOfficerStatusLabel("Verify", statusCode),
+        },
+
+        pleaderOfficerData: {
+          ...buildOfficer(pleaderOfficerData, pleaderSvc),
+          approvalStatus: getOfficerStatusLabel("PetrolLeader", statusCode),
+        },
+
+        receiverOfficerData: {
+          ...buildOfficer(receiverOfficerData, receiverOfficerSvc),
+          approvalStatus: getOfficerStatusLabel("Receive", statusCode),
+        },
+      };
+
+      console.log("PRINT REPORT DATA", reportData);
+      console.log("EXECUTIVE OFFICER DATA", reportData.executiveOfficerData);
+      console.log("VERIFY OFFICER DATA", reportData.verifyOfficerData);
+      console.log("PLEADER OFFICER DATA", reportData.pleaderOfficerData);
+      console.log("RECEIVER OFFICER DATA", reportData.receiverOfficerData);
+
+      // 5) Actually render the PDF
+      printReport(reportData);
+    } catch (err) {
+      console.error("Failed to generate admin PDF:", err);
+      showToast("Failed to generate PDF", "error");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  // ------------- PRINT REPORT (single data object) -------------
+  const printReport = (reportData) => {
+    const data = reportData || {};
+
+    console.log("PRINT REPORT DATA", data);
+    console.log("EXECUTIVE OFFICER DATA", data.executiveOfficerData);
+    console.log("VERIFY OFFICER DATA", data.verifyOfficerData);
+    console.log("SENDER PLEADER DATA", data.senderPleaderData);
+    console.log("RECEIVER PLEADER DATA", data.receiverPleaderData);
+
+    // Core request = the Mongo document (outLocation, inLocation, items, loading, etc.)
+    const coreReq = data.requestDetails || data;
+
+    const transport = data.transportData || coreReq.transport || {};
+    const exec = data.executiveOfficerData || {};
+    const verify = data.verifyOfficerData || {};
+    const statusDetails = data.statusDetails || {};
+
+    const refNo =
+      data.refNo || data.referenceNumber || coreReq.referenceNumber || "N/A";
+    const sender = data.senderDetails || {};
+    const rec = data.receiverDetails || {};
+    const pleader = data.pleaderOfficerData || {};
+    const receiverOfficer = data.receiverOfficerData || {};
+
+    const items = coreReq.items || [];
+
+    const printFrame = document.createElement("iframe");
+    printFrame.style.position = "absolute";
+    printFrame.style.top = "-9999px";
+    document.body.appendChild(printFrame);
+
+    const doc = printFrame.contentDocument;
+
+    // Build small sections as strings to keep template clean
+    let transportExtra = "";
+    if (transport.transporterType === "SLT") {
+      transportExtra = `
+        <div class="item"><span class="label">Transporter:</span> ${
+          transporterDetails?.name || "N/A"
+        }</div>
+        <div class="item"><span class="label">Service No:</span> ${
+          transporterDetails?.serviceNo || "N/A"
+        }</div>
+        <div class="item"><span class="label">Contact:</span> ${
+          transporterDetails?.contactNo || "N/A"
+        }</div>
+        <div class="item"><span class="label">Section:</span> ${
+          transporterDetails?.section || "N/A"
+        }</div>
+        <div class="item"><span class="label">Vehicle No:</span> ${
+          transport.vehicleNumber || "N/A"
+        }</div>
+        <div class="item"><span class="label">Vehicle Model:</span> ${
+          transport.vehicleModel || "N/A"
+        }</div>
+      `;
+    } else {
+      transportExtra = `
+        <div class="item"><span class="label">Transporter:</span> ${
+          transport.nonSLTTransporterName || "N/A"
+        }</div>
+        <div class="item"><span class="label">NIC:</span> ${
+          transport.nonSLTTransporterNIC || "N/A"
+        }</div>
+        <div class="item"><span class="label">Phone:</span> ${
+          transport.nonSLTTransporterPhone || "N/A"
+        }</div>
+        <div class="item"><span class="label">Email:</span> ${
+          transport.nonSLTTransporterEmail || "N/A"
+        }</div>
+        <div class="item"><span class="label">Vehicle No:</span> ${
+          transport.vehicleNumber || "N/A"
+        }</div>
+        <div class="item"><span class="label">Vehicle Model:</span> ${
+          transport.vehicleModel || "N/A"
+        }</div>
+      `;
+    }
+
+    const itemsRows =
+      items.length === 0
+        ? "<tr><td colspan='5'>No items</td></tr>"
+        : items
+            .map(
+              (it) => `
+          <tr>
+            <td>${it?.itemName || "-"}</td>
+            <td>${it?.serialNo || "-"}</td>
+            <td>${it?.itemCategory || "-"}</td>
+            <td>${it?.itemQuantity || "-"}</td>
+            <td>${it?.itemModel || "-"}</td>
+          </tr>`
+            )
+            .join("");
+
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>SLT Gate Pass - ${refNo}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+          }
+          .logo { max-height: 60px; margin-bottom: 10px; }
+          .title { font-size: 24px; color: #003399; margin: 0; }
+          .ref { font-size: 14px; color: #666; margin: 5px 0; }
+          .date { font-size: 12px; color: #888; margin: 5px 0 15px; }
+          .section { margin-bottom: 20px; }
+          .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+          }
+          .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+          }
+          .item { margin-bottom: 5px; }
+          .itemComm {
+  margin-bottom: 12px;
+  
+}
+
+          .label { font-weight: bold; color: #555; }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+          }
+          th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+          }
+          th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+          }
+          .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10px;
+            color: #999;
+          }
+          @media print {
+            body { margin: 0; padding: 15px; }
+          }
+            .status {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.status-pending {
+  background-color: #FEF3C7; /* amber-100 */
+  color: #92400E;
+}
+
+.status-approved {
+  background-color: #D1FAE5; /* emerald-100 */
+  color: #065F46;
+}
+
+.status-rejected {
+  background-color: #FFE4E6; /* rose-100 */
+  color: #9F1239;
+}
+
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <img src="${logoUrl}" alt="SLT Logo" class="logo" />
+          <h1 class="title">SLT Gate Pass</h1>
+          <p class="ref">Reference: ${refNo}</p>
+          <p class="date">Generated on: ${new Date().toLocaleDateString()}</p>
+        </div>
+
+        <div class="section">
+  <h2 class="section-title">Sender Details</h2>
+  <div class="grid">
+    <div class="item"><span class="label">Name:</span> ${
+      sender.name || "N/A"
+    }</div>
+    <div class="item"><span class="label">Service No:</span> ${
+      sender.serviceNo || "N/A"
+    }</div>
+    <div class="item"><span class="label">Section:</span> ${
+      sender.section || "N/A"
+    }</div>
+    <div class="item"><span class="label">Group:</span> ${
+      sender.group || "N/A"
+    }</div>
+    <div class="item"><span class="label">Designation:</span> ${
+      sender.designation || "N/A"
+    }</div>
+    <div class="item"><span class="label">Contact:</span> ${
+      sender.contactNo || "N/A"
+    }</div>
+  </div>
+</div>
+
+        <div class="section">
+          <h2 class="section-title">Location Details</h2>
+          <div class="grid">
+            <div class="item"><span class="label">From:</span> ${
+              coreReq.outLocation || "N/A"
+            }</div>
+            <div class="item"><span class="label">To:</span> ${
+              coreReq.inLocation || "N/A"
+            }</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Transport Details</h2>
+          <div class="grid">
+            <div class="item"><span class="label">Method:</span> ${
+              transport.transportMethod || "N/A"
+            }</div>
+            <div class="item"><span class="label">Type:</span> ${
+              transport.transporterType || "N/A"
+            }</div>
+            ${transportExtra}
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Executive Officer Details</h2>
+          <div class="grid">
+            <div class="item"><span class="label">Name:</span> ${
+              exec.name || "N/A"
+            }</div>
+            <div class="item"><span class="label">Service No:</span> ${
+              exec.serviceNo || "N/A"
+            }</div>
+            <div class="item"><span class="label">Section:</span> ${
+              exec.section || "N/A"
+            }</div>
+            <div class="item"><span class="label">Group:</span> ${
+              exec.group || "N/A"
+            }</div>
+            <div class="item"><span class="label">Designation:</span> ${
+              exec.designation || "N/A"
+            }</div>
+            <div class="item"><span class="label">Contact:</span> ${
+              exec.contactNo || "N/A"
+            }</div>
+            <div class="item">
+  <span class="label">Status:</span>
+  <span class="${getPdfStatusClass(exec.approvalStatus)}">
+  ${exec.approvalStatus || "Pending"}
+</span>
+
+</div>
+
+
+            <div class="itemComm"><span class="label">Executive Officer Comment:</span> ${
+              statusDetails.executiveOfficerComment || "N/A"
+            }</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h2 class="section-title">Requester Side Patrol Leader Details</h2>
+          <div class="grid">
+            <div class="item"><span class="label">Name:</span> ${
+              verify.name || "N/A"
+            }</div>
+            <div class="item"><span class="label">Service No:</span> ${
+              verify.serviceNo || "N/A"
+            }</div>
+            <div class="item"><span class="label">Section:</span> ${
+              verify.section || "N/A"
+            }</div>
+            <div class="item"><span class="label">Group:</span> ${
+              verify.group || "N/A"
+            }</div>
+            <div class="item"><span class="label">Designation:</span> ${
+              verify.designation || "N/A"
+            }</div>
+            <div class="item"><span class="label">Contact:</span> ${
+              verify.contactNo || "N/A"
+            }</div>
+            <div class="item">
+  <span class="label">Status:</span>
+  <span class="${getPdfStatusClass(verify.approvalStatus)}">
+  ${verify.approvalStatus || "Pending"}
+</span>
+</div>
+
+
+            <div class="item"><span class="label">Verify Officer Comment:</span> ${
+              statusDetails.verifyOfficerComment || "N/A"
+            }</div>
+          </div>
+        </div>
+
+        <div class="section">
+  <h2 class="section-title">Pleader Officer Details</h2>
+  <div class="grid">
+    <div class="item"><span class="label">Name:</span> ${
+      pleader.name || "N/A"
+    }</div>
+    <div class="item"><span class="label">Service No:</span> ${
+      pleader.serviceNo || "N/A"
+    }</div>
+    <div class="item"><span class="label">Section:</span> ${
+      pleader.section || "N/A"
+    }</div>
+    <div class="item"><span class="label">Group:</span> ${
+      pleader.group || "N/A"
+    }</div>
+    <div class="item"><span class="label">Designation:</span> ${
+      pleader.designation || "N/A"
+    }</div>
+    <div class="item"><span class="label">Contact:</span> ${
+      pleader.contactNo || "N/A"
+    }</div>
+    <div class="item">
+  <span class="label">Status:</span>
+  <span class="${getPdfStatusClass(pleader.approvalStatus)}">
+  ${pleader.approvalStatus || "Pending"}
+</span>
+</div>
+  </div>
+</div>
+
+<div class="section">
+  <h2 class="section-title">Receiver Details</h2>
+  <div class="grid">
+    <div class="item"><span class="label">Name:</span> ${
+      receiverOfficer.name || "N/A"
+    }</div>
+    <div class="item"><span class="label">Service No:</span> ${
+      receiverOfficer.serviceNo || "N/A"
+    }</div>
+    <div class="item"><span class="label">Section:</span> ${
+      receiverOfficer.section || "N/A"
+    }</div>
+    <div class="item"><span class="label">Group:</span> ${
+      receiverOfficer.group || "N/A"
+    }</div>
+    <div class="item"><span class="label">Designation:</span> ${
+      receiverOfficer.designation || "N/A"
+    }</div>
+    <div class="item"><span class="label">Contact:</span> ${
+      receiverOfficer.contactNo || "N/A"
+    }</div>
+    <div class="item">
+  <span class="label">Status:</span>
+  <span class="${getPdfStatusClass(receiverOfficer.approvalStatus)}">
+  ${receiverOfficer.approvalStatus || "Pending"}
+</span>
+
+</div>
+
+
+  </div>
+</div>
+
+
+        <div class="section">
+          <h2 class="section-title">Items</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Item Name</th>
+                <th>Serial No</th>
+                <th>Category</th>
+                <th>Quantity</th>
+                <th>Model</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRows}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="footer">
+          This is an electronically generated document and does not require signature.
+        </div>
+      </body>
+      </html>
+    `);
+
+    doc.close();
+
+    printFrame.onload = function () {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+      setTimeout(() => {
+        document.body.removeChild(printFrame);
+      }, 1000);
+    };
+  };
+
+  // (Optional) keep this helper if you want separate item-only PDFs
+  const generateItemDetailsPDF = (itemsForPdf, refNo) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+
+    try {
+      doc.addImage(logoUrl, "PNG", margin, 10, 40, 20);
+    } catch (error) {
+      console.error("Error adding logo:", error);
+    }
+
+    doc.setFontSize(18);
+    doc.setTextColor(0, 51, 153);
+    doc.text("SLT Gate Pass - Item Details", pageWidth / 2, 20, {
+      align: "center",
+    });
+
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Reference: ${refNo}`, pageWidth / 2, 30, {
+      align: "center",
+    });
+
+    const currentDate = new Date().toLocaleDateString();
+    doc.setFontSize(10);
+    doc.text(`Generated on: ${currentDate}`, pageWidth - margin, 20, {
+      align: "right",
+    });
+
+    doc.setDrawColor(220, 220, 220);
+    doc.line(margin, 35, pageWidth - margin, 35);
+
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text("Item Details", margin, 45);
+
+    let yPos = 55;
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.setDrawColor(200, 200, 200);
+
+    const col1Width = 60;
+    const col2Width = 40;
+    const col3Width = 30;
+    const col4Width = 20;
+    const col5Width = 30;
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(
+      margin,
+      yPos,
+      col1Width + col2Width + col3Width + col4Width + col5Width,
+      8,
+      "F"
+    );
+
+    doc.text("Item Name", margin + 3, yPos + 5.5);
+    doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+    doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
+    doc.text("Qty", margin + col1Width + col2Width + col3Width + 3, yPos + 5.5);
+    doc.text(
+      "Model",
+      margin + col1Width + col2Width + col3Width + col4Width + 3,
+      yPos + 5.5
+    );
+
+    yPos += 8;
+
+    itemsForPdf.forEach((item, index) => {
+      if (yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+
         doc.setFillColor(240, 240, 240);
         doc.rect(
           margin,
@@ -966,126 +907,91 @@ const RequestDetailsModal = ({
           8,
           "F"
         );
-    
+
         doc.text("Item Name", margin + 3, yPos + 5.5);
         doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
         doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
-        doc.text("Qty", margin + col1Width + col2Width + col3Width + 3, yPos + 5.5);
+        doc.text(
+          "Qty",
+          margin + col1Width + col2Width + col3Width + 3,
+          yPos + 5.5
+        );
         doc.text(
           "Model",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
           yPos + 5.5
         );
-    
+
         yPos += 8;
-    
-        // Draw table content
-        items.forEach((item, index) => {
-          if (yPos > 270) {
-            // Add new page if content exceeds page height
-            doc.addPage();
-            yPos = 20;
-    
-            // Add table header on new page
-            doc.setFillColor(240, 240, 240);
-            doc.rect(
-              margin,
-              yPos,
-              col1Width + col2Width + col3Width + col4Width + col5Width,
-              8,
-              "F"
-            );
-    
-            doc.text("Item Name", margin + 3, yPos + 5.5);
-            doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
-            doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
-            doc.text(
-              "Qty",
-              margin + col1Width + col2Width + col3Width + 3,
-              yPos + 5.5
-            );
-            doc.text(
-              "Model",
-              margin + col1Width + col2Width + col3Width + col4Width + 3,
-              yPos + 5.5
-            );
-    
-            yPos += 8;
-          }
-    
-          // Alternate row colors for better readability
-          if (index % 2 === 1) {
-            doc.setFillColor(248, 248, 248);
-            doc.rect(
-              margin,
-              yPos,
-              col1Width + col2Width + col3Width + col4Width + col5Width,
-              8,
-              "F"
-            );
-          }
-    
-          // Truncate long text to fit in columns
-          const truncateText = (text, maxLength) => {
-            if (!text) return "N/A";
-            return text.length > maxLength
-              ? text.substring(0, maxLength) + "..."
-              : text;
-          };
-    
-          doc.text(
-            truncateText(item?.itemName || "N/A", 25),
-            margin + 3,
-            yPos + 5.5
-          );
-          doc.text(
-            truncateText(item?.serialNo || "N/A", 15),
-            margin + col1Width + 3,
-            yPos + 5.5
-          );
-          doc.text(
-            truncateText(item?.itemCategory || "N/A", 12),
-            margin + col1Width + col2Width + 3,
-            yPos + 5.5
-          );
-          doc.text(
-            item?.itemQuantity?.toString() || "1",
-            margin + col1Width + col2Width + col3Width + 3,
-            yPos + 5.5
-          );
-          doc.text(
-            item?.itemModel || "N/A",
-            margin + col1Width + col2Width + col3Width + col4Width + 3,
-            yPos + 5.5
-          );
-          // doc.text(item?.itemReturnable ? 'Returnable' : 'Non-Returnable',
-          //          margin + col1Width + col2Width + col3Width + col4Width + 3, yPos + 5.5);
-    
-          // Draw horizontal line after each row
-          doc.line(
-            margin,
-            yPos + 8,
-            margin + col1Width + col2Width + col3Width + col4Width + col5Width,
-            yPos + 8
-          );
-    
-          yPos += 8;
-        });
-    
-        // Footer
-        const footerYPos = doc.internal.pageSize.getHeight() - 10;
-        doc.setFontSize(8);
-        doc.setTextColor(150, 150, 150);
-        doc.text(
-          "This is an electronically generated document and does not require signature.",
-          pageWidth / 2,
-          footerYPos,
-          { align: "center" }
+      }
+
+      if (index % 2 === 1) {
+        doc.setFillColor(248, 248, 248);
+        doc.rect(
+          margin,
+          yPos,
+          col1Width + col2Width + col3Width + col4Width + col5Width,
+          8,
+          "F"
         );
-    
-        // Save the PDF
-        doc.save(`SLT_GatePass_Items_${request.refNo}.pdf`);
+      }
+
+      const truncateText = (text, maxLength) => {
+        if (!text) return "N/A";
+        return text.length > maxLength
+          ? text.substring(0, maxLength) + "..."
+          : text;
       };
+
+      doc.text(
+        truncateText(item?.itemName || "N/A", 25),
+        margin + 3,
+        yPos + 5.5
+      );
+      doc.text(
+        truncateText(item?.serialNo || "N/A", 15),
+        margin + col1Width + 3,
+        yPos + 5.5
+      );
+      doc.text(
+        truncateText(item?.itemCategory || "N/A", 12),
+        margin + col1Width + col2Width + 3,
+        yPos + 5.5
+      );
+      doc.text(
+        item?.itemQuantity?.toString() || "1",
+        margin + col1Width + col2Width + col3Width + 3,
+        yPos + 5.5
+      );
+      doc.text(
+        item?.itemModel || "N/A",
+        margin + col1Width + col2Width + col3Width + col4Width + 3,
+        yPos + 5.5
+      );
+
+      doc.line(
+        margin,
+        yPos + 8,
+        margin + col1Width + col2Width + col3Width + col4Width + col5Width,
+        yPos + 8
+      );
+
+      yPos += 8;
+    });
+
+    const footerYPos = doc.internal.pageSize.getHeight() - 10;
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      "This is an electronically generated document and does not require signature.",
+      pageWidth / 2,
+      footerYPos,
+      { align: "center" }
+    );
+
+    doc.save(`SLT_GatePass_Items_${refNo}.pdf`);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl">
@@ -1108,60 +1014,68 @@ const RequestDetailsModal = ({
         </div>
 
         <div className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
-          <button
-                onClick={() =>
-                          printReport(
-                            request,
-                            transporterDetails
-                            
-                          )
-                        }
-                className="ml-auto px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center transition-colors"
-              >
-                <FaFilePdf className="mr-2" /> Generate PDF
-              </button>
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={handleGenerateAdminPdf}
+              disabled={pdfLoading}
+              className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium flex items-center transition-colors"
+            >
+              <FaFilePdf className="mr-2" />
+              {pdfLoading ? "Generating..." : "Officer Details"}
+            </button>
+          </div>
+
           {/* Sender Details */}
-            <div className="bg-gray-50 rounded-xl p-6 mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
-                <FaUser className="mr-2" /> Sender Details
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Service No</label>
-                  <p className="text-gray-800">
-                    {user?.serviceNo || request?.employeeServiceNo || "N/A"}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Name</label>
-                  <p className="text-gray-800">{user?.name || "N/A"}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Section</label>
-                  <p className="text-gray-800">{user?.section || "N/A"}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Group</label>
-                  <p className="text-gray-800">{user?.group || "N/A"}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Designation</label>
-                  <p className="text-gray-800">{user?.designation || "N/A"}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Contact</label>
-                  <p className="text-gray-800">{user?.contactNo || "N/A"}</p>
-                </div>
+          <div className="bg-gray-50 rounded-xl p-6 mb-6">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
+              <FaUser className="mr-2" /> Sender Details
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-600">
+                  Service No
+                </label>
+                <p className="text-gray-800">
+                  {user?.serviceNo || request?.employeeServiceNo || "N/A"}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">
+                  Name
+                </label>
+                <p className="text-gray-800">{user?.name || "N/A"}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">
+                  Section
+                </label>
+                <p className="text-gray-800">{user?.section || "N/A"}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">
+                  Group
+                </label>
+                <p className="text-gray-800">{user?.group || "N/A"}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">
+                  Designation
+                </label>
+                <p className="text-gray-800">{user?.designation || "N/A"}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600">
+                  Contact
+                </label>
+                <p className="text-gray-800">{user?.contactNo || "N/A"}</p>
               </div>
             </div>
-
-
+          </div>
 
           {/* Items Table */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
               <FaBoxOpen className="mr-2" /> Item Details
-              
             </h3>
             <div className="overflow-x-auto rounded-xl border border-gray-200">
               <table className="w-full">
@@ -1220,21 +1134,20 @@ const RequestDetailsModal = ({
                         >
                           <FaEye className="mr-2" /> View Images
                         </button>
-                        <ImageViewerModal
-                          images={selectedItemImages}
-                          isOpen={isImageModalOpen}
-                          onClose={() => setIsImageModalOpen(false)}
-                          itemName={selectedItemName}
-                        />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </div>
 
-          
+            <ImageViewerModal
+              images={selectedItemImages}
+              isOpen={isImageModalOpen}
+              onClose={() => setIsImageModalOpen(false)}
+              itemName={selectedItemName}
+            />
+          </div>
 
           {/* Location and Receiver Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -1267,7 +1180,6 @@ const RequestDetailsModal = ({
                   </label>
                   <p className="text-gray-800">{request?.inLocation}</p>
                 </div>
-               
               </div>
             </div>
 
@@ -1571,57 +1483,48 @@ const RequestDetailsModal = ({
           <div className="text-sm text-gray-500">
             <span className="mr-2">Tip:</span>
             Only <span className="font-medium">returnable</span> items allow
-            editing of Serial No & Model.
+            editing of Serial No &amp; Model (in the future).
           </div>
-          {/*<div className="flex gap-2">
-            <button
-              onClick={handleSaveReturnables}
-              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-            >
-              Save Returnable Item Edits
-            </button>
-            <button
-              onClick={onClose}
-              className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
-            >
-              Close
-            </button>
-          </div>*/}
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+          >
+            Close
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
+// ----------------------------------------------------
 // Main RequestDetails Component
+// ----------------------------------------------------
 const RequestDetails = () => {
   const { showToast } = useToast();
-
-  // Search & filters
+  const [senderNameMap, setSenderNameMap] = useState({});
   const [searchRef, setSearchRef] = useState("");
   const [outLocationFilter, setOutLocationFilter] = useState("");
   const [inLocationFilter, setInLocationFilter] = useState("");
   const [companyFilter, setCompanyFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [transportData, setTransportData] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [comment, setComment] = useState("");
-  const [requests, setRequests] = useState([]);
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [user, setUser] = useState(null);
-  const [receiver, setReceiver] = useState(null);
-  //const [transportData, setTransportData] = useState(null);
-  const [cancelSuccess, setCancelSuccess] = useState(false);
 
-  // Data
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [user, setUser] = useState(null);
+  const [receiver, setReceiver] = useState(null);
+  const [transportData, setTransportData] = useState(null);
+
+  // rich data for PDF
+  const [fullRequestData, setFullRequestData] = useState(null);
+  const [fullRequestLoading, setFullRequestLoading] = useState(false);
+
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [selectedReportData, setSelectedReportData] = useState(null);
 
   const loadData = async () => {
     try {
@@ -1656,8 +1559,37 @@ const RequestDetails = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchRef, dateFrom, dateTo]);
 
+  const getLatestRowsByReference = (rows = []) => {
+    const map = new Map();
+
+    rows.forEach((row) => {
+      const ref = row.referenceNumber;
+      if (!ref) return;
+
+      if (!map.has(ref)) {
+        map.set(ref, row);
+      } else {
+        const existing = map.get(ref);
+        const newTime = new Date(
+          row.updatedAt || row.request?.updatedAt || 0
+        ).getTime();
+        const oldTime = new Date(
+          existing.updatedAt || existing.request?.updatedAt || 0
+        ).getTime();
+
+        if (newTime > oldTime) {
+          map.set(ref, row);
+        }
+      }
+    });
+
+    return Array.from(map.values());
+  };
+
   const filteredRows = useMemo(() => {
     let list = [...rows];
+
+    // list = list.filter((r) => normalize(r.status) === "pending");
 
     if (outLocationFilter.trim()) {
       const f = normalize(outLocationFilter);
@@ -1688,8 +1620,35 @@ const RequestDetails = () => {
       );
     }
 
-    return list;
+    return getLatestRowsByReference(list);
   }, [rows, outLocationFilter, inLocationFilter, companyFilter, searchRef]);
+
+  useEffect(() => {
+    const loadSenderNames = async () => {
+      const missingServiceNos = filteredRows
+        .map((r) => r.request?.employeeServiceNo)
+        .filter((svc) => svc && !senderNameMap[svc]);
+
+      if (missingServiceNos.length === 0) return;
+
+      for (const svc of missingServiceNos) {
+        try {
+          const data = await searchReceiverByServiceNo(svc);
+          setSenderNameMap((prev) => ({
+            ...prev,
+            [svc]: data?.name || null,
+          }));
+        } catch {
+          setSenderNameMap((prev) => ({
+            ...prev,
+            [svc]: null,
+          }));
+        }
+      }
+    };
+
+    loadSenderNames();
+  }, [filteredRows]);
 
   const clearFilters = () => {
     setOutLocationFilter("");
@@ -1702,77 +1661,440 @@ const RequestDetails = () => {
   const formatCompanyLabel = (row) =>
     row.request?.isNonSltPlace ? "Non-SLT Organization" : "SLT Branch";
 
-  const formatStatusLabel = (row) => {
-    const stage = row.stage || "";
-    const status = row.status || "Pending";
-    return `${stage} ${status} `;
-  };
-  // Replace your handleModelOpen function with this fixed version:
+  // const formatStatusLabel = (row) => {
+  //   const stage = row.stage || "";
+  //   const status = row.status || "Pending";
+  //   return `${stage} ${status}`;
+  // };
 
-  
- 
-   const handleOpenModal = async (request) => {
-     setSelectedRequest(request);
-     if (request.employeeServiceNo) {
+  // Small helper to normalize "completed" vs "pending"
+  const isCompleted = (statusCode) => statusCode === 2 || statusCode === 3;
+
+  const printAdminReport = (request) => {
+    if (!request) return;
+
+    const printFrame = document.createElement("iframe");
+    printFrame.style.position = "absolute";
+    printFrame.style.top = "-9999px";
+    document.body.appendChild(printFrame);
+
+    const contentDocument = printFrame.contentDocument;
+
+    contentDocument.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>SLT Gate Pass - ${request.refNo}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .title { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+        .ref { font-size: 14px; color: #666; }
+        .section {
+  margin-bottom: 28px;
+  padding-bottom: 8px;
+}
+
+        .section-title { font-size: 18px; font-weight: bold; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px; }
+        .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+        .item { font-size: 14px; }
+        .itemComm { grid-column: span 2; font-size: 14px; }
+        .label { font-weight: bold; margin-right: 4px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f5f5f5; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1 class="title">SLT Gate Pass</h1>
+        <p class="ref">Reference: ${request.refNo}</p>
+        <p class="ref">Generated on: ${new Date().toLocaleString()}</p>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Sender Details</h2>
+        <div class="grid">
+          <div class="item"><span class="label">Name:</span> ${
+            request.senderDetails?.name || "N/A"
+          }</div>
+          <div class="item"><span class="label">Service No:</span> ${
+            request.senderDetails?.serviceNo || "N/A"
+          }</div>
+          <div class="item"><span class="label">Section:</span> ${
+            request.senderDetails?.section || "N/A"
+          }</div>
+          <div class="item"><span class="label">Group:</span> ${
+            request.senderDetails?.group || "N/A"
+          }</div>
+          <div class="item"><span class="label">Designation:</span> ${
+            request.senderDetails?.designation || "N/A"
+          }</div>
+          <div class="item"><span class="label">Contact:</span> ${
+            request.senderDetails?.contactNo || "N/A"
+          }</div>
+        </div>
+      </div>
+
+      
+
+      <div class="section">
+        <h2 class="section-title">Location Details</h2>
+        <div class="grid">
+          <div class="item"><span class="label">From:</span> ${
+            request.outLocation || "N/A"
+          }</div>
+          <div class="item"><span class="label">To:</span> ${
+            request.inLocation || "N/A"
+          }</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Exerctive Officer Details</h2>
+        <div class="grid">
+          <div class="item"><span class="label">Name:</span> ${
+            request.executiveOfficerData?.name || "N/A"
+          }</div>
+          <div class="item"><span class="label">Service No:</span> ${
+            request.executiveOfficerData?.serviceNo || "N/A"
+          }</div>
+          <div class="item"><span class="label">Section:</span> ${
+            request.executiveOfficerData?.section || "N/A"
+          }</div>
+          <div class="item"><span class="label">Group:</span> ${
+            request.executiveOfficerData?.group || "N/A"
+          }</div>
+          <div class="item"><span class="label">Designation:</span> ${
+            request.executiveOfficerData?.designation || "N/A"
+          }</div>
+          <div class="item"><span class="label">Contact:</span> ${
+            request.executiveOfficerData?.contactNo || "N/A"
+          }</div>
+          <div class="itemComm"><span class="label">Exerctive Officer Comment:</span> ${
+            request.statusDetails?.executiveOfficerComment || "N/A"
+          }</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Verify Officer Details</h2>
+        <div class="grid">
+          <div class="item"><span class="label">Name:</span> ${
+            request.verifyOfficerData?.name || "N/A"
+          }</div>
+          <div class="item"><span class="label">Service No:</span> ${
+            request.verifyOfficerData?.serviceNo || "N/A"
+          }</div>
+          <div class="item"><span class="label">Section:</span> ${
+            request.verifyOfficerData?.section || "N/A"
+          }</div>
+          <div class="item"><span class="label">Group:</span> ${
+            request.verifyOfficerData?.group || "N/A"
+          }</div>
+          <div class="item"><span class="label">Designation:</span> ${
+            request.verifyOfficerData?.designation || "N/A"
+          }</div>
+          <div class="item"><span class="label">Contact:</span> ${
+            request.verifyOfficerData?.contactNo || "N/A"
+          }</div>
+          <div class="itemComm"><span class="label">Verify Officer Comment:</span> ${
+            request.statusDetails?.verifyOfficerComment || "N/A"
+          }</div>
+        </div>
+      </div>
+
+      <!-- You can continue with Items table, loading details, etc., similar to Verify.jsx -->
+
+    </body>
+    </html>
+  `);
+
+    contentDocument.close();
+
+    printFrame.onload = () => {
+      printFrame.contentWindow.focus();
+      printFrame.contentWindow.print();
+      document.body.removeChild(printFrame);
+    };
+  };
+
+  // Build full officer details for SuperAdmin PDF
+  const handleGeneratePdf = async (row) => {
     try {
-      const senderData = await searchReceiverByServiceNo(request.employeeServiceNo);
-      console.log("✅ Fetched sender data:", senderData);
-      setUser(senderData); // Store sender details in 'user' state
-    } catch (error) {
-      console.error("❌ Error fetching sender details:", error);
+      setDetailsLoading(true);
+
+      // 1) Get latest status + full request
+      const data = await getAdminRequestsByRef(row.referenceNumber);
+
+      console.log("ADMIN REF DATA", data);
+
+      // rowsByRef must be defined *before* we use it
+      const rowsByRef = Array.isArray(data.rows) ? data.rows : [];
+      console.log("ROWS BY REF", rowsByRef);
+      console.log(
+        "ROW STAGES + ACTORS",
+        rowsByRef.map((r) => ({ stage: r.stage, actors: r.actors }))
+      );
+
+      const statusDetails = data.statusDetails || {};
+      const baseRequest = rowsByRef[0]?.request || row.request || {};
+
+      const reqStatus = baseRequest.status || 0;
+
+      // which stages are completed? (fallback to numeric status)
+      const executiveCompleted =
+        isCompleted(statusDetails.executiveOfficerStatus) || reqStatus >= 2;
+      const pleaderCompleted =
+        isCompleted(statusDetails.verifyOfficerStatus) || reqStatus >= 5;
+      const receiverOfficerCompleted =
+        isCompleted(statusDetails.recieveOfficerStatus) || reqStatus >= 11;
+
+      // 2) Sender (employee)
+      let senderDetails = null;
+      if (baseRequest.employeeServiceNo) {
+        try {
+          senderDetails = await searchSenderByServiceNo(
+            baseRequest.employeeServiceNo
+          );
+        } catch (e) {
+          senderDetails = null;
+        }
+      }
+
+      // 3) Executive officer
+      let executiveOfficerData = null;
+      const execSvc =
+        statusDetails.executiveOfficerServiceNo ||
+        baseRequest.executiveOfficerServiceNo;
+      if (executiveCompleted && execSvc) {
+        try {
+          executiveOfficerData = await searchSenderByServiceNo(execSvc);
+        } catch (e) {
+          executiveOfficerData = null;
+        }
+      }
+
+      // 4) Verify officer
+      let verifyOfficerData = null;
+      const verifySvc =
+        statusDetails.verifyOfficerServiceNo ||
+        statusDetails.verifyOfficerServiceNumber ||
+        (rowsByRef.find((r) => r.stage === "Verify")?.actors?.verify ?? null);
+
+      if (verifyCompleted && verifySvc) {
+        try {
+          verifyOfficerData = await searchSenderByServiceNo(verifySvc);
+        } catch (e) {
+          verifyOfficerData = null;
+        }
+      }
+
+      // 5) Receiver officer
+      let receiverOfficerData = null;
+      const receiveSvc =
+        statusDetails.recieveOfficerServiceNo ||
+        statusDetails.recieveOfficerServiceNumber ||
+        baseRequest.receiverServiceNo;
+
+      if (receiveCompleted && receiveSvc) {
+        try {
+          receiverOfficerData = await searchReceiverByServiceNo(receiveSvc);
+        } catch (e) {
+          console.error("Error fetching receiver officer details:", e);
+          receiverOfficerData = null;
+        }
+      }
+
+      // 6) Build report object (completed officers get real details, others N/A)
+      const reportData = {
+        refNo: row.referenceNumber,
+
+        // Sender
+        senderDetails: {
+          serviceNo:
+            senderDetails?.serviceNo || baseRequest.employeeServiceNo || "N/A",
+          name: senderDetails?.name || "N/A",
+          section: senderDetails?.section || "N/A",
+          group: senderDetails?.group || "N/A",
+          designation: senderDetails?.designation || "N/A",
+          contactNo: senderDetails?.contactNo || "N/A",
+          email: senderDetails?.email || "N/A",
+        },
+
+        // Receiver (destination person / branch)
+        receiverDetails: baseRequest.isNonSltPlace
+          ? {
+              name: baseRequest.receiverName || "N/A",
+              nic: baseRequest.receiverNIC || "N/A",
+              contactNo: baseRequest.receiverContact || "N/A",
+              companyName: baseRequest.companyName || "N/A",
+            }
+          : {
+              serviceNo: receiverOfficerData?.serviceNo || receiveSvc || "N/A",
+              name: receiverOfficerData?.name || "N/A",
+              section: receiverOfficerData?.section || "N/A",
+              group: receiverOfficerData?.group || "N/A",
+              designation: receiverOfficerData?.designation || "N/A",
+              contactNo: receiverOfficerData?.contactNo || "N/A",
+            },
+
+        // Locations & items
+        outLocation: baseRequest.outLocation,
+        inLocation: baseRequest.inLocation,
+        items: baseRequest.items || [],
+        transportData: baseRequest.transport || {},
+        requestDetails: baseRequest,
+
+        // Raw status info (comments, codes)
+        statusDetails,
+
+        // Executive officer section
+        executiveOfficerData: executiveCompleted
+          ? {
+              serviceNo: executiveOfficerData?.serviceNo || execSvc || "N/A",
+              name: executiveOfficerData?.name || "N/A",
+              section: executiveOfficerData?.section || "N/A",
+              group: executiveOfficerData?.group || "N/A",
+              designation: executiveOfficerData?.designation || "N/A",
+              contactNo: executiveOfficerData?.contactNo || "N/A",
+            }
+          : {
+              serviceNo: execSvc || "N/A",
+              name: "N/A",
+              section: "N/A",
+              group: "N/A",
+              designation: "N/A",
+              contactNo: "N/A",
+            },
+
+        // Verify officer section
+        verifyOfficerData: verifyCompleted
+          ? {
+              serviceNo: verifyOfficerData?.serviceNo || verifySvc || "N/A",
+              name: verifyOfficerData?.name || "N/A",
+              section: verifyOfficerData?.section || "N/A",
+              group: verifyOfficerData?.group || "N/A",
+              designation: verifyOfficerData?.designation || "N/A",
+              contactNo: verifyOfficerData?.contactNo || "N/A",
+            }
+          : {
+              serviceNo: verifySvc || "N/A",
+              name: "N/A",
+              section: "N/A",
+              group: "N/A",
+              designation: "N/A",
+              contactNo: "N/A",
+            },
+      };
+
+      setSelectedReportData(reportData);
+
+      // 7) Finally, generate the PDF
+      printAdminReport(reportData);
+    } catch (err) {
+      console.error("Failed to generate admin PDF:", err);
+      showToast("Failed to generate PDF", "error");
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  // ---------------------------------------------
+  // Open Details Modal (and fetch rich request)
+  // ---------------------------------------------
+  const handleOpenModal = async (row) => {
+    const baseRequest = row.request;
+    setSelectedRequest(baseRequest);
+    setIsModalOpen(true);
+    setFullRequestData(null);
+
+    // Sender
+    if (baseRequest.employeeServiceNo) {
+      try {
+        const senderData = await searchReceiverByServiceNo(
+          baseRequest.employeeServiceNo
+        );
+        setUser(senderData);
+      } catch (error) {
+        console.error("Error fetching sender details:", error);
+        setUser(null);
+      }
+    } else {
       setUser(null);
     }
-  } else {
-    setUser(null);
-  }
-     // Fetch receiver details if not already available
-     // For Non-SLT destinations, use the receiver info from the request itself
-     if (request.isNonSltPlace) {
-       // Set Non-SLT receiver details
-       setReceiver({
-         name: request.receiverName,
-         nic: request.receiverNIC,
-         contactNo: request.receiverContact,
-         serviceNo: request.receiverServiceNo || "N/A",
-         group: "Non-SLT",
-       });
-     } else if (request.receiverServiceNo && !request.receiver) {
-       // For SLT destinations, fetch from database
-       try {
-         const receiverData = await searchReceiverByServiceNo(
-           request.receiverServiceNo
-         );
-         setReceiver(receiverData);
-       } catch (error) {
-         console.error("Error fetching receiver details:", error);
-         setReceiver(null);
-       }
-     } else {
-       setReceiver(request.receiver || null);
-     }
- 
-     if (request?.transport.transporterServiceNo) {
-       try {
-         const transport = await searchReceiverByServiceNo(
-           request?.transport.transporterServiceNo
-         );
-         setTransportData(transport);
-       } catch (error) {
-         console.error("Error fetching transporter details:", error);
-         setTransportData(null);
-       }
-     } else {
-       setTransportData(request.transport || null);
-     }
- 
-     setIsModalOpen(true);
-   };
+
+    // Receiver
+    if (baseRequest.isNonSltPlace) {
+      setReceiver({
+        name: baseRequest.receiverName,
+        nic: baseRequest.receiverNIC,
+        contactNo: baseRequest.receiverContact,
+        serviceNo: baseRequest.receiverServiceNo || "N/A",
+        group: "Non-SLT",
+      });
+    } else if (baseRequest.receiverServiceNo && !baseRequest.receiver) {
+      try {
+        const receiverData = await searchReceiverByServiceNo(
+          baseRequest.receiverServiceNo
+        );
+        setReceiver(receiverData);
+      } catch (error) {
+        console.error("Error fetching receiver details:", error);
+        setReceiver(null);
+      }
+    } else {
+      setReceiver(baseRequest.receiver || null);
+    }
+
+    // Transporter (for SLT transporter we fetch user details)
+    if (baseRequest?.transport?.transporterServiceNo) {
+      try {
+        const transport = await searchReceiverByServiceNo(
+          baseRequest.transport.transporterServiceNo
+        );
+        setTransportData(transport);
+      } catch (error) {
+        console.error("Error fetching transporter details:", error);
+        setTransportData(baseRequest.transport || null);
+      }
+    } else {
+      setTransportData(baseRequest.transport || null);
+    }
+
+    // Rich request from API for PDF (executive, verify, loading, etc.)
+    try {
+      setFullRequestLoading(true);
+      const rich = await getGatePassRequest(row.referenceNumber);
+
+      const mergedForPdf = {
+        ...(rich || {}),
+        ...baseRequest,
+        refNo: row.referenceNumber,
+        requestDetails: baseRequest,
+        transportData: rich?.transportData || baseRequest.transport,
+      };
+
+      setFullRequestData(mergedForPdf);
+    } catch (err) {
+      console.error("Failed to load full gate pass details:", err);
+      setFullRequestData({
+        ...baseRequest,
+        refNo: row.referenceNumber,
+        requestDetails: baseRequest,
+        transportData: baseRequest.transport,
+      });
+    } finally {
+      setFullRequestLoading(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Requests' Details
+            Requests&apos; Details
           </h1>
           <p className="text-gray-500 flex items-center">
             <FaInfoCircle className="mr-2 text-blue-500" />
@@ -1780,16 +2102,17 @@ const RequestDetails = () => {
           </p>
         </div>
 
-        <button
+        {/* Uncomment if you want manual refresh */}
+        {/* <button
           onClick={loadData}
           className="inline-flex items-center gap-2 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
         >
           <FaSync className={loading ? "animate-spin" : ""} />
           Refresh
-        </button>
+        </button> */}
       </div>
 
-      {/* Search & Filter Section */}
+      {/* Search & Filters */}
       <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
         <div className="space-y-4">
           <div className="flex-1">
@@ -1807,26 +2130,26 @@ const RequestDetails = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Entry Point (Out Location)
               </label>
               <input
                 type="text"
                 value={outLocationFilter}
                 onChange={(e) => setOutLocationFilter(e.target.value)}
-                className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Exit Point (In Location)
               </label>
               <input
                 type="text"
                 value={inLocationFilter}
                 onChange={(e) => setInLocationFilter(e.target.value)}
-                className="w-full border rounded-lg px-2 py-1.5 text-sm"
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
               />
             </div>
 
@@ -1906,16 +2229,14 @@ const RequestDetails = () => {
               <th className="px-6 py-4 w-40 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
                 Exit Point
               </th>
-              <th className="px-6 py-4 w-30 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-12 py-4 w-30 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
                 Company
               </th>
               <th className="px-6 py-4 w-40 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
                 Date &amp; Time
               </th>
-              <th className="px-6 py-4 w-40 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-4 w-40 text-right text-sm font-medium text-gray-500 uppercase tracking-wider">
+
+              <th className="px-11 py-4 w-40 text-right text-sm font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
@@ -1925,7 +2246,7 @@ const RequestDetails = () => {
             {loading ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={7}
                   className="px-6 py-6 text-center text-sm text-gray-500"
                 >
                   Loading...
@@ -1934,7 +2255,7 @@ const RequestDetails = () => {
             ) : filteredRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={7}
                   className="px-6 py-6 text-center text-sm text-gray-400"
                 >
                   No requests found.
@@ -1954,8 +2275,15 @@ const RequestDetails = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
                       {row.request?.employeeServiceNo || "-"}
+                      {senderNameMap[row.request?.employeeServiceNo] && (
+                        <span className="text-gray-700">
+                          {" "}
+                          ({senderNameMap[row.request.employeeServiceNo]})
+                        </span>
+                      )}
                     </div>
                   </td>
+
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">
                       {row.request?.outLocation || "-"}
@@ -1966,7 +2294,7 @@ const RequestDetails = () => {
                       {row.request?.inLocation || "-"}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-11 py-4 whitespace-nowrap">
                     <span
                       className={
                         row.request?.isNonSltPlace
@@ -1977,8 +2305,8 @@ const RequestDetails = () => {
                       {formatCompanyLabel(row)}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-500">
+                  <td className="px-6 py-4 w-30 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">
                       {formatDateTime(
                         row.updatedAt ||
                           row.request?.updatedAt ||
@@ -1986,13 +2314,11 @@ const RequestDetails = () => {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {formatStatusLabel(row)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
+
+                  <td className="px-3 py-4 w-3 whitespace-nowrap text-right">
                     <button
-                      onClick={() => handleOpenModal(row.request)}
-                      className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+                      onClick={() => handleOpenModal(row)}
+                      className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-blue-500 hover:bg-blue-600 text-white transition-colors"
                     >
                       <FaEye className="mr-2" /> View Details
                     </button>
@@ -2004,7 +2330,6 @@ const RequestDetails = () => {
         </table>
       </div>
 
-      {/* Modal */}
       {/* Details Modal */}
       <RequestDetailsModal
         isOpen={isModalOpen}
@@ -2013,6 +2338,8 @@ const RequestDetails = () => {
         user={user}
         receiver={receiver}
         transporterDetails={transportData}
+        fullRequest={fullRequestData}
+        fullRequestLoading={fullRequestLoading}
       />
     </div>
   );

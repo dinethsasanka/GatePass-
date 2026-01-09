@@ -5,6 +5,7 @@
 const Status = require("../models/Status");
 const Request = require("../models/Request");
 const User = require("../models/User");
+const { DISPATCH_ROLES } = require("../utils/roleGroup");
 const { sendEmail } = require("../utils/sendMail"); // uses EMAIL_USER / EMAIL_PASS from .env
 const {
   emitRequestApproval,
@@ -19,6 +20,12 @@ const normalizeRole = (r) =>
 const esc = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const toRegexList = (arr = []) =>
   arr.filter(Boolean).map((b) => new RegExp(`^${esc(String(b).trim())}$`, "i"));
+
+// --- verify role helpers ---
+const isSuperAdmin = (role) => normalizeRole(role) === "superadmin";
+
+const isVerifyRole = (role) =>
+  DISPATCH_ROLES.map(normalizeRole).includes(normalizeRole(role));
 
 const pick = (obj, path) =>
   path.split(".").reduce((v, k) => (v && v[k] != null ? v[k] : null), obj);
@@ -125,6 +132,9 @@ function readSelectedReceiverServiceNo(reqDoc) {
  */
 exports.getPending = async (req, res) => {
   try {
+    if (!isSuperAdmin(req.user?.role) && !isVerifyRole(req.user?.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
     const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
     const branchRegex = toRegexList(branches);
@@ -145,6 +155,19 @@ exports.getPending = async (req, res) => {
           new Date(a.updatedAt || a.createdAt)
       )
     );
+
+    // Remove duplicates by keeping only the latest Status per referenceNumber
+    const uniqueFiltered = [];
+    const seenReferences = new Set();
+
+    for (const status of filtered) {
+      if (!seenReferences.has(status.referenceNumber)) {
+        seenReferences.add(status.referenceNumber);
+        uniqueFiltered.push(status);
+      }
+    }
+
+    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
   } catch (err) {
     console.error("Verify getPending error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -153,26 +176,47 @@ exports.getPending = async (req, res) => {
 
 exports.getApproved = async (req, res) => {
   try {
+    if (!isSuperAdmin(req.user?.role) && !isVerifyRole(req.user?.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
     const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
     const branchRegex = toRegexList(branches);
 
-    const rows = await Status.find({ verifyOfficerStatus: { $in: [2, "2"] } })
-      .populate({
-        path: "request",
-        match: isSuper ? {} : { outLocation: { $in: branchRegex } },
-      })
+    // Get all reference numbers that have been rejected at any level
+    const rejectedRefs = await Status.find({
+      rejectedBy: { $exists: true },
+    }).distinct("referenceNumber");
+
+    const rows = await Status.find({
+      verifyOfficerStatus: 2, // Verifier approved
+      referenceNumber: { $nin: rejectedRefs }, // Exclude rejected references
+    })
+      .populate("request")
       .sort({ updatedAt: -1 })
       .lean();
 
-    const filtered = rows.filter((s) => s.request && s.request.show !== false);
-    return res.json(
-      filtered.sort(
-        (a, b) =>
-          new Date(b.updatedAt || b.createdAt) -
-          new Date(a.updatedAt || a.createdAt)
-      )
+    // Filter by location if provided
+    const { outLocation } = req.query;
+    const filtered = rows.filter(
+      (s) =>
+        s.request &&
+        s.request.show !== false &&
+        (!outLocation || s.request.outLocation === outLocation)
     );
+
+    // Remove duplicates by keeping only the latest Status per referenceNumber
+    const uniqueFiltered = [];
+    const seenReferences = new Set();
+
+    for (const status of filtered) {
+      if (!seenReferences.has(status.referenceNumber)) {
+        seenReferences.add(status.referenceNumber);
+        uniqueFiltered.push(status);
+      }
+    }
+
+    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
   } catch (err) {
     console.error("Verify getApproved error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -181,15 +225,27 @@ exports.getApproved = async (req, res) => {
 
 exports.getRejected = async (req, res) => {
   try {
+    if (!isSuperAdmin(req.user?.role) && !isVerifyRole(req.user?.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
     const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
     const branchRegex = toRegexList(branches);
 
-    const rows = await Status.find({ verifyOfficerStatus: { $in: [3, "3"] } })
-      .populate({
-        path: "request",
-        match: isSuper ? {} : { outLocation: { $in: branchRegex } },
-      })
+    // Show rejections where Verifier was involved:
+    // 1. Verifier rejected it themselves (verifyOfficerStatus: 3)
+    // 2. Verifier approved it (verifyOfficerStatus: 2) but it was rejected by higher levels
+    // afterStatus: 6 = Verifier Rejected, 9 = Dispatcher Rejected, 12 = Receiver Rejected
+    const rows = await Status.find({
+      $or: [
+        { verifyOfficerStatus: 3 }, // Rejected by Verifier themselves
+        {
+          verifyOfficerStatus: 2, // Verifier approved it
+          afterStatus: { $in: [9, 12] }, // But rejected by Dispatcher or Receiver
+        },
+      ],
+    })
+      .populate("request")
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -201,6 +257,19 @@ exports.getRejected = async (req, res) => {
           new Date(a.updatedAt || a.createdAt)
       )
     );
+
+    // Remove duplicates by keeping only the latest Status per referenceNumber
+    const uniqueFiltered = [];
+    const seenReferences = new Set();
+
+    for (const status of filtered) {
+      if (!seenReferences.has(status.referenceNumber)) {
+        seenReferences.add(status.referenceNumber);
+        uniqueFiltered.push(status);
+      }
+    }
+
+    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
   } catch (err) {
     console.error("Verify getRejected error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -216,6 +285,10 @@ exports.getRejected = async (req, res) => {
  */
 exports.updateApproved = async (req, res) => {
   try {
+    if (!isSuperAdmin(req.user?.role) && !isVerifyRole(req.user?.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const { referenceNumber } = req.params;
     const { comment } = req.body;
 
@@ -341,8 +414,21 @@ exports.updateApproved = async (req, res) => {
  */
 exports.updateRejected = async (req, res) => {
   try {
+    if (!isSuperAdmin(req.user?.role) && !isVerifyRole(req.user?.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
     const { referenceNumber } = req.params;
     const { comment } = req.body;
+
+    console.log("=== VERIFIER REJECTION DEBUG ===");
+    console.log(
+      "req.user:",
+      req.user?.serviceNo,
+      "branches:",
+      req.user?.branches
+    );
+    console.log("req.user full:", JSON.stringify(req.user, null, 2));
 
     if (!comment || !comment.trim()) {
       return res
@@ -361,9 +447,51 @@ exports.updateRejected = async (req, res) => {
     status.beforeStatus = status.verifyOfficerStatus || 1;
     status.verifyOfficerStatus = 3; // Rejected by Verifier
     status.verifyOfficerComment = comment.trim();
-    status.afterStatus = 3;
+    status.afterStatus = 6; // FIXED: Verifier Rejected = 6 (not 3)
+
+    // Track rejection information - Use req.user (who actually rejected) instead of assigned officer
+    status.rejectedBy = "Verifier";
+    status.rejectedByServiceNo =
+      req.user?.serviceNo || status.verifyOfficerServiceNumber;
+    status.rejectedAt = new Date();
+    status.rejectionLevel = 2; // Verifier level (after Executive)
+
+    // Use the logged-in user's branch directly
+    if (req.user && req.user.branches && req.user.branches.length > 0) {
+      status.rejectedByBranch = req.user.branches[0];
+      console.log("Set rejectedByBranch from req.user:", req.user.branches[0]);
+    } else {
+      // Fallback: try to fetch by serviceNo
+      try {
+        const verifierUser = await User.findOne({
+          serviceNo: req.user?.serviceNo || status.verifyOfficerServiceNumber,
+        }).lean();
+        console.log(
+          "Verifier User Found (fallback):",
+          verifierUser?.serviceNo,
+          "Branches:",
+          verifierUser?.branches
+        );
+        if (
+          verifierUser &&
+          verifierUser.branches &&
+          verifierUser.branches.length > 0
+        ) {
+          status.rejectedByBranch = verifierUser.branches[0];
+          console.log(
+            "Set rejectedByBranch (fallback):",
+            verifierUser.branches[0]
+          );
+        } else {
+          console.log("No branches found for verifier");
+        }
+      } catch (userErr) {
+        console.error("Failed to fetch verifier branch:", userErr);
+      }
+    }
 
     await status.save();
+    console.log("Saved status with rejectedByBranch:", status.rejectedByBranch);
 
     // Email Requester
     try {
@@ -563,7 +691,6 @@ exports.addReturnableItemToRequest = async (req, res) => {
       message: "Returnable item added successfully",
       request,
     });
-
   } catch (error) {
     console.error("Error adding returnable item:", error);
     res.status(500).json({
@@ -572,4 +699,3 @@ exports.addReturnableItemToRequest = async (req, res) => {
     });
   }
 };
-

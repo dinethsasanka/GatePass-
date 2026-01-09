@@ -1,5 +1,6 @@
 // src/services/ReceiveService.js
 import axios from "axios";
+import axiosInstance from "./axiosConfig";
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL;
 const authHeaders = () => ({
@@ -8,19 +9,14 @@ const authHeaders = () => ({
 
 // Helper: GET with optional query params
 const getWithParams = async (url, params) => {
-  const response = await axios.get(url, { params, headers: authHeaders() });
+  const response = await axiosInstance.get(url, { params });
   return response.data;
 };
 
 // Create a new status
 export const createStatus = async (statusData) => {
   try {
-    const response = await axios.post(
-      `${API_BASE_URL}/receive/create`,
-      statusData,
-      { headers: authHeaders() }
-    );
-
+    const response = await axiosInstance.post(`/receive/create`, statusData);
     return response.data;
   } catch (error) {
     throw new Error(error.response?.data?.message || "Failed to create status");
@@ -29,7 +25,7 @@ export const createStatus = async (statusData) => {
 
 // Get Receiver → Pending (optionally filtered by serviceNo)
 export const getPendingStatuses = async (serviceNo) => {
-  const response = await axios.get(`${API_BASE_URL}/receive/pending`, {
+  const response = await axiosInstance.get(`/receive/pending`, {
     params: serviceNo ? { serviceNo } : undefined,
     headers: authHeaders(),
   });
@@ -40,7 +36,7 @@ export const getPendingStatuses = async (serviceNo) => {
 export const getApprovedStatuses = async (serviceNo) => {
   try {
     return await getWithParams(
-      `${API_BASE_URL}/receive/approved`,
+      `/receive/approved`,
       serviceNo ? { serviceNo } : undefined
     );
   } catch (error) {
@@ -52,7 +48,7 @@ export const getApprovedStatuses = async (serviceNo) => {
 export const getRejectedStatuses = async (serviceNo) => {
   try {
     return await getWithParams(
-      `${API_BASE_URL}/receive/rejected`,
+      `/receive/rejected`,
       serviceNo ? { serviceNo } : undefined
     );
   } catch (error) {
@@ -69,10 +65,9 @@ export const approveStatus = async (
   returnableItems
 ) => {
   try {
-    const response = await axios.put(
-      `${API_BASE_URL}/receive/${referenceNumber}/approve`,
-      { comment, unloadingDetails, userServiceNumber, returnableItems },
-      { headers: authHeaders() }
+    const response = await axiosInstance.put(
+      `/receive/${referenceNumber}/approve`,
+      { comment, unloadingDetails, userServiceNumber, returnableItems }
     );
     return response.data;
   } catch (error) {
@@ -86,10 +81,9 @@ export const approveStatus = async (
 // Reject a request (Receiver action)
 export const rejectStatus = async (referenceNumber, comment) => {
   try {
-    const response = await axios.put(
-      `${API_BASE_URL}/receive/${referenceNumber}/reject`,
-      { comment },
-      { headers: authHeaders() }
+    const response = await axiosInstance.put(
+      `/receive/${referenceNumber}/reject`,
+      { comment }
     );
     return response.data;
   } catch (error) {
@@ -102,11 +96,8 @@ export const searchUserByServiceNo = async (serviceNo) => {
   if (!serviceNo) return null;
 
   try {
-    const response = await axios.get(
-      `${API_BASE_URL}/users/${encodeURIComponent(serviceNo)}`,
-      { headers: authHeaders() }
-    );
-    return response.data || null;
+    const response = await axiosInstance.get(`/users/${serviceNo}`);
+    return response.data;
   } catch (error) {
     if (error.response?.status === 404) return null; // non-fatal
     console.warn(
@@ -126,8 +117,8 @@ export const searchUserByServiceNo = async (serviceNo) => {
   serialNo
 ) => {
   try {
-    const response = await axios.put(
-      `${API_BASE_URL}/receive/${referenceNumber}/returnable-item`,
+    const response = await axiosInstance.put(
+      `/receive/${referenceNumber}/returnable-item`,
       { originalSerialNo, itemModel, serialNo }
     );
     return response.data;

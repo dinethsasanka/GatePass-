@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   getGatePassRequest,
   searchReceiverByServiceNo,
+  searchEmployeeByServiceNo,
   getImageUrl,
   getImageUrlSync,
   getExecutiveOfficers,
@@ -27,6 +28,7 @@ import {
 import { jsPDF } from "jspdf";
 import logoUrl from "../assets/SLTMobitel_Logo.png";
 import { markItemsAsReturned} from "../services/myRequestService.js";
+
 
 const StatusPill = ({ statusCode }) => {
   const getStatusLabel = (code) => {
@@ -1274,22 +1276,41 @@ const GatePassRequests = () => {
       setReceiver(request.receiver || null);
     }
 
-    if (request?.transport.transporterServiceNo) {
-      try {
-        const transport = await searchReceiverByServiceNo(
-          request?.transport.transporterServiceNo
-        );
-        setTransportData(transport);
-      } catch (error) {
-        console.error("Error fetching transporter details:", error);
+      if (request?.transport?.transporterServiceNo) {
+    try {
+      const transportResponse = await searchEmployeeByServiceNo(
+        request.transport.transporterServiceNo
+      );
+      
+      console.log("Transport response:", transportResponse); // Debug log
+      
+      // Extract the employee data from the nested response
+      const employee = transportResponse?.data?.data?.[0];
+      
+      if (employee) {
+        setTransportData({
+          name: `${employee.employeeTitle || ""} ${employee.employeeFirstName || ""} ${employee.employeeSurname || ""}`.trim(),
+          serviceNo: employee.employeeNo || request.transport.transporterServiceNo,
+          designation: employee.designation || "-",
+          section: employee.empSection || "-",
+          group: employee.empGroup || "-",
+          contactNo: employee.mobileNo || "-"
+        });
+      } else {
+        // If no employee data found, set to null
         setTransportData(null);
       }
-    } else {
-      setTransportData(request.transport || null);
+    } catch (error) {
+      console.error("Error fetching transporter details:", error);
+      setTransportData(null);
     }
+  } else {
+    setTransportData(null);
+  }
 
-    setIsModalOpen(true);
-  };
+  setIsModalOpen(true);
+}
+  
 
   const handleCancelRequest = async (referenceNumber) => {
     if (window.confirm("Are you sure you want to cancel this request?")) {

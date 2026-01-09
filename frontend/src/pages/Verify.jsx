@@ -10,9 +10,11 @@ import {
   addReturnableItemToRequest,
 } from "../services/VerifyService.js";
 import { getUserByRoleAndBranch } from "../services/userManagementService.js";
+import { getEmployeeDetails } from "../services/erpService";
 import {
   getImageUrl,
   getImageUrlSync,
+  searchEmployeeByServiceNo,
   searchReceiverByServiceNo,
 } from "../services/RequestService.js";
 import { useToast } from "../components/ToastProvider.jsx";
@@ -72,10 +74,15 @@ const Verify = () => {
   const { showToast } = useToast();
   const location = useLocation();
 
+  const loggedUser = JSON.parse(localStorage.getItem("user") || "{}");
+  const role = loggedUser?.role?.toUpperCase();
+  const isSuperAdmin = role === "SUPERADMIN";
+
   // Add states for loading/unloading details
   const [staffType, setStaffType] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [searchedEmployee, setSearchedEmployee] = useState(null);
+
   const [nonSltStaffDetails, setNonSltStaffDetails] = useState({
     name: "",
     companyName: "",
@@ -172,7 +179,9 @@ const Verify = () => {
               transportData: transportData,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
-              createdAt: new Date(status.createdAt).toLocaleString(),
+              createdAt: new Date(
+                status.request?.createdAt || status.createdAt
+              ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.comment,
               request: status.request,
@@ -289,7 +298,9 @@ const Verify = () => {
               transportData: transportData,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
-              createdAt: new Date(status.createdAt).toLocaleString(),
+              createdAt: new Date(
+                status.request?.createdAt || status.createdAt
+              ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.comment,
               request: status.request,
@@ -408,7 +419,9 @@ const Verify = () => {
               loadingDetails: loadingDetails,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
-              createdAt: new Date(status.createdAt).toLocaleString(),
+              createdAt: new Date(
+                status.request?.createdAt || status.createdAt
+              ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.verifyOfficerComment,
               request: status.request,
@@ -547,13 +560,20 @@ const Verify = () => {
               loadingDetails: loadingDetails,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
-              createdAt: new Date(status.createdAt).toLocaleString(),
+              createdAt: new Date(
+                status.request?.createdAt || status.createdAt
+              ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.verifyOfficerComment,
               request: status.request,
               requestDetails: { ...status.request },
               loadUserData: loadUserData,
               statusDetails: statusDetails,
+              rejectedBy: status.rejectedBy,
+              rejectedByServiceNo: status.rejectedByServiceNo,
+              rejectedByBranch: status.rejectedByBranch,
+              rejectedAt: status.rejectedAt,
+              rejectionLevel: status.rejectionLevel,
             };
           })
         );
@@ -842,53 +862,60 @@ const Verify = () => {
 
   // Add these helper functions RIGHT HERE - before sendApprovalEmails
 
-// Email validation helper
-const isValidEmail = (email) => {
-  if (!email) return false;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email.trim());
-};
-
-// Get fallback emails based on branch
-const getFallbackEmails = async (branch) => {
-  // Comprehensive fallback email list based on branch
-  const branchFallbacks = {
-    'main': ['gatepass-admin@slt.lk', 'transport@slt.lk', 'distribution@slt.lk'],
-    'head office': ['gatepass-admin@slt.lk', 'transport-hq@slt.lk'],
-    'colombo': ['distribution-colombo@slt.lk', 'gatepass-admin@slt.lk'],
-    'kandy': ['distribution-kandy@slt.lk', 'gatepass-admin@slt.lk'],
-    'gampaha': ['distribution-gampaha@slt.lk', 'gatepass-admin@slt.lk'],
-    // Add more branches as needed
+  // Email validation helper
+  const isValidEmail = (email) => {
+    if (!email) return false;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
   };
 
-  const branchKey = branch?.toLowerCase() || 'main';
-  const branchSpecific = branchFallbacks[branchKey] || branchFallbacks['main'];
-  
-  // Always include these general fallbacks
-  const generalFallbacks = [
-    'gatepass-admin@slt.lk',
-    'distribution@slt.lk', 
-    'transport@slt.lk'
-  ];
+  // Get fallback emails based on branch
+  const getFallbackEmails = async (branch) => {
+    // Comprehensive fallback email list based on branch
+    const branchFallbacks = {
+      main: [
+        "gatepass-admin@slt.lk",
+        "transport@slt.lk",
+        "distribution@slt.lk",
+      ],
+      "head office": ["gatepass-admin@slt.lk", "transport-hq@slt.lk"],
+      colombo: ["distribution-colombo@slt.lk", "gatepass-admin@slt.lk"],
+      kandy: ["distribution-kandy@slt.lk", "gatepass-admin@slt.lk"],
+      gampaha: ["distribution-gampaha@slt.lk", "gatepass-admin@slt.lk"],
+      // Add more branches as needed
+    };
 
-  // Combine and remove duplicates
-  const allEmails = [...new Set([...branchSpecific, ...generalFallbacks])];
-  
-  console.log(`📧 Fallback emails for branch "${branch}":`, allEmails);
-  return allEmails;
-};
+    const branchKey = branch?.toLowerCase() || "main";
+    const branchSpecific =
+      branchFallbacks[branchKey] || branchFallbacks["main"];
 
-const sendReturnEmail = async (request, comment, itemDetails = []) => {
-  try {
-    if (!request.senderDetails?.email) {
-      showToast("Sender email not available", "error");
-      return;
-    }
+    // Always include these general fallbacks
+    const generalFallbacks = [
+      "gatepass-admin@slt.lk",
+      "distribution@slt.lk",
+      "transport@slt.lk",
+    ];
 
-    const emailSubject = `Returnable Items Update: ${request.refNo}`;
+    // Combine and remove duplicates
+    const allEmails = [...new Set([...branchSpecific, ...generalFallbacks])];
 
-    // Create items table for email
-    const itemsTable = itemDetails.length > 0 ? `
+    console.log(`📧 Fallback emails for branch "${branch}":`, allEmails);
+    return allEmails;
+  };
+
+  const sendReturnEmail = async (request, comment, itemDetails = []) => {
+    try {
+      if (!request.senderDetails?.email) {
+        showToast("Sender email not available", "error");
+        return;
+      }
+
+      const emailSubject = `Returnable Items Update: ${request.refNo}`;
+
+      // Create items table for email
+      const itemsTable =
+        itemDetails.length > 0
+          ? `
       <div style="margin: 20px 0;">
         <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned Items</h3>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
@@ -901,30 +928,49 @@ const sendReturnEmail = async (request, comment, itemDetails = []) => {
             </tr>
           </thead>
           <tbody>
-            ${itemDetails.map(item => `
+            ${itemDetails
+              .map(
+                (item) => `
               <tr>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemName || 'N/A'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.serialNo || 'N/A'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemCategory || 'N/A'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.itemQuantity || '1'}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.itemName || "N/A"
+                }</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.serialNo || "N/A"
+                }</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.itemCategory || "N/A"
+                }</td>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">${
+                  item.itemQuantity || "1"
+                }</td>
               </tr>
-            `).join('')}
+            `
+              )
+              .join("")}
           </tbody>
         </table>
       </div>
-    ` : '';
+    `
+          : "";
 
-    const emailBody = `
+      const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <div style="text-align: center; margin-bottom: 20px;">
           <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable Items Update</h2>
-          <p style="color: #757575; font-size: 14px;">Reference Number: ${request.refNo}</p>
+          <p style="color: #757575; font-size: 14px;">Reference Number: ${
+            request.refNo
+          }</p>
         </div>
         
         <div style="margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
           <p>Dear ${request.senderDetails.name},</p>
           
-          <p>We would like to inform you that ${itemDetails.length} returnable item(s) under reference number <b>${request.refNo}</b> have been returned by the Receiver.</p>
+          <p>We would like to inform you that ${
+            itemDetails.length
+          } returnable item(s) under reference number <b>${
+        request.refNo
+      }</b> have been returned by the Receiver.</p>
           <p>You can view it under your <i>Completed</i> or relevant section.</p>
         </div>
 
@@ -937,52 +983,57 @@ const sendReturnEmail = async (request, comment, itemDetails = []) => {
       </div>
     `;
 
-    await emailSent({
-      to: request.senderDetails.email,
-      subject: emailSubject,
-      html: emailBody,
-    });
+      await emailSent({
+        to: request.senderDetails.email,
+        subject: emailSubject,
+        html: emailBody,
+      });
 
-    showToast("Return notification email sent to requester", "success");
-  } catch (error) {
-    console.error("Failed to send return email:", error);
-    showToast("Failed to send return email", "error");
-  }
-};
-
-
-
-const sendReturnTOExecutiveEmail = async (request, comment, selectedItemDetails) => {
-  try {
-    // Get the executive officer details from the request
-    const executiveServiceNo = request.requestDetails?.executiveOfficerServiceNo || 
-                               request.request?.executiveOfficerServiceNo;
-    
-    if (!executiveServiceNo) {
-      console.error("Executive officer service number not found");
-      showToast("Executive officer details not available", "error");
-      return;
+      showToast("Return notification email sent to requester", "success");
+    } catch (error) {
+      console.error("Failed to send return email:", error);
+      showToast("Failed to send return email", "error");
     }
+  };
 
-    // Fetch executive officer details
-    const approver = await searchReceiverByServiceNo(executiveServiceNo);
-    
-    if (!approver?.email) {
-      console.error("Executive officer email not found");
-      showToast("Executive officer email not available", "error");
-      return;
-    }
+  const sendReturnTOExecutiveEmail = async (
+    request,
+    comment,
+    selectedItemDetails
+  ) => {
+    try {
+      // Get the executive officer details from the request
+      const executiveServiceNo =
+        request.requestDetails?.executiveOfficerServiceNo ||
+        request.request?.executiveOfficerServiceNo;
 
-    const emailSubject = `Action Required: Review and Return Items - ${request.refNo}`;
+      if (!executiveServiceNo) {
+        console.error("Executive officer service number not found");
+        showToast("Executive officer details not available", "error");
+        return;
+      }
 
-    // Create a professional email body with HTML formatting
-    const emailBody = `
+      // Fetch executive officer details
+      const approver = await searchReceiverByServiceNo(executiveServiceNo);
+
+      if (!approver?.email) {
+        console.error("Executive officer email not found");
+        showToast("Executive officer email not available", "error");
+        return;
+      }
+
+      const emailSubject = `Action Required: Review and Return Items - ${request.refNo}`;
+
+      // Create a professional email body with HTML formatting
+      const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         
         <!-- Header -->
         <div style="text-align: center; margin-bottom: 20px;">
           <h2 style="color: #2fd33dff; margin-bottom: 5px;">⚠️ Action Required: Review and Return Items</h2>
-          <p style="color: #757575; font-size: 14px;">Reference Number: <strong>${request.refNo}</strong></p>
+          <p style="color: #757575; font-size: 14px;">Reference Number: <strong>${
+            request.refNo
+          }</strong></p>
         </div>
         
         <!-- Alert Box -->
@@ -996,16 +1047,20 @@ const sendReturnTOExecutiveEmail = async (request, comment, selectedItemDetails)
         <div style="margin-bottom: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px;">
           <p style="margin-bottom: 15px;">Dear ${approver.name},</p>
           
-          <p style="margin-bottom: 15px;">We would like to inform you that the following returnable items under reference number <b>${request.refNo}</b> are ready to be returned by the Petrol Leader.</p>
+          <p style="margin-bottom: 15px;">We would like to inform you that the following returnable items under reference number <b>${
+            request.refNo
+          }</b> are ready to be returned by the Petrol Leader.</p>
           
           <p style="margin-bottom: 15px;"><strong>Please review these items and arrange for their return as soon as possible.</strong></p>
           
           <p style="margin: 0;">
-            📍 <strong>Current Location:</strong> ${request.inLocation || 'N/A'}<br>
-            📅 <strong>Date:</strong> ${new Date().toLocaleDateString('en-US', { 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric'
+            📍 <strong>Current Location:</strong> ${
+              request.inLocation || "N/A"
+            }<br>
+            📅 <strong>Date:</strong> ${new Date().toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
             })}
           </p>
         </div>
@@ -1023,25 +1078,44 @@ const sendReturnTOExecutiveEmail = async (request, comment, selectedItemDetails)
               </tr>
             </thead>
             <tbody>
-              ${selectedItemDetails?.map(item => `
+              ${
+                selectedItemDetails
+                  ?.map(
+                    (item) => `
                 <tr>
-                  <td style="padding: 8px; border: 1px solid #dee2e6;">${item.itemName || "N/A"}</td>
-                  <td style="padding: 8px; border: 1px solid #dee2e6;">${item.serialNo || "N/A"}</td>
-                  <td style="padding: 8px; border: 1px solid #dee2e6;">${item.itemCategory || "N/A"}</td>
-                  <td style="padding: 8px; border: 1px solid #dee2e6;">${item.itemQuantity || "1"}</td>
+                  <td style="padding: 8px; border: 1px solid #dee2e6;">${
+                    item.itemName || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #dee2e6;">${
+                    item.serialNo || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #dee2e6;">${
+                    item.itemCategory || "N/A"
+                  }</td>
+                  <td style="padding: 8px; border: 1px solid #dee2e6;">${
+                    item.itemQuantity || "1"
+                  }</td>
                 </tr>
-              `).join("") || '<tr><td colspan="4" style="padding: 8px; text-align: center;">No items selected</td></tr>'}
+              `
+                  )
+                  .join("") ||
+                '<tr><td colspan="4" style="padding: 8px; text-align: center;">No items selected</td></tr>'
+              }
             </tbody>
           </table>
         </div>
 
         <!-- Additional Comment Section -->
-        ${comment ? `
+        ${
+          comment
+            ? `
         <div style="margin-bottom: 20px; padding: 15px; background-color: #f0f4ff; border-radius: 4px; border-left: 4px solid #2196F3;">
           <p style="margin: 0 0 5px 0; font-weight: bold; color: #1976D2;">Additional Comments:</p>
           <p style="margin: 0; color: #424242;">${comment}</p>
         </div>
-        ` : ''}
+        `
+            : ""
+        }
 
         <!-- Request Details -->
         <div style="margin-bottom: 20px;">
@@ -1049,7 +1123,9 @@ const sendReturnTOExecutiveEmail = async (request, comment, selectedItemDetails)
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
             <tr>
               <td style="padding: 8px 0; color: #757575; width: 40%;">Requester:</td>
-              <td style="padding: 8px 0;">${request.senderDetails?.name || "N/A"}</td>
+              <td style="padding: 8px 0;">${
+                request.senderDetails?.name || "N/A"
+              }</td>
             </tr>
             <tr>
               <td style="padding: 8px 0; color: #757575;">From Location:</td>
@@ -1070,192 +1146,245 @@ const sendReturnTOExecutiveEmail = async (request, comment, selectedItemDetails)
       </div>
     `;
 
-    // Send the email
-    const result = await emailSent({
-      to: approver.email,
-      subject: emailSubject,
-      html: emailBody,
-    });
+      // Send the email
+      const result = await emailSent({
+        to: approver.email,
+        subject: emailSubject,
+        html: emailBody,
+      });
 
-    console.log("Executive officer notification email sent successfully");
-    showToast("Return notification email sent to executive officer", "success");
-    
-    return result;
+      console.log("Executive officer notification email sent successfully");
+      showToast(
+        "Return notification email sent to executive officer",
+        "success"
+      );
 
-  } catch (error) {
-    console.error("Failed to send return email to executive officer:", error);
-    showToast("Failed to send email to executive officer", "error");
-    throw error;
-  }
-};
-
+      return result;
+    } catch (error) {
+      console.error("Failed to send return email to executive officer:", error);
+      showToast("Failed to send email to executive officer", "error");
+      throw error;
+    }
+  };
 
   // NEW: Email function for receiver only (backend handles petrol leader notifications)
-   // NEW: Email function for receiver only (backend handles petrol leader notifications)
-const sendApprovalEmails = async (request, comment) => {
-  try {
-    let emailCount = 0;
-    const errors = [];
-    const successRecipients = [];
+  // NEW: Email function for receiver only (backend handles petrol leader notifications)
+  const sendApprovalEmails = async (request, comment) => {
+    try {
+      let emailCount = 0;
+      const errors = [];
+      const successRecipients = [];
 
-    console.log('=== Starting email notification process ===');
+      console.log("=== Starting email notification process ===");
 
-    // 1. SKIP PETROL LEADER API - Use fallback directly (no admin access required)
-    console.log('Using fallback email system for petrol leaders');
-    
-    const fallbackEmails = await getFallbackEmails(request.outLocation);
-    console.log('Fallback emails to try:', fallbackEmails);
+      // 1. SKIP PETROL LEADER API - Use fallback directly (no admin access required)
+      console.log("Using fallback email system for petrol leaders");
 
-    let fallbackSent = false;
-    for (const fallbackEmail of fallbackEmails) {
-      try {
-        await sendApprovalEmailToPetrolLeader(fallbackEmail, request, comment);
-        emailCount++;
-        successRecipients.push(`Petrol Leader: ${fallbackEmail}`);
-        console.log(`✅ Email sent successfully to: ${fallbackEmail}`);
-        fallbackSent = true;
-        break; // Stop after first successful fallback
-      } catch (fallbackError) {
-        console.error(`❌ Fallback email failed for ${fallbackEmail}:`, fallbackError);
-        // Continue to next fallback
+      const fallbackEmails = await getFallbackEmails(request.outLocation);
+      console.log("Fallback emails to try:", fallbackEmails);
+
+      let fallbackSent = false;
+      for (const fallbackEmail of fallbackEmails) {
+        try {
+          await sendApprovalEmailToPetrolLeader(
+            fallbackEmail,
+            request,
+            comment
+          );
+          emailCount++;
+          successRecipients.push(`Petrol Leader: ${fallbackEmail}`);
+          console.log(`✅ Email sent successfully to: ${fallbackEmail}`);
+          fallbackSent = true;
+          break; // Stop after first successful fallback
+        } catch (fallbackError) {
+          console.error(
+            `❌ Fallback email failed for ${fallbackEmail}:`,
+            fallbackError
+          );
+          // Continue to next fallback
+        }
       }
-    }
 
-    if (!fallbackSent) {
-      errors.push('All fallback email attempts failed');
-      console.warn('❌ All fallback email attempts failed');
-    }
-
-    // 2. Send email to receiver
-    if (request.receiverDetails?.email && isValidEmail(request.receiverDetails.email)) {
-      try {
-        await sendApprovalEmailToReceiver(request, comment);
-        emailCount++;
-        successRecipients.push(`Receiver: ${request.receiverDetails.email}`);
-        console.log(`Email sent successfully to receiver: ${request.receiverDetails.email}`);
-      } catch (emailError) {
-        console.error(`❌ Failed to send email to receiver ${request.receiverDetails.email}:`, emailError);
-        errors.push(`Receiver email failed: ${emailError.message}`);
+      if (!fallbackSent) {
+        errors.push("All fallback email attempts failed");
+        console.warn("❌ All fallback email attempts failed");
       }
-    } else {
-      console.warn('⚠️ No valid receiver email available');
-      errors.push('No valid receiver email available');
-    }
 
-    // Show results
-    console.log('=== Email Notification Summary ===');
-    console.log(`Total successful: ${emailCount}`);
-    console.log(`Successful recipients:`, successRecipients);
-    console.log(`Errors:`, errors);
+      // 2. Send email to receiver
+      if (
+        request.receiverDetails?.email &&
+        isValidEmail(request.receiverDetails.email)
+      ) {
+        try {
+          await sendApprovalEmailToReceiver(request, comment);
+          emailCount++;
+          successRecipients.push(`Receiver: ${request.receiverDetails.email}`);
+          console.log(
+            `Email sent successfully to receiver: ${request.receiverDetails.email}`
+          );
+        } catch (emailError) {
+          console.error(
+            `❌ Failed to send email to receiver ${request.receiverDetails.email}:`,
+            emailError
+          );
+          errors.push(`Receiver email failed: ${emailError.message}`);
+        }
+      } else {
+        console.warn("⚠️ No valid receiver email available");
+        errors.push("No valid receiver email available");
+      }
 
-    if (emailCount > 0) {
-      if (errors.length > 0) {
-        showToast(
-          `Approval sent! Notifications delivered to ${emailCount} recipient(s), but ${errors.join(', ')}`,
-          'warning'
-        );
+      // Show results
+      console.log("=== Email Notification Summary ===");
+      console.log(`Total successful: ${emailCount}`);
+      console.log(`Successful recipients:`, successRecipients);
+      console.log(`Errors:`, errors);
+
+      if (emailCount > 0) {
+        if (errors.length > 0) {
+          showToast(
+            `Approval sent! Notifications delivered to ${emailCount} recipient(s), but ${errors.join(
+              ", "
+            )}`,
+            "warning"
+          );
+        } else {
+          showToast(
+            `✅ Approval successful! Notifications sent to ${emailCount} recipient(s)`,
+            "success"
+          );
+        }
       } else {
         showToast(
-          `✅ Approval successful! Notifications sent to ${emailCount} recipient(s)`,
-          'success'
+          "✅ Request approved, but no email notifications could be sent",
+          "warning"
         );
       }
-    } else {
+    } catch (error) {
+      console.error("❌ Critical error in sendApprovalEmails:", error);
       showToast(
-        '✅ Request approved, but no email notifications could be sent',
-        'warning'
+        "✅ Request approved, but email notifications failed. Please contact support.",
+        "error"
       );
+      throw error;
     }
-
-  } catch (error) {
-    console.error('❌ Critical error in sendApprovalEmails:', error);
-    showToast(
-      '✅ Request approved, but email notifications failed. Please contact support.',
-      'error'
-    );
-    throw error;
-  }
-};
+  };
 
   // UPDATED: handleApprove function to use consolidated email function
- const handleApprove = async (item) => {
-  try {
-    // Prepare loading details based on staff type
-    let loadingDetails = {
-      loadingLocation: item.outLocation,
-      staffType: staffType
-    };
-
-    if (staffType === 'SLT') {
-      if (!searchedEmployee) {
-        showToast('Please search and select an SLT employee for loading', 'warning');
-        return;
-      }
-      loadingDetails.staffServiceNo = searchedEmployee.serviceNo;
-    } else {
-      // Validate non-SLT staff details
-      if (!nonSltStaffDetails.name || !nonSltStaffDetails.nic) {
-        showToast('Please fill in all required non-SLT staff details', 'warning');
-        return;
-      }
-
-      loadingDetails = {
-        ...loadingDetails,
-        nonSLTStaffName: nonSltStaffDetails.name,
-        nonSLTStaffCompany: nonSltStaffDetails.companyName,
-        nonSLTStaffNIC: nonSltStaffDetails.nic,
-        nonSLTStaffContact: nonSltStaffDetails.contactNo,
-        nonSLTStaffEmail: nonSltStaffDetails.email
+  const handleApprove = async (item) => {
+    try {
+      // Prepare loading details based on staff type
+      let loadingDetails = {
+        loadingLocation: item.outLocation,
+        staffType: staffType,
       };
+
+      if (staffType === "SLT") {
+        if (!searchedEmployee) {
+          showToast(
+            "Please search and select an SLT employee for loading",
+            "warning"
+          );
+          return;
+        }
+        loadingDetails.staffServiceNo = searchedEmployee.serviceNo;
+      } else {
+        // Validate non-SLT staff details
+        if (!nonSltStaffDetails.name || !nonSltStaffDetails.nic) {
+          showToast(
+            "Please fill in all required non-SLT staff details",
+            "warning"
+          );
+          return;
+        }
+
+        // Call API to approve status with comment and loading details
+        const updatedStatus = await approveStatus(
+          item.refNo,
+          comment,
+          loadingDetails,
+          userDetails.serviceNo
+        );
+
+        // Send emails to both petrol leaders and receiver
+        await sendApprovalEmails(item, comment);
+
+        // Format the approved item in the same structure as your UI expects
+        const approvedItem = {
+          refNo: updatedStatus.referenceNumber,
+          name: updatedStatus.request?.name,
+          inLocation: updatedStatus.request?.inLocation,
+          outLocation: updatedStatus.request?.outLocation,
+          createdAt: new Date(
+            updatedStatus.request?.createdAt || updatedStatus.createdAt
+          ).toLocaleString(),
+          items: updatedStatus.request?.items || [],
+          comment: updatedStatus.verifyOfficerComment,
+          requestDetails: { ...updatedStatus.request },
+        };
+      }
+
+      console.log("=== Starting approval process ===");
+
+      // Call API to approve status with comment and loading details
+      const updatedStatus = await approveStatus(
+        item.refNo,
+        comment,
+        loadingDetails,
+        userDetails.serviceNo
+      );
+
+      console.log(
+        "✅ Request approved in database, now sending notifications..."
+      );
+
+      // Send emails - don't wait for result to block the approval (non-blocking)
+      sendApprovalEmails(item, comment)
+        .then((result) => {
+          console.log("Email sending completed:", result);
+        })
+        .catch((emailError) => {
+          console.error("Email sending failed:", emailError);
+        });
+
+      // Format the approved item in the same structure as your UI expects
+      const approvedItem = {
+        refNo: updatedStatus.referenceNumber,
+        name: updatedStatus.request?.name,
+        inLocation: updatedStatus.request?.inLocation,
+        outLocation: updatedStatus.request?.outLocation,
+        createdAt: new Date(updatedStatus.createdAt).toLocaleString(),
+        items: updatedStatus.request?.items || [],
+        comment: updatedStatus.verifyOfficerComment,
+        requestDetails: { ...updatedStatus.request },
+      };
+
+      // Update UI state immediately (don't wait for emails)
+      setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
+      setApprovedItems([...approvedItems, approvedItem]);
+
+      // Reset modal and comment
+      setShowModal(false);
+      setComment("");
+
+      // Don't show additional success toast here - let sendApprovalEmails handle it
+      setStaffType("");
+      setServiceId("");
+      setSearchedEmployee(null);
+      setNonSltStaffDetails({
+        name: "",
+        companyName: "",
+        nic: "",
+        contactNo: "",
+        email: "",
+      });
+
+      console.log("✅ Approval process completed successfully");
+    } catch (error) {
+      console.error("❌ Error approving status:", error.message);
+      showToast("Failed to approve request. Please try again.", "error");
     }
-
-    console.log('=== Starting approval process ===');
-    
-    // Call API to approve status with comment and loading details
-    const updatedStatus = await approveStatus(item.refNo, comment, loadingDetails, userDetails.serviceNo);
-
-    console.log('✅ Request approved in database, now sending notifications...');
-
-    // Send emails - don't wait for result to block the approval (non-blocking)
-    sendApprovalEmails(item, comment).then(result => {
-      console.log('Email sending completed:', result);
-    }).catch(emailError => {
-      console.error('Email sending failed:', emailError);
-    });
-
-    // Format the approved item in the same structure as your UI expects
-    const approvedItem = {
-      refNo: updatedStatus.referenceNumber,
-      name: updatedStatus.request?.name,
-      inLocation: updatedStatus.request?.inLocation,
-      outLocation: updatedStatus.request?.outLocation,
-      createdAt: new Date(updatedStatus.createdAt).toLocaleString(),
-      items: updatedStatus.request?.items || [],
-      comment: updatedStatus.verifyOfficerComment,
-      requestDetails: { ...updatedStatus.request },
-    };
-
-    // Update UI state immediately (don't wait for emails)
-    setPendingItems(pendingItems.filter(i => i.refNo !== item.refNo));
-    setApprovedItems([...approvedItems, approvedItem]);
-
-    // Reset modal and comment
-    setShowModal(false);
-    setComment('');
-    
-    // Don't show additional success toast here - let sendApprovalEmails handle it
-    setStaffType('');
-    setServiceId('');
-    setSearchedEmployee(null);
-    setNonSltStaffDetails({ name: '', companyName: '', nic: '', contactNo: '', email: '' });
-
-    console.log('✅ Approval process completed successfully');
-
-  } catch (error) {
-    console.error("❌ Error approving status:", error.message);
-    showToast('Failed to approve request. Please try again.', 'error');
-  }
-};
+  };
 
   const sendRejectionEmail = async (request, comment) => {
     try {
@@ -1444,7 +1573,9 @@ const sendApprovalEmails = async (request, comment) => {
         name: updatedStatus.request?.name,
         inLocation: updatedStatus.request?.inLocation,
         outLocation: updatedStatus.request?.outLocation,
-        createdAt: new Date(updatedStatus.createdAt).toLocaleString(),
+        createdAt: new Date(
+          updatedStatus.request?.createdAt || updatedStatus.createdAt
+        ).toLocaleString(),
         items: updatedStatus.request?.items || [],
         comment: updatedStatus.verifyOfficerComment,
         requestDetails: { ...updatedStatus.request },
@@ -1464,14 +1595,35 @@ const sendApprovalEmails = async (request, comment) => {
 
   const handleModelOpen = async (item) => {
     setSelectedItem(item);
-    //console.log(item);
 
     if (item.requestDetails?.transport.transporterServiceNo) {
       try {
-        const transport = await searchReceiverByServiceNo(
-          item.requestDetails?.transport.transporterServiceNo
+        const transportResponse = await searchEmployeeByServiceNo(
+          item.requestDetails.transport.transporterServiceNo
         );
-        setTransportData(transport);
+
+        console.log("Transport response:", transportResponse); // Debug log
+
+        // Extract the employee data from the nested response
+        const employee = transportResponse?.data?.data?.[0];
+
+        if (employee) {
+          setTransportData({
+            name: `${employee.employeeTitle || ""} ${
+              employee.employeeFirstName || ""
+            } ${employee.employeeSurname || ""}`.trim(),
+            serviceNo:
+              employee.employeeNo ||
+              item.requestDetails.transport.transporterServiceNo,
+            designation: employee.designation || "-",
+            section: employee.empSection || "-",
+            group: employee.empGroup || "-",
+            contactNo: employee.mobileNo || "-",
+          });
+        } else {
+          console.log("No employee data found");
+          setTransportData(null);
+        }
       } catch (error) {
         console.error("Error fetching transporter details:", error);
         setTransportData(null);
@@ -1836,6 +1988,11 @@ const sendApprovalEmails = async (request, comment) => {
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
                   Date & Time
                 </th>
+                {activeTab === "rejected" && (
+                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-500 uppercase tracking-wider">
+                    Rejected By
+                  </th>
+                )}
                 <th className="px-6 py-4 text-right text-sm font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -1892,6 +2049,15 @@ const sendApprovalEmails = async (request, comment) => {
                       {item.createdAt}
                     </div>
                   </td>
+                  {activeTab === "rejected" && (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {item.rejectedByBranch
+                          ? `${item.rejectedByBranch} ${item.rejectedBy || ""}`
+                          : item.rejectedBy || "N/A"}
+                      </div>
+                    </td>
+                  )}
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button
                       onClick={() => {
@@ -1957,6 +2123,7 @@ const sendApprovalEmails = async (request, comment) => {
         sendReturnEmail={sendReturnEmail}
         sendReturnTOExecutiveEmail={sendReturnTOExecutiveEmail}
         setNonSltStaffDetails={setNonSltStaffDetails}
+        isSuperAdmin={isSuperAdmin}
       />
     </div>
   );
@@ -1986,6 +2153,7 @@ const RequestDetailsModal = ({
   showToast,
   nonSltStaffDetails,
   setNonSltStaffDetails,
+  isSuperAdmin,
 }) => {
   // Initialize with the correct value from request
   const [selectedExecutive, setSelectedExecutive] = useState("");
@@ -1996,15 +2164,15 @@ const RequestDetailsModal = ({
   const [selectedItems, setSelectedItems] = useState([]);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [loading, setLoading] = useState(false);
-   const [newItem, setNewItem] = useState({
-      itemName: '',
-      serialNo: '',
-      itemCategory: '',
-      itemModel: '',
-      itemQuantity: 1,
-      returnDate: '',
-      status: 'returnable'
-    });
+  const [newItem, setNewItem] = useState({
+    itemName: "",
+    serialNo: "",
+    itemCategory: "",
+    itemModel: "",
+    itemQuantity: 1,
+    returnDate: "",
+    status: "returnable",
+  });
 
   // Add these new states for tab navigation
   const [currentTab, setCurrentTab] = useState("details");
@@ -2021,54 +2189,63 @@ const RequestDetailsModal = ({
       showToast("Please select at least one item to return", "warning");
       return;
     }
-  
+
     const confirmed = window.confirm(
       `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
     );
-  
+
     if (!confirmed) return;
-  
+
     setLoading(true);
-  
+
     try {
       console.log("Starting bulk return process...");
       console.log("Selected serial numbers:", selectedItems);
       console.log("Reference number:", request.refNo);
-  
+
       // Get full details of selected items
-      const selectedItemDetails = request.items.filter(item => 
+      const selectedItemDetails = request.items.filter((item) =>
         selectedItems.includes(item.serialNo)
       );
-  
+
       console.log("Selected item details:", selectedItemDetails);
-  
+
       // Call backend to update DB
       const response = await markItemsAsReturned(request.refNo, selectedItems);
-  
+
       console.log("Backend response:", response);
-  
+
       // Now send the email notification WITH ITEM DETAILS
-      await sendReturnEmail(request, "Items successfully returned by petrol leader.", selectedItemDetails);
-      await sendReturnTOExecutiveEmail(request, "Items successfully returned by petrol leader.", selectedItemDetails);
+      await sendReturnEmail(
+        request,
+        "Items successfully returned by petrol leader.",
+        selectedItemDetails
+      );
+      await sendReturnTOExecutiveEmail(
+        request,
+        "Items successfully returned by petrol leader.",
+        selectedItemDetails
+      );
       // Show success message
       showToast(
-        `Successfully marked ${response.updatedCount || selectedItems.length} item(s) as returned.`,
+        `Successfully marked ${
+          response.updatedCount || selectedItems.length
+        } item(s) as returned.`,
         "success"
       );
-  
+
       console.log("Bulk return process completed successfully");
-  
+
       // Clear selected items
       setSelectedItems([]);
-  
+
       // Refresh / close modal
       onClose();
       window.location.reload();
-  
     } catch (error) {
       console.error("Error marking items as returned:", error);
       console.error("Error details:", error.response?.data);
-  
+
       showToast(
         error.message || "Failed to update items. Please try again.",
         "error"
@@ -2090,10 +2267,12 @@ const RequestDetailsModal = ({
 
   const handleAddNewItem = async () => {
     if (!newItem.itemName || !newItem.serialNo || !newItem.itemCategory) {
-      alert('Please fill in all required fields (Item Name, Serial No, Category)');
+      alert(
+        "Please fill in all required fields (Item Name, Serial No, Category)"
+      );
       return;
     }
-  
+
     try {
       await addReturnableItemToRequest(request.refNo, newItem);
       alert("Returnable item added successfully!");
@@ -2105,8 +2284,8 @@ const RequestDetailsModal = ({
       alert("Failed to add item: " + error.message);
     }
   };
-  
-    /*const handleBulkReturn = async () => {
+
+  /*const handleBulkReturn = async () => {
     if (selectedItems.length === 0) return;
     
     setLoading(true);
@@ -2140,18 +2319,37 @@ const RequestDetailsModal = ({
     }
 
     try {
-      setSearchedEmployee(null); // Reset previous results
+      setLoading(true);
+      setSearchedEmployee(null);
 
-      const userData = await searchUserByServiceNo(serviceId);
-      if (userData) {
-        setSearchedEmployee(userData);
-        showToast("Employee found", "success");
-      } else {
-        showToast("No employee found with that service number", "error");
+      const response = await getEmployeeDetails(serviceId);
+
+      console.log("ERP response:", response); // ✅ keep for debug
+
+      const employee = response?.data?.data?.[0];
+
+      if (!employee) {
+        showToast("Employee not found in ERP", "error");
+        return;
       }
+
+      const mappedEmployee = {
+        name: employee.employeeName,
+        serviceNo: employee.employeeNumber,
+        email: employee.email,
+        section: employee.empSection,
+        group: employee.empGroup,
+        designation: employee.designation,
+        contactNo: employee.mobileNo,
+      };
+
+      setSearchedEmployee(mappedEmployee);
+      showToast("Employee found from ERP", "success");
     } catch (error) {
-      console.error("Error searching for employee:", error);
-      showToast("Error searching for employee", "error");
+      console.error("ERP employee search failed:", error);
+      showToast("Failed to fetch employee from ERP", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -3174,13 +3372,13 @@ const RequestDetailsModal = ({
                   <FaUndo className="mr-2" /> Returnable Items
                 </h3>
                 {/* Add New Item Button */}
-                    <button
-                      onClick={() => setShowAddItemModal(true)}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium flex items-center transition-colors shadow-sm"
-                    >
-                      <FaPlus className="mr-2" />
-                      Add New Item
-                    </button>
+                <button
+                  onClick={() => setShowAddItemModal(true)}
+                  className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium flex items-center transition-colors shadow-sm"
+                >
+                  <FaPlus className="mr-2" />
+                  Add New Item
+                </button>
 
                 <div className="overflow-x-auto rounded-xl border border-gray-200">
                   <table className="w-full">
@@ -3207,18 +3405,25 @@ const RequestDetailsModal = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                     {request?.items
-                      ?.filter((item) => {
-                        if (request?.request?.isNonSltPlace === true || request?.requestDetails?.isNonSltPlace === true) {
-                          return item.status === "returnable";
-                        }
-                        return item.status === "return to Out Location Petrol Leader";
-                      })
+                      {request?.items
+                        ?.filter((item) => {
+                          if (
+                            request?.request?.isNonSltPlace === true ||
+                            request?.requestDetails?.isNonSltPlace === true
+                          ) {
+                            return item.status === "returnable";
+                          }
+                          return (
+                            item.status ===
+                            "return to Out Location Petrol Leader"
+                          );
+                        })
                         .map((item, index) => (
                           <tr key={index} className="hover:bg-gray-50">
                             <td className="px-6 py-4">
                               <input
                                 type="checkbox"
+                                disabled={isSuperAdmin}
                                 checked={selectedItems?.includes(item.serialNo)}
                                 onChange={() => handleSelect(item.serialNo)}
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
@@ -3242,9 +3447,11 @@ const RequestDetailsModal = ({
                 <div className="text-right mt-4">
                   <button
                     onClick={handleBulkReturn}
-                    disabled={selectedItems?.length === 0 || loading}
+                    disabled={
+                      isSuperAdmin || selectedItems?.length === 0 || loading
+                    }
                     className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
-                      selectedItems?.length === 0
+                      isSuperAdmin || selectedItems?.length === 0
                         ? "bg-gray-300 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700"
                     }`}
@@ -3764,36 +3971,37 @@ const RequestDetailsModal = ({
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                   />
                                 </div>*/}
-                              </div>
-          
-                              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p className="text-blue-700 text-sm">
-                                  <strong>Note:</strong> Fields marked with <span className="text-red-500">*</span> are required.
-                                  This item will be added to the current gate pass request as a returnable item.
-                                </p>
-                              </div>
-                            </div>
-          
-                            {/* Modal Footer */}
-                            <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-200">
-                              <button
-                                onClick={() => setShowAddItemModal(false)}
-                                className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={handleAddNewItem}
-                                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center"
-                              >
-                                <FaPlus className="mr-2" />
-                                Add Item
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-          
+                  </div>
+
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-blue-700 text-sm">
+                      <strong>Note:</strong> Fields marked with{" "}
+                      <span className="text-red-500">*</span> are required. This
+                      item will be added to the current gate pass request as a
+                      returnable item.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-200">
+                  <button
+                    onClick={() => setShowAddItemModal(false)}
+                    className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddNewItem}
+                    className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center"
+                  >
+                    <FaPlus className="mr-2" />
+                    Add Item
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Loading/Verification Details Tab */}
           {currentTab === "loading" && (
@@ -3837,6 +4045,7 @@ const RequestDetailsModal = ({
                       <div className="flex items-center mb-4">
                         <input
                           type="text"
+                          disabled={isSuperAdmin}
                           value={serviceId}
                           onChange={(e) => setServiceId(e.target.value)}
                           placeholder="Enter Service ID"
@@ -3844,7 +4053,12 @@ const RequestDetailsModal = ({
                         />
                         <button
                           onClick={handleEmployeeSearch}
-                          className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-r-lg transition-colors"
+                          disabled={isSuperAdmin}
+                          className={`px-4 py-3 rounded-r-lg ${
+                            isSuperAdmin
+                              ? "bg-gray-300 cursor-not-allowed"
+                              : "bg-blue-500 hover:bg-blue-600 text-white"
+                          }`}
                         >
                           <FaSearch />
                         </button>
@@ -3916,6 +4130,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuperAdmin}
                           value={nonSltStaffDetails.name}
                           onChange={(e) =>
                             setNonSltStaffDetails({
@@ -3933,6 +4148,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuperAdmin}
                           value={nonSltStaffDetails.companyName}
                           onChange={(e) =>
                             setNonSltStaffDetails({
@@ -3950,6 +4166,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuperAdmin}
                           value={nonSltStaffDetails.nic}
                           onChange={(e) =>
                             setNonSltStaffDetails({
@@ -3967,6 +4184,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="text"
+                          disabled={isSuperAdmin}
                           value={nonSltStaffDetails.contactNo}
                           onChange={(e) =>
                             setNonSltStaffDetails({
@@ -3984,6 +4202,7 @@ const RequestDetailsModal = ({
                         </label>
                         <input
                           type="email"
+                          disabled={isSuperAdmin}
                           value={nonSltStaffDetails.email}
                           onChange={(e) =>
                             setNonSltStaffDetails({
@@ -4001,8 +4220,6 @@ const RequestDetailsModal = ({
               </div>
             </div>
           )}
-
-          
 
           {/* Navigation/Approval Tab */}
           {currentTab === "navigation" && (
@@ -4307,51 +4524,54 @@ const RequestDetailsModal = ({
               )}
 
               {/* Comments Section - Only show in Navigation tab */}
-              {currentTab === "navigation" && activeTab === "pending" && (
-                <div className="md:w-full space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Comment
-                  </label>
-                  <textarea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    placeholder="Add your comments here..."
-                    rows={2}
-                  ></textarea>
+              {currentTab === "navigation" &&
+                activeTab === "pending" &&
+                !isSuperAdmin && (
+                  <div className="md:w-full space-y-2">
+                    <label className="text-sm font-medium text-gray-700">
+                      Comment
+                    </label>
+                    <textarea
+                      value={comment}
+                      disabled={isSuperAdmin}
+                      onChange={(e) => setComment(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Add your comments here..."
+                      rows={2}
+                    ></textarea>
 
-                  <div className="flex justify-between mt-4">
-                    {/* Previous Button - Aligned Left */}
-                    <button
-                      onClick={goToPreviousTab}
-                      disabled={currentTab === tabOrder[0]}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center ${
-                        currentTab === tabOrder[0]
-                          ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : "bg-gray-200 hover:bg-gray-300 text-gray-700"
-                      }`}
-                    >
-                      <FaArrowLeft className="mr-2" /> Previous
-                    </button>
+                    <div className="flex justify-between mt-4">
+                      {/* Previous Button - Aligned Left */}
+                      <button
+                        onClick={goToPreviousTab}
+                        disabled={currentTab === tabOrder[0]}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center ${
+                          currentTab === tabOrder[0]
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                        }`}
+                      >
+                        <FaArrowLeft className="mr-2" /> Previous
+                      </button>
 
-                    {/* Approve & Reject Buttons - Aligned Right */}
-                    <div className="flex space-x-4">
-                      <button
-                        onClick={() => handleReject(request)}
-                        className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-medium flex items-center"
-                      >
-                        <FaTimes className="mr-2" /> Reject
-                      </button>
-                      <button
-                        onClick={() => handleApprove(request)}
-                        className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium flex items-center"
-                      >
-                        <FaCheck className="mr-2" /> Approve
-                      </button>
+                      {/* Approve & Reject Buttons - Aligned Right */}
+                      <div className="flex space-x-4">
+                        <button
+                          onClick={() => handleReject(request)}
+                          className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-medium flex items-center"
+                        >
+                          <FaTimes className="mr-2" /> Reject
+                        </button>
+                        <button
+                          onClick={() => handleApprove(request)}
+                          className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-medium flex items-center"
+                        >
+                          <FaCheck className="mr-2" /> Approve
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {activeTab != "pending" && (
                 <div className="border-t border-gray-200 bg-white">
@@ -4396,21 +4616,21 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  if (images && images.length > 0) {
-    setLoading(true);
+    if (images && images.length > 0) {
+      setLoading(true);
 
-    const urls = images
-      .slice(0, 5)
-      .map(img => getImageUrlSync(img))
-      .filter(Boolean);
+      const urls = images
+        .slice(0, 5)
+        .map((img) => getImageUrlSync(img))
+        .filter(Boolean);
 
-    setImageUrls(urls);
-    setLoading(false);
-  } else {
-    setImageUrls([]);
-    setLoading(false);
-  }
-}, [images]);
+      setImageUrls(urls);
+      setLoading(false);
+    } else {
+      setImageUrls([]);
+      setLoading(false);
+    }
+  }, [images]);
 
   if (!isOpen) return null;
 
@@ -4421,7 +4641,6 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
   const handleNext = () => {
     setActiveIndex((prev) => (prev === imageUrls.length - 1 ? 0 : prev + 1));
   };
-
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">

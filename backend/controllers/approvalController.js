@@ -39,12 +39,12 @@ const sortNewest = (rows, keys) =>
 async function findVerifierForOutLocation(outLocation) {
   if (!outLocation) return null;
   const verifier = await User.findOne({
-    role: "Verifier",
+    role: "Pleader",
     isActive: true,
     // assuming user.branches (array of branch strings)
     branches: { $in: [outLocation] },
   }).lean();
-  return verifier;
+  return Pleader;
 }
 
 // Try to resolve the Requester user record from the Request document
@@ -116,16 +116,17 @@ exports.getPending = async (req, res) => {
       String(req.user?.role || "")
         .replace(/[\s_-]/g, "")
         .toLowerCase() === "superadmin";
+
     const routeSvc = String(req.params.id || req.query.serviceNo || "").trim();
     const userSvc = String(req.user?.serviceNo || "").trim();
     const svcNo = isSuper ? routeSvc || null : userSvc;
 
-    if (!isSuper && !svcNo)
+    if (!isSuper && !svcNo) {
       return res
         .status(400)
         .json({ message: "serviceNo is required for this role" });
+    }
 
-    // Filter on **Status.executiveOfficerServiceNo** + accept number OR string stage codes
     const where = { executiveOfficerStatus: { $in: [1, "1"] } };
     if (svcNo) where.executiveOfficerServiceNo = ciSvc(svcNo);
 
@@ -135,7 +136,19 @@ exports.getPending = async (req, res) => {
       .lean();
 
     const filtered = rows.filter((s) => s.request && s.request.show !== false);
-    return res.json(sortNewest(filtered, ["updatedAt", "createdAt"]));
+
+    // DEDUPLICATE BY referenceNumber (LATEST ONLY)
+    const uniqueFiltered = [];
+    const seen = new Set();
+
+    for (const s of filtered) {
+      if (!seen.has(s.referenceNumber)) {
+        seen.add(s.referenceNumber);
+        uniqueFiltered.push(s);
+      }
+    }
+
+    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
   } catch (err) {
     console.error("Executive getPending error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -153,21 +166,40 @@ exports.getApproved = async (req, res) => {
     const userSvc = String(req.user?.serviceNo || "").trim();
     const svcNo = isSuper ? routeSvc || null : userSvc;
 
-    if (!isSuper && !svcNo)
-      return res
-        .status(400)
-        .json({ message: "serviceNo is required for this role" });
+    // Get all reference numbers that have been rejected at any level
+    const rejectedRefs = await Status.find({
+      rejectedBy: { $exists: true },
+    }).distinct("referenceNumber");
 
-    const where = { executiveOfficerStatus: { $in: [2, "2"] } };
-    if (svcNo) where.executiveOfficerServiceNo = ciSvc(svcNo);
-
-    const rows = await Status.find(where)
+    const rows = await Status.find({
+      executiveOfficerStatus: 2, // Approved by Executive
+      referenceNumber: { $nin: rejectedRefs }, // Exclude rejected references
+    })
       .populate("request")
       .sort({ updatedAt: -1 })
       .lean();
 
-    const filtered = rows.filter((s) => s.request && s.request.show !== false);
-    return res.json(sortNewest(filtered, ["updatedAt", "createdAt"]));
+    // Filter by service number if provided
+    const filtered = rows.filter(
+      (s) =>
+        s.request &&
+        s.request.show !== false &&
+        (!svcNo ||
+          String(s.request.executiveOfficerServiceNo) === String(svcNo))
+    );
+
+    // Remove duplicates by keeping only the latest Status per referenceNumber
+    const uniqueFiltered = [];
+    const seenReferences = new Set();
+
+    for (const status of filtered) {
+      if (!seenReferences.has(status.referenceNumber)) {
+        seenReferences.add(status.referenceNumber);
+        uniqueFiltered.push(status);
+      }
+    }
+
+    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
   } catch (err) {
     console.error("Executive getApproved error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -185,21 +217,43 @@ exports.getRejected = async (req, res) => {
     const userSvc = String(req.user?.serviceNo || "").trim();
     const svcNo = isSuper ? routeSvc || null : userSvc;
 
-    if (!isSuper && !svcNo)
-      return res
-        .status(400)
-        .json({ message: "serviceNo is required for this role" });
-
-    const where = { executiveOfficerStatus: { $in: [3, "3"] } };
-    if (svcNo) where.executiveOfficerServiceNo = ciSvc(svcNo);
-
-    const rows = await Status.find(where)
+    // Show rejections where Executive was involved:
+    // 1. Executive rejected it themselves (executiveOfficerStatus: 3)
+    // 2. Executive approved it (executiveOfficerStatus: 2) but it was rejected by higher levels
+    // afterStatus: 3 = Executive Rejected, 6 = Verifier Rejected, 9 = Dispatcher Rejected, 12 = Receiver Rejected
+    const rows = await Status.find({
+      $or: [
+        { executiveOfficerStatus: 3 }, // Rejected by Executive themselves
+        {
+          executiveOfficerStatus: 2, // Executive approved it
+          afterStatus: { $in: [6, 9, 12] }, // But rejected by Verifier, Dispatcher, or Receiver
+        },
+      ],
+    })
       .populate("request")
       .sort({ updatedAt: -1 })
       .lean();
 
-    const filtered = rows.filter((s) => s.request && s.request.show !== false);
-    return res.json(sortNewest(filtered, ["updatedAt", "createdAt"]));
+    const filtered = rows.filter(
+      (s) =>
+        s.request &&
+        s.request.show !== false &&
+        (!svcNo ||
+          String(s.request.executiveOfficerServiceNo) === String(svcNo))
+    );
+
+    // Remove duplicates by keeping only the latest Status per referenceNumber
+    const uniqueFiltered = [];
+    const seenReferences = new Set();
+
+    for (const status of filtered) {
+      if (!seenReferences.has(status.referenceNumber)) {
+        seenReferences.add(status.referenceNumber);
+        uniqueFiltered.push(status);
+      }
+    }
+
+    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
   } catch (err) {
     console.error("Executive getRejected error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -305,6 +359,14 @@ exports.updateRejected = async (req, res) => {
     const { referenceNumber } = req.params;
     const { comment } = req.body;
 
+    console.log("=== EXECUTIVE REJECTION DEBUG ===");
+    console.log(
+      "req.user:",
+      req.user?.serviceNo,
+      "branches:",
+      req.user?.branches
+    );
+
     if (!comment || !comment.trim()) {
       return res
         .status(400)
@@ -324,7 +386,50 @@ exports.updateRejected = async (req, res) => {
     status.executiveOfficerComment = comment.trim();
     status.afterStatus = 3;
 
+    // Track rejection information - Use req.user (who actually rejected)
+    status.rejectedBy = "Executive";
+    status.rejectedByServiceNo =
+      req.user?.serviceNo || status.request.executiveOfficerServiceNo;
+    status.rejectedAt = new Date();
+    status.rejectionLevel = 1; // Executive level
+
+    // Use the logged-in user's branch directly
+    if (req.user && req.user.branches && req.user.branches.length > 0) {
+      status.rejectedByBranch = req.user.branches[0];
+      console.log("Set rejectedByBranch from req.user:", req.user.branches[0]);
+    } else {
+      // Fallback: try to fetch by serviceNo
+      try {
+        const executiveUser = await User.findOne({
+          serviceNo:
+            req.user?.serviceNo || status.request.executiveOfficerServiceNo,
+        }).lean();
+        console.log(
+          "Executive User Found (fallback):",
+          executiveUser?.serviceNo,
+          "Branches:",
+          executiveUser?.branches
+        );
+        if (
+          executiveUser &&
+          executiveUser.branches &&
+          executiveUser.branches.length > 0
+        ) {
+          status.rejectedByBranch = executiveUser.branches[0];
+          console.log(
+            "Set rejectedByBranch (fallback):",
+            executiveUser.branches[0]
+          );
+        } else {
+          console.log("No branches found for executive");
+        }
+      } catch (userErr) {
+        console.error("Failed to fetch executive branch:", userErr);
+      }
+    }
+
     await status.save();
+    console.log("Saved status with rejectedByBranch:", status.rejectedByBranch);
 
     // Notify Requester
     try {

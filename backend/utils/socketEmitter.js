@@ -1,11 +1,3 @@
-/**
- * Socket.IO Event Emitter Utility
- * Centralized event emission for real-time updates
- */
-
-/**
- * Emit request status update to specific users and roles
- */
 const emitRequestUpdate = (io, request, eventType = "request-updated") => {
   if (!io || !request) return;
 
@@ -52,7 +44,7 @@ const emitRequestUpdate = (io, request, eventType = "request-updated") => {
 const getRoleEmissions = (status) => {
   const roleMap = {
     1: ["Approver", "Admin", "SuperAdmin"], // Pending approval
-    2: ["Verifier", "Admin", "SuperAdmin"], // Approved by executive
+    2: ["Pleader", "Admin", "SuperAdmin"], // Approved by executive
     3: ["User", "Admin", "SuperAdmin"], // Rejected by executive
     4: ["Pleader", "Admin", "SuperAdmin"], // Verified
     5: ["User", "Admin", "SuperAdmin"], // Rejected by verifier
