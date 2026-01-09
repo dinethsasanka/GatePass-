@@ -178,7 +178,14 @@ if (!process.env.AZURE_CLIENT_SECRET) {
   );
 }
 
-const msalInstance = new ConfidentialClientApplication(msalConfig);
+let msalInstance = null;
+
+if (process.env.CI !== "true") {
+  msalInstance = new ConfidentialClientApplication(msalConfig);
+} else {
+  console.warn("CI environment detected - Azure authentication disabled");
+}
+
 
 const registerUser = async (req, res) => {
   try {
@@ -557,6 +564,12 @@ const azureLogin = async (req, res) => {
 
 // Get Azure login URL
 const getAzureLoginUrl = async (req, res) => {
+  if (process.env.CI === "true") {
+  return res.status(503).json({
+    message: "Azure login disabled in CI environment",
+  });
+}
+
   try {
     const authCodeUrlParameters = {
       scopes: ["https://graph.microsoft.com/User.Read"],
