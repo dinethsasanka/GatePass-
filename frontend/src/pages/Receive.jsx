@@ -19,7 +19,7 @@ import {
   getImageUrlSync,
   searchReceiverByServiceNo,
   searchEmployeeByServiceNo,
-} from "../services/RequestService";
+} from "../services/requestService";
 import { emailSent } from "../services/emailService.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { jsPDF } from "jspdf";

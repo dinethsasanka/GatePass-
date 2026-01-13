@@ -17,7 +17,6 @@ import RequestDetails from "./pages/RequestDetails.jsx";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastProvider } from "./components/ToastProvider";
-import EmailForm from "./pages/example";
 
 const msalConfig = {
   auth: {
@@ -73,7 +72,6 @@ const App = () => {
             <Route path="/myrequests" element={<GatePassRequests />} />
             <Route path="/itemTracker" element={<GatePassItemTracker />} />
             <Route path="/myReceipts" element={<GatePassMyReicept />} />
-            <Route path="/emailForm" element={<EmailForm />} />
           </Route>
 
           {/* Role-Specific Routes */}

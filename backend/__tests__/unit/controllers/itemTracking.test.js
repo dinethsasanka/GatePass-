@@ -3,7 +3,7 @@
  * Unit tests for Item Tracking Controller
  */
 
-const itemTrackingController = require("../../../controllers/Itemtracking");
+const itemTrackingController = require("../../../controllers/itemTracking");
 const Request = require("../../../models/Request");
 
 // ---------- MOCKS ----------

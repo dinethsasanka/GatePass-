@@ -3,12 +3,12 @@ import {
   getGatePassRequest,
   createGatePassRequest,
   cancelRequest,
-} from "../../services/RequestService";
+} from "../../services/requestService";
 import {
   getPendingStatuses,
   getApprovedStatuses,
   getRejectedStatuses,
-} from "../../services/ApproveService";
+} from "../../services/approveService";
 
 const initialState = {
   // All requests

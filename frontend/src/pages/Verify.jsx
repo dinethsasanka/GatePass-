@@ -8,7 +8,7 @@ import {
   searchUserByServiceNo,
   markItemsAsReturned,
   addReturnableItemToRequest,
-} from "../services/VerifyService.js";
+} from "../services/verifyService.js";
 import { getUserByRoleAndBranch } from "../services/userManagementService.js";
 import { getEmployeeDetails } from "../services/erpService";
 import {
@@ -16,7 +16,7 @@ import {
   getImageUrlSync,
   searchEmployeeByServiceNo,
   searchReceiverByServiceNo,
-} from "../services/RequestService.js";
+} from "../services/requestService.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { emailSent } from "../services/emailService.js";
 import { jsPDF } from "jspdf";

@@ -21,10 +21,10 @@ import {
   getImageUrlSync,
   searchReceiverByServiceNo,
   getGatePassRequest,
-} from "../services/RequestService.js";
+} from "../services/requestService.js";
 import { jsPDF } from "jspdf";
 import logoUrl from "../assets/SLTMobitel_Logo.png";
-import { searchSenderByServiceNo } from "../services/RequestService.js";
+import { searchSenderByServiceNo } from "../services/requestService.js";
 
 const STAGE_ORDER = ["Executive", "Verify", "Petrol Leader", "Receive"];
 
