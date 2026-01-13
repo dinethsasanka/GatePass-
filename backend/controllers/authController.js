@@ -3,13 +3,6 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const { ConfidentialClientApplication } = require("@azure/msal-node");
-
-// Debug environment variables
-// console.log('Azure Config Check:');
-// console.log('AZURE_CLIENT_ID:', process.env.AZURE_CLIENT_ID ? 'Set' : 'Not set');
-// console.log('AZURE_CLIENT_SECRET:', process.env.AZURE_CLIENT_SECRET ? 'Set' : 'Not set');
-// console.log('AZURE_TENANT_ID:', process.env.AZURE_TENANT_ID ? 'Set' : 'Not set');
-
 const EMPLOYEE_API_BASE_URL =
   "https://employee-api-without-category-production.up.railway.app/api";
 let apiToken = null;
@@ -171,14 +164,21 @@ const msalConfig = {
   },
 };
 
-// Validate Azure configuration
+// Validate Azure configuration and create MSAL instance only if credentials are available
+let msalInstance = null;
+
 if (!process.env.AZURE_CLIENT_SECRET) {
   console.warn(
     "⚠️  AZURE_CLIENT_SECRET is not set - Azure login will not work"
   );
+} else {
+  try {
+    msalInstance = new ConfidentialClientApplication(msalConfig);
+    console.log("✅ Azure MSAL instance initialized successfully");
+  } catch (error) {
+    console.error("❌ Failed to initialize Azure MSAL instance:", error.message);
+  }
 }
-
-const msalInstance = new ConfidentialClientApplication(msalConfig);
 
 const registerUser = async (req, res) => {
   try {
@@ -558,6 +558,12 @@ const azureLogin = async (req, res) => {
 // Get Azure login URL
 const getAzureLoginUrl = async (req, res) => {
   try {
+    if (!msalInstance) {
+      return res.status(503).json({ 
+        message: "Azure AD is not configured on this server. Please contact the administrator or use local authentication." 
+      });
+    }
+
     const authCodeUrlParameters = {
       scopes: ["https://graph.microsoft.com/User.Read"],
       redirectUri:
