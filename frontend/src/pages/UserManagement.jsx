@@ -17,7 +17,7 @@ import { userManagementService } from "../services/userManagementService.js";
 import {
   getErpLocations,
   searchEmployeeByServiceNo,
-} from "../services/requestService.js";
+} from "../services/RequestService.js";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);

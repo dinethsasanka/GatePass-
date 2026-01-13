@@ -7,12 +7,12 @@ import {
   rejectStatus,
   searchUserByServiceNo,
   markItemsAsReturned,
-} from "../services/dispatchService.js";
+} from "../services/DispatchService.js";
 import {
   getImageUrlSync,
   searchReceiverByServiceNo,
   searchEmployeeByServiceNo
-} from "../services/requestService.js";
+} from "../services/RequestService.js";
 import { jsPDF } from "jspdf";
 import { useToast } from "../components/ToastProvider.jsx";
 import logoUrl from "../assets/SLTMobitel_Logo.png";

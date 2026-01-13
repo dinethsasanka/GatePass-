@@ -19,7 +19,7 @@ import {
   getCategories,
   getExecutiveOfficersForNewRequest,
   getExecutiveOfficersFromHierarchy,
-} from "../services/requestService.js";
+} from "../services/RequestService.js";
 import axiosInstance from "../services/axiosConfig.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { emailSent } from "../services/emailService.js";

@@ -5,7 +5,7 @@ import {
   getImageUrl,
   getExecutiveOfficers,
   updateExecutiveOfficer,
-} from "../services/requestService.js";
+} from "../services/RequestService.js";
 import {
   FaClock,
   FaEye,

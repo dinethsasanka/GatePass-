@@ -8,14 +8,14 @@ import {
   rejectStatus,
   searchUserByServiceNo,
   markItemsAsReturned,
-} from "../services/approveService.js";
+} from "../services/ApproveService.js";
 import {
   getImageUrl,
   getImageUrlSync,
   searchReceiverByServiceNo,
   searchEmployeeByServiceNo,
   getGatePassRequest,
-} from "../services/requestService.js";
+} from "../services/RequestService.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { emailSent } from "../services/emailService.js";
 import { FaSearch } from "react-icons/fa";

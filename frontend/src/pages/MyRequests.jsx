@@ -9,7 +9,7 @@ import {
   updateExecutiveOfficer,
   cancelRequest,
   updateReturnableItems, // <-- used for saving sender edits
-} from "../services/requestService.js";
+} from "../services/RequestService.js";
 import {
   FaClock,
   FaEye,
