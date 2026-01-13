@@ -40,6 +40,9 @@ jobs:
         run: |
           cat <<EOF > .env
           VITE_API_URL=https://gatepass.slt.lk/api
+          VITE_AZURE_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}
+          VITE_AZURE_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}
+          VITE_AZURE_REDIRECT_URI=https://gatepass.slt.lk/callback
           EOF
 
       # ==================================================
