@@ -8,7 +8,7 @@ import {
   getPendingStatuses,
   getApprovedStatuses,
   getRejectedStatuses,
-} from "../../services/approveService";
+} from "../../services/ApproveService";
 
 const initialState = {
   // All requests
