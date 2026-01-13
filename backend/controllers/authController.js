@@ -2,13 +2,10 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
+const { getAzureUserData } = require('../utils/azureUserCache');
+const { generateToken, generateAzureToken } = require('../middleware/authMiddleware');
 const { ConfidentialClientApplication } = require("@azure/msal-node");
 
-// Debug environment variables
-// console.log('Azure Config Check:');
-// console.log('AZURE_CLIENT_ID:', process.env.AZURE_CLIENT_ID ? 'Set' : 'Not set');
-// console.log('AZURE_CLIENT_SECRET:', process.env.AZURE_CLIENT_SECRET ? 'Set' : 'Not set');
-// console.log('AZURE_TENANT_ID:', process.env.AZURE_TENANT_ID ? 'Set' : 'Not set');
 
 const EMPLOYEE_API_BASE_URL =
   "https://employee-api-without-category-production.up.railway.app/api";
@@ -178,14 +175,7 @@ if (!process.env.AZURE_CLIENT_SECRET) {
   );
 }
 
-let msalInstance = null;
-
-if (process.env.CI !== "true") {
-  msalInstance = new ConfidentialClientApplication(msalConfig);
-} else {
-  console.warn("CI environment detected - Azure authentication disabled");
-}
-
+const msalInstance = new ConfidentialClientApplication(msalConfig);
 
 const registerUser = async (req, res) => {
   try {
@@ -243,35 +233,6 @@ const registerUser = async (req, res) => {
   }
 };
 
-// const loginUser = async (req, res) => {
-//     try {
-//         const { userId, password, userType } = req.body;
-//         const user = await User.findOne({ userId, userType });
-//         console.log(user);
-
-//         if (user && (await bcrypt.compare(password, user.password))) {
-//             res.json({
-//                 _id: user.id,
-//                 userType: user.userType,
-//                 userId: user.userId,
-//                 serviceNo: user.serviceNo,
-//                 name: user.name,
-//                 designation: user.designation,
-//                 section: user.section,
-//                 group: user.group,
-//                 contactNo: user.contactNo,
-//                 role: user.role,
-//                 branches: user.branches,
-//                 email: user.email,
-//                 token: generateToken(user.id)
-//             });
-//         } else {
-//             res.status(401).json({ message: 'Invalid credentials' });
-//         }
-//     } catch (error) {
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
 
 // Updated Login User Function with Employee API fallback
 
@@ -416,7 +377,7 @@ const loginUser = async (req, res) => {
   }
 };
 
-// Azure AD Login - Fixed version
+// Azure AD Login - 100% API-Only (No MongoDB!)
 const azureLogin = async (req, res) => {
   try {
     const { accessToken } = req.body;
@@ -425,151 +386,128 @@ const azureLogin = async (req, res) => {
       return res.status(400).json({ message: "Access token is required" });
     }
 
-    // Get user info from Microsoft Graph using the access token
+    // Get user info from Microsoft Graph
     const userInfo = await getUserInfoFromGraph(accessToken);
-    console.log("=== AZURE LOGIN DEBUG ===");
-    console.log("Azure user info from Graph:", JSON.stringify(userInfo, null, 2));
+    console.log("=== AZURE LOGIN - 100% API-ONLY MODE ===");
+    console.log("Azure User:", userInfo.displayName);
 
-    // Extract email from Azure response
-    // Handle external user format: "email_domain.com#EXT#@tenant.onmicrosoft.com"
+    // Extract email from Azure
     let azureEmail = userInfo.mail || userInfo.userPrincipalName;
-
-    // Convert Azure external user format to actual email
-    // Example: yasaslakmina21_outlook.com#EXT#@... -> yasaslakmina21@outlook.com
+    
+    // Handle external user format (#EXT#)
     if (azureEmail && azureEmail.includes('#EXT#')) {
       const emailPart = azureEmail.split('#EXT#')[0];
-      // Replace last underscore with @ to get actual email
       const lastUnderscoreIndex = emailPart.lastIndexOf('_');
       if (lastUnderscoreIndex !== -1) {
         azureEmail = emailPart.substring(0, lastUnderscoreIndex) + '@' + emailPart.substring(lastUnderscoreIndex + 1);
       }
     }
-
     azureEmail = azureEmail?.toLowerCase();
 
-    console.log("Extracted email:", azureEmail);
-    console.log("Original userPrincipalName:", userInfo.userPrincipalName);
-
-    // Debug: Check all users with similar emails
-    const allUsers = await User.find({});
-    console.log("All users in database:", allUsers.map(u => ({ userId: u.userId, email: u.email })));
-
-    // PRIORITY 1: Try to find user by email first (case-insensitive)
-    let user = await User.findOne({
-      email: { $regex: new RegExp(`^${azureEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
-    });
-
-    console.log("Email search result:", user ? `Found: ${user.userId}` : "Not found");
-
-    // PRIORITY 2: If not found by email, try by azureId
-    if (!user && userInfo.id) {
-      user = await User.findOne({ azureId: userInfo.id });
+    // Extract service number from Azure profile
+    const employeeServiceNo = userInfo.employeeId;
+    
+    if (!employeeServiceNo) {
+      console.error("❌ No employee ID in Azure profile");
+      return res.status(400).json({ 
+        message: "Employee ID not found in Azure profile. Please contact IT support." 
+      });
     }
 
-    // PRIORITY 3: If still not found, try by userId
-    if (!user && userInfo.userPrincipalName) {
-      user = await User.findOne({ userId: userInfo.userPrincipalName });
-    }
+    console.log(`📧 Email: ${azureEmail}`);
+    console.log(`🔢 Service No: ${employeeServiceNo}`);
 
-    console.log("Azure user lookup result:", {
-      azureId: userInfo.id,
-      email: azureEmail,
-      userPrincipalName: userInfo.userPrincipalName,
-      foundUser: user ? `${user.userId} (${user.email})` : "not found",
-    });
+    // === Fetch ALL data from ERP API (No MongoDB!) ===
+    try {
+      console.log(`🔍 Fetching employee data from ERP...`);
+      
+      // Get user data from ERP (this automatically caches it for 5 minutes)
+      const userData = await getAzureUserData(employeeServiceNo, true);
+      
+      console.log(`✅ ERP Data Retrieved:`);
+      console.log(`   Name: ${userData.name}`);
+      console.log(`   Role: ${userData.role} (Grade: ${userData.gradeName})`);
+      console.log(`   Branch: ${userData.branches[0]}`);
 
-    if (!user) {
-      console.log("No existing user found - creating new user");
-
-      // Generate a temporary password for Azure users (they won't use it)
-      const tempPassword = Math.random().toString(36).slice(-8);
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(tempPassword, salt);
-
-      // Create new user from Azure AD info with default values for required fields
-      user = await User.create({
-        userType: "SLT",
-        userId: userInfo.userPrincipalName,
-        password: hashedPassword, // Required field - using temp password
-        email: azureEmail,
-        name: userInfo.displayName || "Azure User",
-        serviceNo: userInfo.employeeId || "N/A", // Default value if not provided
-        designation: userInfo.jobTitle || "N/A", // Default value if not provided
-        section: userInfo.department || "N/A", // Default value if not provided
-        group: userInfo.companyName || "N/A", // Default value if not provided
-        contactNo:
-          userInfo.mobilePhone || userInfo.businessPhones?.[0] || "N/A", // Default value if not provided
-        role: "User", // Default role
+      // === Generate JWT token (Azure-only format, no MongoDB ID!) ===
+      const token = generateAzureToken({
+        serviceNo: employeeServiceNo,
         azureId: userInfo.id,
-        isAzureUser: true,
-        lastAzureSync: new Date(),
+        email: azureEmail
       });
 
-      console.log("New user created:", user.userId);
-    } else {
-      console.log("Existing user found - updating Azure info");
-
-      // Check if another user has this azureId
-      if (user.azureId !== userInfo.id) {
-        const existingAzureUser = await User.findOne({ azureId: userInfo.id });
-        if (existingAzureUser && existingAzureUser._id.toString() !== user._id.toString()) {
-          console.log("Removing duplicate Azure user:", existingAzureUser.userId);
-          // Remove the duplicate user that was created
-          await User.deleteOne({ _id: existingAzureUser._id });
+      // === Build response with ERP data only ===
+      const responseData = {
+        token,
+        user: {
+          serviceNo: userData.serviceNo,
+          azureId: userInfo.id,
+          isAzureUser: true,
+          
+          // Personal info (from ERP)
+          name: userData.name,
+          email: userData.email,
+          contactNo: userData.contactNo,
+          
+          // Job details (from ERP)
+          designation: userData.designation,
+          section: userData.section,
+          group: userData.group,
+          division: userData.division,
+          organization: userData.organization,
+          
+          // Role & Access (auto-assigned from ERP grade)
+          role: userData.role,
+          gradeName: userData.gradeName,
+          branches: userData.branches,
+          fingerScanLocation: userData.fingerScanLocation,
+          
+          // Additional details (from ERP)
+          costCenter: userData.costCenter,
+          costCenterName: userData.costCenterName,
+          supervisorNumber: userData.supervisorNumber,
+          sectionHead: userData.sectionHead,
+          divisionHead: userData.divisionHead,
+          groupHead: userData.groupHead,
+          dateOfBirth: userData.dateOfBirth,
+          gender: userData.gender,
+          officialAddress: userData.officialAddress,
+          
+          // Metadata
+          _dataSource: 'ERP',
+          _noDatabase: true, // No MongoDB record!
+          _cachedUntil: new Date(Date.now() + 300000).toISOString() // 5 min from now
         }
-      }
+      };
 
-      // Update existing user with latest Azure info (only update if Azure provides data)
-      if (userInfo.displayName) user.name = userInfo.displayName;
-      if (azureEmail) user.email = azureEmail;
-      if (userInfo.jobTitle) user.designation = userInfo.jobTitle;
-      if (userInfo.department) user.section = userInfo.department;
-      if (userInfo.companyName) user.group = userInfo.companyName;
-      if (userInfo.mobilePhone || userInfo.businessPhones?.[0]) {
-        user.contactNo = userInfo.mobilePhone || userInfo.businessPhones?.[0];
-      }
+      console.log(`\n🎉 Azure Login Successful - 100% API-Only Mode`);
+      console.log(`💾 MongoDB: NOT USED ✅`);
+      console.log(`📊 Data Source: ERP API`);
+      console.log(`⚡ Cache: 5 minutes\n`);
 
-      // Always update Azure-specific fields
-      user.azureId = userInfo.id;
-      user.isAzureUser = true;
-      user.lastAzureSync = new Date();
+      res.json(responseData);
 
-      await user.save();
-      console.log("User updated with Azure info:", user.userId);
+    } catch (erpError) {
+      console.error("❌ Failed to fetch ERP data:", erpError.message);
+      
+      return res.status(500).json({
+        message: "Unable to fetch employee data from ERP system",
+        error: erpError.message,
+        hint: "Please ensure your employee ID is registered in the ERP system"
+      });
     }
 
-    res.json({
-      _id: user.id,
-      userType: user.userType,
-      userId: user.userId,
-      serviceNo: user.serviceNo,
-      name: user.name,
-      designation: user.designation,
-      section: user.section,
-      group: user.group,
-      contactNo: user.contactNo,
-      role: user.role,
-      branches: user.branches,
-      email: user.email,
-      isAzureUser: true,
-      token: generateToken(user.id),
-    });
   } catch (error) {
-    console.error("Azure login error:", error);
-    res
-      .status(500)
-      .json({ message: "Azure authentication failed", error: error.message });
+    console.error("❌ Azure login error:", error);
+    res.status(500).json({ 
+      message: "Azure login failed", 
+      error: error.message 
+    });
   }
 };
 
 // Get Azure login URL
 const getAzureLoginUrl = async (req, res) => {
-  if (process.env.CI === "true") {
-  return res.status(503).json({
-    message: "Azure login disabled in CI environment",
-  });
-}
-
   try {
     const authCodeUrlParameters = {
       scopes: ["https://graph.microsoft.com/User.Read"],
@@ -599,10 +537,6 @@ const getUserInfoFromGraph = async (accessToken) => {
     console.error("Error fetching user info from Graph:", error);
     throw new Error("Failed to fetch user information from Microsoft Graph");
   }
-};
-
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
 };
 
 module.exports = { registerUser, loginUser, azureLogin, getAzureLoginUrl };

@@ -18,16 +18,14 @@ async function findReceiverForInLocation(inLocation) {
   }).lean();
 }
 
+// Import user helpers at the top
+const { findRequesterWithERPData } = require('../utils/userHelpers');
+
+// Try to resolve Requester from request doc
+// NOW WITH ERP DATA!
 async function findRequesterFromRequest(reqDoc) {
-  if (!reqDoc) return null;
-
-  if (reqDoc.employeeServiceNo) {
-    return await User.findOne({
-      serviceNo: String(reqDoc.employeeServiceNo),
-    }).lean();
-  }
-
-  return null;
+  // Use the new helper that automatically enriches with ERP data
+  return await findRequesterWithERPData(reqDoc, true);
 }
 
 // --- helpers for role/branch matching  ---

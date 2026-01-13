@@ -45,6 +45,20 @@ router.post("/employees", getEmployees);
 router.post("/employee-hierarchy", getEmployeeHierarchy);
 
 router.post("/employee-details", getEmployeeDetails);
-router.get("/erp-locations", protect, erpLocationController.getErpLocations);
+
+/**
+ * @route   GET /api/erp/erp-locations
+ * @desc    Get all ERP locations
+ * @access  Private
+ */
+router.get("/erp-locations", erpLocationController.getErpLocations);
+
+/**
+ * @route   GET /api/erp/branch/:locationId
+ * @desc    Get branch name by location ID (e.g., L001)
+ * @access  Private
+ * @param   locationId - Location ID like "L001"
+ */
+router.get("/branch/:locationId", erpLocationController.getBranchNameByLocationId);
 
 module.exports = router;

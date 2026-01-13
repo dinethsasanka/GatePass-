@@ -7,11 +7,11 @@ import {
   rejectStatus,
   searchUserByServiceNo,
   markItemsAsReturned,
-} from "../services/DispatchService.js";
+} from "../services/dispatchService.js";
 import {
   getImageUrlSync,
   searchReceiverByServiceNo,
-  searchEmployeeByServiceNo,
+  searchEmployeeByServiceNo
 } from "../services/RequestService.js";
 import { jsPDF } from "jspdf";
 import { useToast } from "../components/ToastProvider.jsx";
@@ -1316,46 +1316,42 @@ const Dispatch = () => {
   };
 
   const handleModelOpen = async (item) => {
-    setSelectedItem(item);
+  setSelectedItem(item);
 
-    if (item.requestDetails?.transport.transporterServiceNo) {
-      try {
-        const transportResponse = await searchEmployeeByServiceNo(
-          item.requestDetails.transport.transporterServiceNo
-        );
-
-        console.log("Transport response:", transportResponse); // Debug log
-
-        // Extract the employee data from the nested response
-        const employee = transportResponse?.data?.data?.[0];
-
-        if (employee) {
-          setTransportData({
-            name: `${employee.employeeTitle || ""} ${
-              employee.employeeFirstName || ""
-            } ${employee.employeeSurname || ""}`.trim(),
-            serviceNo:
-              employee.employeeNo ||
-              item.requestDetails.transport.transporterServiceNo,
-            designation: employee.designation || "-",
-            section: employee.empSection || "-",
-            group: employee.empGroup || "-",
-            contactNo: employee.mobileNo || "-",
-          });
-        } else {
-          console.log("No employee data found");
-          setTransportData(null);
-        }
-      } catch (error) {
-        console.error("Error fetching transporter details:", error);
+  if (item.requestDetails?.transport.transporterServiceNo) {
+    try {
+      const transportResponse = await searchEmployeeByServiceNo(
+        item.requestDetails.transport.transporterServiceNo
+      );
+      
+      console.log("Transport response:", transportResponse); // Debug log
+      
+      // Extract the employee data from the nested response
+      const employee = transportResponse?.data?.data?.[0];
+      
+      if (employee) {
+        setTransportData({
+          name: `${employee.employeeTitle || ""} ${employee.employeeFirstName || ""} ${employee.employeeSurname || ""}`.trim(),
+          serviceNo: employee.employeeNo || item.requestDetails.transport.transporterServiceNo,
+          designation: employee.designation || "-",
+          section: employee.empSection || "-",
+          group: employee.empGroup || "-",
+          contactNo: employee.mobileNo || "-"
+        });
+      } else {
+        console.log("No employee data found");
         setTransportData(null);
       }
-    } else {
-      setTransportData(item.requestDetails?.transport || null);
+    } catch (error) {
+      console.error("Error fetching transporter details:", error);
+      setTransportData(null);
     }
+  } else {
+    setTransportData(item.requestDetails?.transport || null);
+  }
 
-    setShowModal(true);
-  };
+  setShowModal(true);
+};
 
   // --- Enhanced Filtering ---
   // Hide Non-SLT requests in pending table for Petrol Leader 2 (PL2) users

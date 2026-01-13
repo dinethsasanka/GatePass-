@@ -74,35 +74,16 @@ async function findReceiverForInLocation(inLocation) {
   }).lean();
 }
 
+// Import user helpers at the top
+const { findRequesterWithERPData } = require('../utils/userHelpers');
+
+// Try to resolve the Requester user record from the Request document
+// NOW WITH ERP DATA!
 async function findRequesterFromRequest(reqDoc) {
-  if (!reqDoc) return null;
-
-  const candidateServiceNos = [
-    reqDoc.requesterServiceNo,
-    reqDoc.senderServiceNo,
-    reqDoc.createdByServiceNo,
-    reqDoc.userServiceNo,
-    pick(reqDoc, "sender.serviceNo"),
-    pick(reqDoc, "requester.serviceNo"),
-  ].filter(Boolean);
-
-  for (const svc of candidateServiceNos) {
-    const u = await User.findOne({ serviceNo: String(svc) }).lean();
-    if (u) return u;
-  }
-
-  const candidateEmails = [
-    reqDoc.requesterEmail,
-    reqDoc.senderEmail,
-    pick(reqDoc, "sender.email"),
-  ].filter(Boolean);
-
-  if (candidateEmails.length) {
-    return { email: candidateEmails[0], name: "Requester" };
-  }
-
-  return null;
+  // Use the new helper that automatically enriches with ERP data
+  return await findRequesterWithERPData(reqDoc, true);
 }
+
 
 async function findExecutiveFromRequest(reqDoc) {
   if (!reqDoc) return null;

@@ -52,6 +52,44 @@ const Navbar = () => {
     }
   }, [location.pathname]);
 
+  // Fetch branch name from erplocations when user branch ID is available
+  useEffect(() => {
+    const fetchBranchName = async () => {
+      if (userBranch && userBranch !== "Not Assigned") {
+        try {
+          const token = localStorage.getItem("token");
+          if (!token) return;
+
+          // Call API to get branch name
+          const response = await fetch(
+            `http://localhost:5000/api/erp/branch/${userBranch}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data.branchName) {
+              // Update userBranch with actual branch name
+              setUserBranch(data.data.branchName);
+            }
+          } else {
+            // If API fails, keep the location ID as fallback
+            console.log("Branch name not found, using location ID:", userBranch);
+          }
+        } catch (error) {
+          console.error("Error fetching branch name:", error);
+          // Keep the location ID if fetch fails
+        }
+      }
+    };
+
+    fetchBranchName();
+  }, [userBranch]);
+
   // Close user menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {

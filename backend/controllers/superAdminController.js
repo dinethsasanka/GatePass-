@@ -1,14 +1,22 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+
+// Import user enrichment helpers
+const { 
+  getAllUsersWithERPData, 
+  getUserWithERPData 
+} = require('../utils/userHelpers');
 const ErpLocation = require("../models/ErpLocation");
 
-// Get all users
+// Get all users WITH ERP DATA
 const getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
-    res.status(200).json(users);
+    // Use enriched helper to get users with ERP details
+    const dbUsers = await User.find().select("-password").lean();
+    const enrichedUsers = await getAllUsersWithERPData({}, true);
+    res.json(enrichedUsers);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -152,14 +160,15 @@ const getUserById = async (req, res) => {
   }
 };
 
-// Get users by type (SLT or Non-SLT)
+// Get users by type WITH ERP DATA
 const getUsersByType = async (req, res) => {
   try {
     const { userType } = req.params;
-    const users = await User.find({ userType }).select("-password");
-    res.status(200).json(users);
+    // Fetch users with ERP enrichment
+    const enrichedUsers = await getAllUsersWithERPData({ userType }, true);
+    res.json(enrichedUsers);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 

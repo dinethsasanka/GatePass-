@@ -47,38 +47,16 @@ async function findVerifierForOutLocation(outLocation) {
   return Pleader;
 }
 
+// Import user helpers at the top
+const { findRequesterWithERPData } = require('../utils/userHelpers');
+
 // Try to resolve the Requester user record from the Request document
+// NOW WITH ERP DATA!
 async function findRequesterFromRequest(reqDoc) {
-  if (!reqDoc) return null;
-
-  // Common field guesses (adapt to your actual Request schema if different)
-  const candidateServiceNos = [
-    reqDoc.requesterServiceNo,
-    reqDoc.senderServiceNo,
-    reqDoc.createdByServiceNo,
-    reqDoc.userServiceNo,
-    pick(reqDoc, "sender.serviceNo"),
-    pick(reqDoc, "requester.serviceNo"),
-  ].filter(Boolean);
-
-  for (const svc of candidateServiceNos) {
-    const u = await User.findOne({ serviceNo: String(svc) }).lean();
-    if (u) return u;
-  }
-
-  // If the request itself holds an email field
-  const candidateEmails = [
-    reqDoc.requesterEmail,
-    reqDoc.senderEmail,
-    pick(reqDoc, "sender.email"),
-  ].filter(Boolean);
-
-  if (candidateEmails.length) {
-    return { email: candidateEmails[0], name: "Requester" };
-  }
-
-  return null;
+  // Use the new helper that automatically enriches with ERP data
+  return await findRequesterWithERPData(reqDoc, true);
 }
+
 
 // helpers to avoid role/serviceNo formatting issues
 const normalizeRole = (r) =>
