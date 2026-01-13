@@ -1,26 +1,8 @@
 import axios from "axios";
 import { PublicClientApplication } from "@azure/msal-browser";
+import { msalConfig, loginRequest } from "../config/azureConfig";
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-// Azure AD configuration
-const msalConfig = {
-  auth: {
-    clientId:
-      import.meta.env.VITE_AZURE_CLIENT_ID ||
-      "fb3e75a7-554f-41f8-9da3-2b162c255349",
-    // Use 'common' to allow personal Microsoft accounts and work/school accounts
-    authority: `https://login.microsoftonline.com/common`,
-    redirectUri:
-      import.meta.env.VITE_AZURE_REDIRECT_URI ||
-      "http://localhost:5173/callback",
-    navigateToLoginRequestUrl: false,
-  },
-  cache: {
-    cacheLocation: "sessionStorage",
-    storeAuthStateInCookie: false,
-  },
-};
 
 const msalInstance = new PublicClientApplication(msalConfig);
 
@@ -79,19 +61,13 @@ export const authService = {
         console.log("Error clearing MSAL state:", e);
       }
 
-      const loginRequest = {
-        scopes: ["openid", "profile", "email", "User.Read"],
-        // Use 'select_account' to show all Microsoft accounts on the device
-        // This will show personal and work accounts that have signed in to any Microsoft service
-        prompt: "select_account",
-        // This allows showing all accounts, not just those from your tenant
-        domainHint: undefined,
-      };
-
       console.log("Initiating Azure redirect login...");
       
-      // Use redirect flow
-      await msalInstance.loginRedirect(loginRequest);
+      // Use redirect flow with imported loginRequest
+      await msalInstance.loginRedirect({
+        ...loginRequest,
+        prompt: "select_account",  // Show account picker
+      });
 
       // Note: This function won't return - user will be redirected
       // The callback component will handle the response

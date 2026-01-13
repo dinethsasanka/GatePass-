@@ -3,25 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { PublicClientApplication } from "@azure/msal-browser";
 import axios from "axios";
 import { useToast } from "./ToastProvider";
+import { msalConfig } from "../config/azureConfig";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-// Azure AD configuration
-const msalConfig = {
-  auth: {
-    clientId: import.meta.env.VITE_AZURE_CLIENT_ID,
-    // Use 'common' to allow personal Microsoft accounts and work/school accounts
-    authority: `https://login.microsoftonline.com/common`,
-    redirectUri:
-      import.meta.env.VITE_AZURE_REDIRECT_URI ||
-      "http://localhost:5173/callback",
-    navigateToLoginRequestUrl: false,
-  },
-  cache: {
-    cacheLocation: "sessionStorage",
-    storeAuthStateInCookie: false,
-  },
-};
 
 const msalInstance = new PublicClientApplication(msalConfig);
 
@@ -66,6 +50,13 @@ const AzureCallback = () => {
               token: backendResponse.data.token,
             };
 
+            console.log("📝 Storing user data:", {
+              hasToken: !!userData.token,
+              hasRole: !!userData.role,
+              userId: userData.userId,
+              role: userData.role
+            });
+
             localStorage.setItem("user", JSON.stringify(userData));
             localStorage.setItem(
               "role",
@@ -76,12 +67,31 @@ const AzureCallback = () => {
               String(backendResponse.data.token).trim()
             );
 
+            // VERIFY data was written
+            const verifyUser = JSON.parse(localStorage.getItem("user"));
+            const verifyToken = localStorage.getItem("token");
+            const verifyRole = localStorage.getItem("role");
+            
+            console.log("✅ Verification - Data in localStorage:", {
+              user: verifyUser,
+              token: verifyToken,
+              role: verifyRole,
+              hasToken: !!verifyUser?.token
+            });
+
             console.log("Data stored successfully in localStorage");
 
             showToast("Azure login successful! Redirecting...", "success");
 
-            // Navigate to new request page
-            window.location.href = "/newrequest";
+            // Small delay to ensure localStorage write completes
+            setTimeout(() => {
+              console.log("🚀 Navigating to /newrequest");
+              window.location.href = "/newrequest";
+            }, 200);
+          } else {
+            console.error("❌ No token in backend response!");
+            showToast("Login failed - no token received", "error");
+            window.location.href = "/login";
           }
         } else {
           // Check URL parameters (both hash and query)

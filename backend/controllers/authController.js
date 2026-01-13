@@ -236,35 +236,6 @@ const registerUser = async (req, res) => {
   }
 };
 
-// const loginUser = async (req, res) => {
-//     try {
-//         const { userId, password, userType } = req.body;
-//         const user = await User.findOne({ userId, userType });
-//         console.log(user);
-
-//         if (user && (await bcrypt.compare(password, user.password))) {
-//             res.json({
-//                 _id: user.id,
-//                 userType: user.userType,
-//                 userId: user.userId,
-//                 serviceNo: user.serviceNo,
-//                 name: user.name,
-//                 designation: user.designation,
-//                 section: user.section,
-//                 group: user.group,
-//                 contactNo: user.contactNo,
-//                 role: user.role,
-//                 branches: user.branches,
-//                 email: user.email,
-//                 token: generateToken(user.id)
-//             });
-//         } else {
-//             res.status(401).json({ message: 'Invalid credentials' });
-//         }
-//     } catch (error) {
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
 
 // Updated Login User Function with Employee API fallback
 
@@ -409,192 +380,321 @@ const loginUser = async (req, res) => {
   }
 };
 
-// Azure AD Login - With ERP Enrichment
+// ============================================================================
+// AZURE LOGIN HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Extracts and normalizes email from Azure user info
+ * Handles external user format: email_domain.com#EXT#@tenant.onmicrosoft.com
+ * @param {Object} userInfo - Azure user info from Microsoft Graph
+ * @returns {string} Normalized email address
+ */
+const extractAzureEmail = (userInfo) => {
+  let azureEmail = userInfo.mail || userInfo.userPrincipalName;
+
+  // Handle Azure B2B external user format
+  if (azureEmail && azureEmail.includes('#EXT#')) {
+    const emailPart = azureEmail.split('#EXT#')[0];
+    const lastUnderscoreIndex = emailPart.lastIndexOf('_');
+    if (lastUnderscoreIndex !== -1) {
+      azureEmail = emailPart.substring(0, lastUnderscoreIndex) + '@' + 
+                   emailPart.substring(lastUnderscoreIndex + 1);
+    }
+  }
+
+  return azureEmail?.toLowerCase();
+};
+
+/**
+ * Extracts service number from Azure user info
+ * Priority: employeeId → userPrincipalName (e.g., 020262@intranet.slt.com.lk)
+ * @param {Object} userInfo - Azure user info
+ * @returns {string|null} Service number or null
+ */
+const extractServiceNumber = (userInfo) => {
+  // Try employeeId first
+  if (userInfo.employeeId) {
+    console.log(`📋 Service number from employeeId: ${userInfo.employeeId}`);
+    return userInfo.employeeId;
+  }
+
+  // Extract from userPrincipalName (format: 020262@intranet.slt.com.lk)
+  if (userInfo.userPrincipalName) {
+    const match = userInfo.userPrincipalName.match(/^(\d+)@/);
+    if (match) {
+      console.log(`📋 Service number extracted from userPrincipalName: ${match[1]}`);
+      return match[1];
+    }
+  }
+
+  console.warn('⚠️ No service number found in Azure user info');
+  return null;
+};
+
+/**
+ * Fetches employee data from ERP API
+ * @param {string} serviceNo - Employee service number
+ * @returns {Promise<Object|null>} ERP data or null if fetch fails
+ */
+const fetchERPData = async (serviceNo) => {
+  if (!serviceNo) {
+    console.log('ℹ️ No service number provided, skipping ERP fetch');
+    return null;
+  }
+
+  try {
+    const { getAzureUserData } = require('../utils/azureUserCache');
+    console.log(`🔍 Fetching ERP data for employee: ${serviceNo}`);
+    const erpData = await getAzureUserData(serviceNo, true);
+    console.log(`✅ ERP data retrieved: ${erpData.name} (${erpData.designation})`);
+    return erpData;
+  } catch (error) {
+    console.warn(`⚠️ ERP fetch failed: ${error.message}`);
+    return null;
+  }
+};
+
+/**
+ * Builds user data object for MongoDB based on available data sources
+ * Priority: ERP data → Azure AD data → Defaults
+ * @param {Object} params - Parameters object
+ * @param {Object} params.userInfo - Azure user info
+ * @param {string} params.azureEmail - Normalized email
+ * @param {Object|null} params.erpData - ERP data (optional)
+ * @param {string} params.hashedPassword - Hashed password
+ * @returns {Object} User data object for MongoDB
+ */
+const buildUserData = ({ userInfo, azureEmail, erpData, hashedPassword }) => {
+  const baseData = {
+    userType: "SLT",
+    userId: userInfo.userPrincipalName,
+    password: hashedPassword,
+    email: azureEmail,
+    azureId: userInfo.id,
+    isAzureUser: true,
+    lastAzureSync: new Date(),
+  };
+
+  if (erpData) {
+    // Use ERP data (comprehensive employee details)
+    console.log('📊 Building user data from ERP');
+    return {
+      ...baseData,
+      name: erpData.name,
+      serviceNo: erpData.serviceNo,
+      designation: erpData.designation,
+      section: erpData.section || "N/A",
+      group: erpData.group || "N/A",
+      contactNo: erpData.contactNo || "N/A",
+      gradeName: erpData.gradeName || "N/A",
+      fingerScanLocation: erpData.fingerScanLocation,
+      branches: erpData.branches || ["SLT HQ"],
+      role: erpData.role || "User",
+    };
+  } else {
+    // Fall back to Azure AD data (limited info)
+    console.log('📊 Building user data from Azure AD (no ERP data available)');
+    return {
+      ...baseData,
+      name: userInfo.displayName || "Azure User",
+      serviceNo: userInfo.employeeId || "N/A",
+      designation: userInfo.jobTitle || "N/A",
+      section: userInfo.department || "N/A",
+      group: userInfo.companyName || "N/A",
+      contactNo: userInfo.mobilePhone || userInfo.businessPhones?.[0] || "N/A",
+      gradeName: "N/A",
+      role: "User",
+    };
+  }
+};
+
+/**
+ * Finds existing user in database using multiple lookup strategies
+ * Priority: email → azureId → userId (userPrincipalName)
+ * @param {Object} params - Search parameters
+ * @param {string} params.azureEmail - Normalized email
+ * @param {string} params.azureId - Azure AD user ID
+ * @param {string} params.userPrincipalName - Azure UPN
+ * @returns {Promise<Object|null>} User document or null
+ */
+const findExistingUser = async ({ azureEmail, azureId, userPrincipalName }) => {
+  console.log('🔍 Searching for existing user...');
+
+  // PRIORITY 1: Email (case-insensitive)
+  const emailRegex = new RegExp(`^${azureEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+  let user = await User.findOne({ email: { $regex: emailRegex } });
+  
+  if (user) {
+    console.log(`✅ Found user by email: ${user.userId}`);
+    return user;
+  }
+
+  // PRIORITY 2: Azure ID
+  if (azureId) {
+    user = await User.findOne({ azureId });
+    if (user) {
+      console.log(`✅ Found user by Azure ID: ${user.userId}`);
+      return user;
+    }
+  }
+
+  // PRIORITY 3: User Principal Name
+  if (userPrincipalName) {
+    user = await User.findOne({ userId: userPrincipalName });
+    if (user) {
+      console.log(`✅ Found user by userPrincipalName: ${user.userId}`);
+      return user;
+    }
+  }
+
+  console.log('ℹ️ No existing user found');
+  return null;
+};
+
+/**
+ * Updates existing user with latest data from ERP/Azure
+ * @param {Object} user - Mongoose user document
+ * @param {Object} params - Update parameters
+ * @param {Object|null} params.erpData - ERP data (optional)
+ * @param {Object} params.userInfo - Azure user info
+ * @param {string} params.azureEmail - Normalized email
+ * @returns {Promise<Object>} Updated user document
+ */
+const updateExistingUser = async (user, { erpData, userInfo, azureEmail }) => {
+  console.log(`🔄 Updating user: ${user.userId}`);
+
+  // Handle duplicate Azure ID edge case
+  if (user.azureId !== userInfo.id) {
+    const duplicateUser = await User.findOne({ azureId: userInfo.id });
+    if (duplicateUser && duplicateUser._id.toString() !== user._id.toString()) {
+      console.log(`🗑️ Removing duplicate Azure user: ${duplicateUser.userId}`);
+      await User.deleteOne({ _id: duplicateUser._id });
+    }
+  }
+
+  // Update with ERP data if available
+  if (erpData) {
+    user.name = erpData.name;
+    user.serviceNo = erpData.serviceNo;
+    user.designation = erpData.designation;
+    user.section = erpData.section || user.section;
+    user.group = erpData.group || user.group;
+    user.contactNo = erpData.contactNo || user.contactNo;
+    user.gradeName = erpData.gradeName || user.gradeName;
+    user.fingerScanLocation = erpData.fingerScanLocation || user.fingerScanLocation;
+    user.branches = erpData.branches || user.branches;
+    user.role = erpData.role || user.role;
+    console.log('✅ User updated with ERP data');
+  } else {
+    // Fall back to Azure AD data
+    if (userInfo.displayName) user.name = userInfo.displayName;
+    if (userInfo.jobTitle) user.designation = userInfo.jobTitle;
+    if (userInfo.department) user.section = userInfo.department;
+    if (userInfo.companyName) user.group = userInfo.companyName;
+    if (userInfo.mobilePhone || userInfo.businessPhones?.[0]) {
+      user.contactNo = userInfo.mobilePhone || userInfo.businessPhones?.[0];
+    }
+    console.log('⚠️ User updated with Azure AD data only (no ERP)');
+  }
+
+  // Always update these fields
+  user.email = azureEmail;
+  user.azureId = userInfo.id;
+  user.isAzureUser = true;
+  user.lastAzureSync = new Date();
+
+  await user.save();
+  console.log(`💾 User saved: ${user.userId}`);
+  
+  return user;
+};
+
+// ============================================================================
+// MAIN AZURE LOGIN CONTROLLER
+// ============================================================================
+
+/**
+ * Azure AD Login with ERP Enrichment
+ * Flow:
+ * 1. Validate access token
+ * 2. Get user info from Microsoft Graph
+ * 3. Extract service number
+ * 4. Fetch employee data from ERP (if service number available)
+ * 5. Find or create user in MongoDB
+ * 6. Return JWT token + user data
+ */
 const azureLogin = async (req, res) => {
   try {
     const { accessToken } = req.body;
 
+    // Step 1: Validate access token
     if (!accessToken) {
       return res.status(400).json({ message: "Access token is required" });
     }
 
-    // Get user info from Microsoft Graph using the access token
+    console.log('\n=== 🔐 AZURE LOGIN STARTED ===');
+
+    // Step 2: Get user info from Microsoft Graph
     const userInfo = await getUserInfoFromGraph(accessToken);
-    console.log("=== AZURE LOGIN DEBUG ===");
-    console.log("Azure user info from Graph:", JSON.stringify(userInfo, null, 2));
-
-    // Extract email from Azure response
-    // Handle external user format: "email_domain.com#EXT#@tenant.onmicrosoft.com"
-    let azureEmail = userInfo.mail || userInfo.userPrincipalName;
-
-    // Convert Azure external user format to actual email
-    // Example: yasaslakmina21_outlook.com#EXT#@... -> yasaslakmina21@outlook.com
-    if (azureEmail && azureEmail.includes('#EXT#')) {
-      const emailPart = azureEmail.split('#EXT#')[0];
-      // Replace last underscore with @ to get actual email
-      const lastUnderscoreIndex = emailPart.lastIndexOf('_');
-      if (lastUnderscoreIndex !== -1) {
-        azureEmail = emailPart.substring(0, lastUnderscoreIndex) + '@' + emailPart.substring(lastUnderscoreIndex + 1);
-      }
-    }
-
-    azureEmail = azureEmail?.toLowerCase();
-
-    console.log("Extracted email:", azureEmail);
-    console.log("Original userPrincipalName:", userInfo.userPrincipalName);
-    console.log("Employee ID from Azure:", userInfo.employeeId);
-
-    // Extract service number from userPrincipalName if employeeId not available
-    // Format: 020262@intranet.slt.com.lk -> 020262
-    let serviceNo = userInfo.employeeId;
-    if (!serviceNo && userInfo.userPrincipalName) {
-      const match = userInfo.userPrincipalName.match(/^(\d+)@/);
-      if (match) {
-        serviceNo = match[1];
-        console.log(`📋 Extracted service number from userPrincipalName: ${serviceNo}`);
-      }
-    }
-
-    // Try to get ERP data if serviceNo is available
-    let erpData = null;
-    if (serviceNo) {
-      try {
-        const { getAzureUserData } = require('../utils/azureUserCache');
-        console.log(`🔍 Fetching ERP data for employee: ${serviceNo}`);
-        erpData = await getAzureUserData(serviceNo, true);
-        console.log("✅ ERP data retrieved successfully");
-      } catch (erpError) {
-        console.warn(`⚠️ Could not fetch ERP data: ${erpError.message}`);
-        // Continue without ERP data - will use Azure info only
-      }
-    }
-
-    // Debug: Check all users with similar emails
-    const allUsers = await User.find({});
-    console.log("All users in database:", allUsers.map(u => ({ userId: u.userId, email: u.email })));
-
-    // PRIORITY 1: Try to find user by email first (case-insensitive)
-    let user = await User.findOne({
-      email: { $regex: new RegExp(`^${azureEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }
+    console.log('📥 Azure user info:', {
+      name: userInfo.displayName,
+      email: userInfo.mail,
+      upn: userInfo.userPrincipalName,
+      employeeId: userInfo.employeeId
     });
 
-    console.log("Email search result:", user ? `Found: ${user.userId}` : "Not found");
+    // Step 3: Extract and normalize data
+    const azureEmail = extractAzureEmail(userInfo);
+    const serviceNo = extractServiceNumber(userInfo);
+    
+    console.log(`📧 Email: ${azureEmail}`);
+    console.log(`🆔 Service No: ${serviceNo || 'Not available'}`);
 
-    // PRIORITY 2: If not found by email, try by azureId
-    if (!user && userInfo.id) {
-      user = await User.findOne({ azureId: userInfo.id });
-    }
+    // Step 4: Fetch ERP data (if service number available)
+    const erpData = await fetchERPData(serviceNo);
 
-    // PRIORITY 3: If still not found, try by userId
-    if (!user && userInfo.userPrincipalName) {
-      user = await User.findOne({ userId: userInfo.userPrincipalName });
-    }
-
-    console.log("Azure user lookup result:", {
+    // Step 5: Find existing user
+    const existingUser = await findExistingUser({
+      azureEmail,
       azureId: userInfo.id,
-      email: azureEmail,
-      userPrincipalName: userInfo.userPrincipalName,
-      foundUser: user ? `${user.userId} (${user.email})` : "not found",
-      hasERPData: !!erpData
+      userPrincipalName: userInfo.userPrincipalName
     });
 
-    if (!user) {
-      console.log("No existing user found - creating new user");
+    let user;
 
-      // Generate a temporary password for Azure users (they won't use it)
+    if (!existingUser) {
+      // Step 6a: Create new user
+      console.log('➕ Creating new user...');
+      
       const tempPassword = Math.random().toString(36).slice(-8);
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(tempPassword, salt);
 
-      // Use ERP data if available, otherwise fall back to Azure AD data
-      const userData = erpData ? {
-        userType: "SLT",
-        userId: userInfo.userPrincipalName,
-        password: hashedPassword,
-        email: azureEmail,
-        name: erpData.name,
-        serviceNo: erpData.serviceNo,
-        designation: erpData.designation,
-        section: erpData.section || "N/A",
-        group: erpData.group || "N/A",
-        contactNo: erpData.contactNo || "N/A",
-        gradeName: erpData.gradeName || "N/A",
-        fingerScanLocation: erpData.fingerScanLocation,
-        branches: erpData.branches || ["SLT HQ"],
-        role: erpData.role || "User",
-        azureId: userInfo.id,
-        isAzureUser: true,
-        lastAzureSync: new Date(),
-      } : {
-        userType: "SLT",
-        userId: userInfo.userPrincipalName,
-        password: hashedPassword,
-        email: azureEmail,
-        name: userInfo.displayName || "Azure User",
-        serviceNo: userInfo.employeeId || "N/A",
-        designation: userInfo.jobTitle || "N/A",
-        section: userInfo.department || "N/A",
-        group: userInfo.companyName || "N/A",
-        contactNo: userInfo.mobilePhone || userInfo.businessPhones?.[0] || "N/A",
-        gradeName: "N/A",
-        role: "User",
-        azureId: userInfo.id,
-        isAzureUser: true,
-        lastAzureSync: new Date(),
-      };
+      const userData = buildUserData({ 
+        userInfo, 
+        azureEmail, 
+        erpData, 
+        hashedPassword 
+      });
 
-      // Create new user from ERP/Azure data
       user = await User.create(userData);
-
-      console.log("New user created:", user.userId, "with ERP data:", !!erpData);
+      console.log(`✅ New user created: ${user.userId} (ERP: ${!!erpData})`);
+      
     } else {
-      console.log("Existing user found - updating with ERP data");
-
-      // Check if another user has this azureId
-      if (user.azureId !== userInfo.id) {
-        const existingAzureUser = await User.findOne({ azureId: userInfo.id });
-        if (existingAzureUser && existingAzureUser._id.toString() !== user._id.toString()) {
-          console.log("Removing duplicate Azure user:", existingAzureUser.userId);
-          await User.deleteOne({ _id: existingAzureUser._id });
-        }
-      }
-
-      // Update user with ERP data if available, otherwise use Azure data
-      if (erpData) {
-        user.name = erpData.name;
-        user.serviceNo = erpData.serviceNo;
-        user.designation = erpData.designation;
-        user.section = erpData.section || user.section;
-        user.group = erpData.group || user.group;
-        user.contactNo = erpData.contactNo || user.contactNo;
-        user.gradeName = erpData.gradeName || user.gradeName;
-        user.fingerScanLocation = erpData.fingerScanLocation || user.fingerScanLocation;
-        user.branches = erpData.branches || user.branches;
-        user.role = erpData.role || user.role;
-        console.log("✅ Updated user with ERP data");
-      } else {
-        // Fall back to Azure AD data
-        if (userInfo.displayName) user.name = userInfo.displayName;
-        if (userInfo.jobTitle) user.designation = userInfo.jobTitle;
-        if (userInfo.department) user.section = userInfo.department;
-        if (userInfo.companyName) user.group = userInfo.companyName;
-        if (userInfo.mobilePhone || userInfo.businessPhones?.[0]) {
-          user.contactNo = userInfo.mobilePhone || userInfo.businessPhones?.[0];
-        }
-        console.log("⚠️ Updated user with Azure AD data only (no ERP data)");
-      }
-
-      // Always update these fields
-      user.email = azureEmail;
-      user.azureId = userInfo.id;
-      user.isAzureUser = true;
-      user.lastAzureSync = new Date();
-
-      await user.save();
-      console.log("User updated:", user.userId);
+      // Step 6b: Update existing user
+      user = await updateExistingUser(existingUser, { 
+        erpData, 
+        userInfo, 
+        azureEmail 
+      });
     }
 
-    res.json({
+    // Step 7: Generate JWT and return response
+    console.log('🎫 Generating token...');
+    const token = generateToken(user.id);
+
+    const response = {
       _id: user.id,
       userType: user.userType,
       userId: user.userId,
@@ -610,13 +710,21 @@ const azureLogin = async (req, res) => {
       gradeName: user.gradeName,
       isAzureUser: true,
       hasERPData: !!erpData,
-      token: generateToken(user.id),
-    });
+      token
+    };
+
+    console.log('✅ Azure login successful');
+    console.log('=== 🔐 AZURE LOGIN COMPLETED ===\n');
+
+    res.json(response);
+
   } catch (error) {
-    console.error("Azure login error:", error);
-    res
-      .status(500)
-      .json({ message: "Azure authentication failed", error: error.message });
+    console.error('❌ Azure login error:', error.message);
+    console.error('Stack:', error.stack);
+    res.status(500).json({ 
+      message: "Azure authentication failed", 
+      error: error.message 
+    });
   }
 };
 

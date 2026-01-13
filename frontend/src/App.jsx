@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import { useEffect } from "react";
 import { PublicClientApplication } from "@azure/msal-browser";
+import { msalConfig } from "./config/azureConfig";
 import Login from "./pages/Login";
 import AzureCallback from "./components/AzureCallback";
 import Home from "./pages/Home";
@@ -17,19 +18,6 @@ import RequestDetails from "./pages/RequestDetails.jsx";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastProvider } from "./components/ToastProvider";
-
-const msalConfig = {
-  auth: {
-    clientId: import.meta.env.VITE_AZURE_CLIENT_ID,
-    authority: `https://login.microsoftonline.com/${
-      import.meta.env.VITE_AZURE_TENANT_ID
-    }`,
-    redirectUri:
-      import.meta.env.VITE_AZURE_REDIRECT_URI ||
-      "http://localhost:5173/callback",
-    navigateToLoginRequestUrl: false,
-  },
-};
 
 const msalInstance = new PublicClientApplication(msalConfig);
 
