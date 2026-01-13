@@ -2,10 +2,12 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
-const { getAzureUserData } = require('../utils/azureUserCache');
-const { generateToken, generateAzureToken } = require('../middleware/authMiddleware');
+const { getAzureUserData } = require("../utils/azureUserCache");
+const {
+  generateToken,
+  generateAzureToken,
+} = require("../middleware/authMiddleware");
 const { ConfidentialClientApplication } = require("@azure/msal-node");
-
 
 const EMPLOYEE_API_BASE_URL =
   "https://employee-api-without-category-production.up.railway.app/api";
@@ -92,7 +94,9 @@ const authenticateWithEmployeeAPI = async (
     throw new Error("API authentication failed");
   } catch (error) {
     console.error("Employee API authentication error:", error);
-    console.warn("⚠️ Employee API is unavailable - will attempt local authentication");
+    console.warn(
+      "⚠️ Employee API is unavailable - will attempt local authentication"
+    );
     return {
       success: false,
       error: error.message,
@@ -152,7 +156,9 @@ const getEmployeeFromAPI = async (employeeNumber) => {
         console.error("Retry failed:", retryError);
       }
     }
-    console.warn("⚠️ Employee API unavailable, will use local database for authentication");
+    console.warn(
+      "⚠️ Employee API unavailable, will use local database for authentication"
+    );
     return null;
   }
 };
@@ -175,7 +181,23 @@ if (!process.env.AZURE_CLIENT_SECRET) {
   );
 }
 
-const msalInstance = new ConfidentialClientApplication(msalConfig);
+// Initialize MSAL ConfidentialClientApplication only when credentials are present
+let msalInstance = null;
+if (!process.env.AZURE_CLIENT_SECRET) {
+  // Already warned above — keep msalInstance null so requiring this module
+  // doesn't throw during startup in environments without Azure configured.
+  msalInstance = null;
+} else {
+  try {
+    msalInstance = new ConfidentialClientApplication(msalConfig);
+  } catch (err) {
+    console.error(
+      "Failed to initialize MSAL ConfidentialClientApplication:",
+      err.message
+    );
+    msalInstance = null;
+  }
+}
 
 const registerUser = async (req, res) => {
   try {
@@ -232,7 +254,6 @@ const registerUser = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 
 // Updated Login User Function with Employee API fallback
 
@@ -393,24 +414,28 @@ const azureLogin = async (req, res) => {
 
     // Extract email from Azure
     let azureEmail = userInfo.mail || userInfo.userPrincipalName;
-    
+
     // Handle external user format (#EXT#)
-    if (azureEmail && azureEmail.includes('#EXT#')) {
-      const emailPart = azureEmail.split('#EXT#')[0];
-      const lastUnderscoreIndex = emailPart.lastIndexOf('_');
+    if (azureEmail && azureEmail.includes("#EXT#")) {
+      const emailPart = azureEmail.split("#EXT#")[0];
+      const lastUnderscoreIndex = emailPart.lastIndexOf("_");
       if (lastUnderscoreIndex !== -1) {
-        azureEmail = emailPart.substring(0, lastUnderscoreIndex) + '@' + emailPart.substring(lastUnderscoreIndex + 1);
+        azureEmail =
+          emailPart.substring(0, lastUnderscoreIndex) +
+          "@" +
+          emailPart.substring(lastUnderscoreIndex + 1);
       }
     }
     azureEmail = azureEmail?.toLowerCase();
 
     // Extract service number from Azure profile
     const employeeServiceNo = userInfo.employeeId;
-    
+
     if (!employeeServiceNo) {
       console.error("❌ No employee ID in Azure profile");
-      return res.status(400).json({ 
-        message: "Employee ID not found in Azure profile. Please contact IT support." 
+      return res.status(400).json({
+        message:
+          "Employee ID not found in Azure profile. Please contact IT support.",
       });
     }
 
@@ -420,10 +445,10 @@ const azureLogin = async (req, res) => {
     // === Fetch ALL data from ERP API (No MongoDB!) ===
     try {
       console.log(`🔍 Fetching employee data from ERP...`);
-      
+
       // Get user data from ERP (this automatically caches it for 5 minutes)
       const userData = await getAzureUserData(employeeServiceNo, true);
-      
+
       console.log(`✅ ERP Data Retrieved:`);
       console.log(`   Name: ${userData.name}`);
       console.log(`   Role: ${userData.role} (Grade: ${userData.gradeName})`);
@@ -433,7 +458,7 @@ const azureLogin = async (req, res) => {
       const token = generateAzureToken({
         serviceNo: employeeServiceNo,
         azureId: userInfo.id,
-        email: azureEmail
+        email: azureEmail,
       });
 
       // === Build response with ERP data only ===
@@ -443,25 +468,25 @@ const azureLogin = async (req, res) => {
           serviceNo: userData.serviceNo,
           azureId: userInfo.id,
           isAzureUser: true,
-          
+
           // Personal info (from ERP)
           name: userData.name,
           email: userData.email,
           contactNo: userData.contactNo,
-          
+
           // Job details (from ERP)
           designation: userData.designation,
           section: userData.section,
           group: userData.group,
           division: userData.division,
           organization: userData.organization,
-          
+
           // Role & Access (auto-assigned from ERP grade)
           role: userData.role,
           gradeName: userData.gradeName,
           branches: userData.branches,
           fingerScanLocation: userData.fingerScanLocation,
-          
+
           // Additional details (from ERP)
           costCenter: userData.costCenter,
           costCenterName: userData.costCenterName,
@@ -472,12 +497,12 @@ const azureLogin = async (req, res) => {
           dateOfBirth: userData.dateOfBirth,
           gender: userData.gender,
           officialAddress: userData.officialAddress,
-          
+
           // Metadata
-          _dataSource: 'ERP',
+          _dataSource: "ERP",
           _noDatabase: true, // No MongoDB record!
-          _cachedUntil: new Date(Date.now() + 300000).toISOString() // 5 min from now
-        }
+          _cachedUntil: new Date(Date.now() + 300000).toISOString(), // 5 min from now
+        },
       };
 
       console.log(`\n🎉 Azure Login Successful - 100% API-Only Mode`);
@@ -486,22 +511,20 @@ const azureLogin = async (req, res) => {
       console.log(`⚡ Cache: 5 minutes\n`);
 
       res.json(responseData);
-
     } catch (erpError) {
       console.error("❌ Failed to fetch ERP data:", erpError.message);
-      
+
       return res.status(500).json({
         message: "Unable to fetch employee data from ERP system",
         error: erpError.message,
-        hint: "Please ensure your employee ID is registered in the ERP system"
+        hint: "Please ensure your employee ID is registered in the ERP system",
       });
     }
-
   } catch (error) {
     console.error("❌ Azure login error:", error);
-    res.status(500).json({ 
-      message: "Azure login failed", 
-      error: error.message 
+    res.status(500).json({
+      message: "Azure login failed",
+      error: error.message,
     });
   }
 };
@@ -509,6 +532,14 @@ const azureLogin = async (req, res) => {
 // Get Azure login URL
 const getAzureLoginUrl = async (req, res) => {
   try {
+    if (!msalInstance) {
+      console.error(
+        "Azure MSAL is not configured. AZURE_CLIENT_SECRET missing."
+      );
+      return res
+        .status(500)
+        .json({ message: "Azure login is not configured on this server" });
+    }
     const authCodeUrlParameters = {
       scopes: ["https://graph.microsoft.com/User.Read"],
       redirectUri:
