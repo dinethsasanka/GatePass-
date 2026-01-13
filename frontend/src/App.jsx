@@ -17,7 +17,7 @@ import RequestDetails from "./pages/RequestDetails.jsx";
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastProvider } from "./components/ToastProvider";
-import EmailForm from "./pages/Example";
+import EmailForm from "./pages/example";
 
 const msalConfig = {
   auth: {
