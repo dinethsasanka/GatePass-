@@ -20,12 +20,3 @@ export const msalConfig = {
 export const loginRequest = {
   scopes: ["openid", "profile", "email", "User.Read", "offline_access"]
 };
-
-// Log configuration in development
-if (import.meta.env.DEV) {
-  console.log('🔐 MSAL Config Loaded:', {
-    clientId: msalConfig.auth.clientId,
-    redirectUri: msalConfig.auth.redirectUri,
-    authority: msalConfig.auth.authority
-  });
-}

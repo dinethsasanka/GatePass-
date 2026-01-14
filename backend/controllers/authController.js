@@ -415,7 +415,6 @@ const extractAzureEmail = (userInfo) => {
 const extractServiceNumber = (userInfo) => {
   // Try employeeId first
   if (userInfo.employeeId) {
-    console.log(`📋 Service number from employeeId: ${userInfo.employeeId}`);
     return userInfo.employeeId;
   }
 
@@ -423,12 +422,10 @@ const extractServiceNumber = (userInfo) => {
   if (userInfo.userPrincipalName) {
     const match = userInfo.userPrincipalName.match(/^(\d+)@/);
     if (match) {
-      console.log(`📋 Service number extracted from userPrincipalName: ${match[1]}`);
       return match[1];
     }
   }
 
-  console.warn('⚠️ No service number found in Azure user info');
   return null;
 };
 
@@ -439,18 +436,15 @@ const extractServiceNumber = (userInfo) => {
  */
 const fetchERPData = async (serviceNo) => {
   if (!serviceNo) {
-    console.log('ℹ️ No service number provided, skipping ERP fetch');
     return null;
   }
 
   try {
     const { getAzureUserData } = require('../utils/azureUserCache');
-    console.log(`🔍 Fetching ERP data for employee: ${serviceNo}`);
     const erpData = await getAzureUserData(serviceNo, true);
-    console.log(`✅ ERP data retrieved: ${erpData.name} (${erpData.designation})`);
     return erpData;
   } catch (error) {
-    console.warn(`⚠️ ERP fetch failed: ${error.message}`);
+    console.error(`ERP fetch failed for ${serviceNo}:`, error.message);
     return null;
   }
 };
@@ -562,13 +556,10 @@ const findExistingUser = async ({ azureEmail, azureId, userPrincipalName }) => {
  * @returns {Promise<Object>} Updated user document
  */
 const updateExistingUser = async (user, { erpData, userInfo, azureEmail }) => {
-  console.log(`🔄 Updating user: ${user.userId}`);
-
   // Handle duplicate Azure ID edge case
   if (user.azureId !== userInfo.id) {
     const duplicateUser = await User.findOne({ azureId: userInfo.id });
     if (duplicateUser && duplicateUser._id.toString() !== user._id.toString()) {
-      console.log(`🗑️ Removing duplicate Azure user: ${duplicateUser.userId}`);
       await User.deleteOne({ _id: duplicateUser._id });
     }
   }
@@ -585,7 +576,6 @@ const updateExistingUser = async (user, { erpData, userInfo, azureEmail }) => {
     user.fingerScanLocation = erpData.fingerScanLocation || user.fingerScanLocation;
     user.branches = erpData.branches || user.branches;
     user.role = erpData.role || user.role;
-    console.log('✅ User updated with ERP data');
   } else {
     // Fall back to Azure AD data
     if (userInfo.displayName) user.name = userInfo.displayName;
@@ -595,7 +585,6 @@ const updateExistingUser = async (user, { erpData, userInfo, azureEmail }) => {
     if (userInfo.mobilePhone || userInfo.businessPhones?.[0]) {
       user.contactNo = userInfo.mobilePhone || userInfo.businessPhones?.[0];
     }
-    console.log('⚠️ User updated with Azure AD data only (no ERP)');
   }
 
   // Always update these fields
@@ -605,7 +594,6 @@ const updateExistingUser = async (user, { erpData, userInfo, azureEmail }) => {
   user.lastAzureSync = new Date();
 
   await user.save();
-  console.log(`💾 User saved: ${user.userId}`);
   
   return user;
 };
@@ -633,23 +621,12 @@ const azureLogin = async (req, res) => {
       return res.status(400).json({ message: "Access token is required" });
     }
 
-    console.log('\n=== 🔐 AZURE LOGIN STARTED ===');
-
     // Step 2: Get user info from Microsoft Graph
     const userInfo = await getUserInfoFromGraph(accessToken);
-    console.log('📥 Azure user info:', {
-      name: userInfo.displayName,
-      email: userInfo.mail,
-      upn: userInfo.userPrincipalName,
-      employeeId: userInfo.employeeId
-    });
 
     // Step 3: Extract and normalize data
     const azureEmail = extractAzureEmail(userInfo);
     const serviceNo = extractServiceNumber(userInfo);
-    
-    console.log(`📧 Email: ${azureEmail}`);
-    console.log(`🆔 Service No: ${serviceNo || 'Not available'}`);
 
     // Step 4: Fetch ERP data (if service number available)
     const erpData = await fetchERPData(serviceNo);
@@ -665,8 +642,6 @@ const azureLogin = async (req, res) => {
 
     if (!existingUser) {
       // Step 6a: Create new user
-      console.log('➕ Creating new user...');
-      
       const tempPassword = Math.random().toString(36).slice(-8);
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(tempPassword, salt);
@@ -679,7 +654,6 @@ const azureLogin = async (req, res) => {
       });
 
       user = await User.create(userData);
-      console.log(`✅ New user created: ${user.userId} (ERP: ${!!erpData})`);
       
     } else {
       // Step 6b: Update existing user
@@ -691,7 +665,6 @@ const azureLogin = async (req, res) => {
     }
 
     // Step 7: Generate JWT and return response
-    console.log('🎫 Generating token...');
     const token = generateToken(user.id);
 
     const response = {
@@ -712,9 +685,6 @@ const azureLogin = async (req, res) => {
       hasERPData: !!erpData,
       token
     };
-
-    console.log('✅ Azure login successful');
-    console.log('=== 🔐 AZURE LOGIN COMPLETED ===\n');
 
     res.json(response);
 

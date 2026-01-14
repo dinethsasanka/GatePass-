@@ -41,7 +41,6 @@ export const SocketProvider = ({ children }) => {
 
     // Connection event handlers
     newSocket.on("connect", () => {
-      console.log("✅ Socket.IO connected:", newSocket.id);
       setIsConnected(true);
 
       // Rejoin rooms on reconnection
@@ -64,7 +63,6 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on("disconnect", () => {
-      console.log("❌ Socket.IO disconnected");
       setIsConnected(false);
     });
 
@@ -74,7 +72,7 @@ export const SocketProvider = ({ children }) => {
     });
 
     newSocket.on("reconnect", (attemptNumber) => {
-      console.log(`🔄 Socket.IO reconnected after ${attemptNumber} attempts`);
+      // Successfully reconnected
     });
 
     // Cleanup on unmount
