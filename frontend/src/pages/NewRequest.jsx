@@ -113,7 +113,7 @@ const NewRequest = () => {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
-          }
+          },
         );
 
         if (response.ok) {
@@ -233,11 +233,11 @@ const NewRequest = () => {
           const match = locations.find(
             (l) =>
               l.fingerscanLocation?.trim().toLowerCase() ===
-              erpFingerLocation.toLowerCase()
+              erpFingerLocation.toLowerCase(),
           );
 
           if (match) {
-            setOutLocation(match.locationId);
+            setOutLocation(match.fingerscanLocation);
           }
         }
       })
@@ -253,11 +253,11 @@ const NewRequest = () => {
     const match = inLocations.find(
       (l) =>
         l.fingerscanLocation?.trim().toLowerCase() ===
-        receiverFingerLocation.toLowerCase()
+        receiverFingerLocation.toLowerCase(),
     );
 
     if (match) {
-      setInLocation(match.locationId);
+      setInLocation(match.fingerscanLocation);
     }
   }, [receiverFingerLocation, inLocations]);
 
@@ -310,7 +310,7 @@ const NewRequest = () => {
     };
     if (currentItem.id) {
       setItems(
-        items.map((item) => (item.id === currentItem.id ? itemToSave : item))
+        items.map((item) => (item.id === currentItem.id ? itemToSave : item)),
       );
     } else {
       setItems([...items, { ...itemToSave, id: Date.now().toString() }]);
@@ -445,7 +445,7 @@ const NewRequest = () => {
   const sendExecutiveNotificationEmail = async (
     executiveData,
     requestData,
-    referenceNumber
+    referenceNumber,
   ) => {
     try {
       if (!executiveData?.email) {
@@ -505,7 +505,7 @@ const NewRequest = () => {
                   item.returnable === "Yes" ? "Returnable" : "Non-Returnable"
                 }</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </table>
@@ -539,7 +539,7 @@ const NewRequest = () => {
       console.error("Failed to send notification email:", error);
       showToast(
         "Failed to send notification email to executive officer",
-        "warning"
+        "warning",
       );
     }
   };
@@ -562,7 +562,7 @@ const NewRequest = () => {
       if (!outLocation.trim()) {
         showToast(
           "Please select the dispatching branch (Out Location)",
-          "warning"
+          "warning",
         );
         return;
       }
@@ -573,7 +573,7 @@ const NewRequest = () => {
         if (!inLocation.trim()) {
           showToast(
             "Please select the receiving branch (In Location)",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -613,7 +613,7 @@ const NewRequest = () => {
         ) {
           showToast(
             "Please fill in all required transporter details",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -768,20 +768,20 @@ const NewRequest = () => {
 
       showToast(
         `Request created successfully! Reference: ${response.referenceNumber}`,
-        "success"
+        "success",
       );
 
       // Send notification email to executive officer
       try {
         const selectedOfficer = executiveOfficers.find(
-          (officer) => officer.serviceNo === executiveOfficer
+          (officer) => officer.serviceNo === executiveOfficer,
         );
 
         if (selectedOfficer) {
           await sendExecutiveNotificationEmail(
             selectedOfficer,
             { outLocation, inLocation, items },
-            response.referenceNumber
+            response.referenceNumber,
           );
         } else {
           console.error("Selected executive officer not found in the list");
@@ -795,7 +795,7 @@ const NewRequest = () => {
       console.error("Submission error:", error);
       showToast(
         `Failed to create request: ${error.message || "Unknown error"}`,
-        "error"
+        "error",
       );
     }
   };
@@ -893,13 +893,13 @@ const NewRequest = () => {
         "qty",
       ];
       const hasRequiredHeaders = requiredHeaders.every((header) =>
-        headers.includes(header)
+        headers.includes(header),
       );
 
       if (!hasRequiredHeaders) {
         showToast(
           "CSV file must include itemName, serialNo, category, returnable, and qty columns",
-          "error"
+          "error",
         );
         return;
       }
@@ -1293,10 +1293,13 @@ const NewRequest = () => {
                   {outLocations
                     .slice()
                     .sort((a, b) =>
-                      a.fingerscanLocation.localeCompare(b.fingerscanLocation)
+                      a.fingerscanLocation.localeCompare(b.fingerscanLocation),
                     )
                     .map((location) => (
-                      <option key={location._id} value={location.locationId}>
+                      <option
+                        key={location.locationId}
+                        value={location.fingerscanLocation}
+                      >
                         {location.fingerscanLocation}
                       </option>
                     ))}
@@ -1322,11 +1325,16 @@ const NewRequest = () => {
                     {inLocations
                       .slice()
                       .sort((a, b) =>
-                        a.fingerscanLocation.localeCompare(b.fingerscanLocation)
+                        a.fingerscanLocation.localeCompare(
+                          b.fingerscanLocation,
+                        ),
                       )
 
                       .map((location) => (
-                        <option key={location._id} value={location.locationId}>
+                        <option
+                          key={location.locationId}
+                          value={location.fingerscanLocation}
+                        >
                           {location.fingerscanLocation}
                         </option>
                       ))}
@@ -1625,7 +1633,7 @@ const NewRequest = () => {
                                 setCurrentItem({
                                   ...currentItem,
                                   images: currentItem.images.filter(
-                                    (_, i) => i !== idx
+                                    (_, i) => i !== idx,
                                   ),
                                 });
                               }}
