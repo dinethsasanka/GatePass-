@@ -42,7 +42,7 @@ async function findUserByServiceNo(serviceNo) {
 }
 
 // Import user helpers at the top
-const { findRequesterWithERPData } = require('../utils/userHelpers');
+const { findRequesterWithERPData } = require("../utils/userHelpers");
 
 // Try to resolve the Requester user record from the Request document
 // NOW WITH ERP DATA!
@@ -50,7 +50,6 @@ async function findRequesterFromRequest(reqDoc) {
   // Use the new helper that automatically enriches with ERP data
   return await findRequesterWithERPData(reqDoc, true);
 }
-
 
 async function findPetrolLeaderForInLocation(inLocation) {
   if (!inLocation) return null;
@@ -158,21 +157,26 @@ const createStatus = async (req, res) => {
   }
 };*/
 
-
-
-
 const getPending = async (req, res) => {
   try {
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
     const myServiceNo = isSuper
       ? null
       : req.user?.serviceNo || req.query.serviceNo || null;
+    const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
+    const esc = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const branchRegex = branches
+      .filter(Boolean)
+      .map((b) => new RegExp(`^${esc(String(b).trim())}$`, "i"));
 
     const rows = await Status.find({
-      verifyOfficerStatus: 2,             // verified approved
-      recieveOfficerStatus: { $ne: 1 },   // not received yet
+      verifyOfficerStatus: 2, // verified approved
+      recieveOfficerStatus: { $ne: 1 }, // not received yet
     })
-      .populate("request")
+      .populate({
+        path: "request",
+        match: isSuper ? {} : { inLocation: { $in: branchRegex } },
+      })
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -206,6 +210,11 @@ const getApproved = async (req, res) => {
     const myServiceNo = isSuper
       ? null
       : req.user?.serviceNo || req.query.serviceNo || null;
+    const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
+    const esc = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const branchRegex = branches
+      .filter(Boolean)
+      .map((b) => new RegExp(`^${esc(String(b).trim())}$`, "i"));
 
     // Get all reference numbers that have been rejected at any level
     const rejectedRefs = await Status.find({
@@ -216,7 +225,10 @@ const getApproved = async (req, res) => {
       recieveOfficerStatus: 2, // Receiver approved
       referenceNumber: { $nin: rejectedRefs }, // Exclude rejected references
     })
-      .populate("request")
+      .populate({
+        path: "request",
+        match: isSuper ? {} : { inLocation: { $in: branchRegex } },
+      })
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -253,9 +265,17 @@ const getRejected = async (req, res) => {
     const myServiceNo = isSuper
       ? null
       : req.user?.serviceNo || req.query.serviceNo || null;
+    const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
+    const esc = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const branchRegex = branches
+      .filter(Boolean)
+      .map((b) => new RegExp(`^${esc(String(b).trim())}$`, "i"));
 
     const rows = await Status.find({ recieveOfficerStatus: 3 })
-      .populate("request")
+      .populate({
+        path: "request",
+        match: isSuper ? {} : { inLocation: { $in: branchRegex } },
+      })
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -310,7 +330,7 @@ const updateApproved = async (req, res) => {
           ? String(userServiceNumber)
           : undefined,
       },
-      { new: true }
+      { new: true },
     ).populate("request");
 
     if (!statusDoc)
@@ -391,7 +411,7 @@ const updateRejected = async (req, res) => {
       "req.user:",
       req.user?.serviceNo,
       "branches:",
-      req.user?.branches
+      req.user?.branches,
     );
 
     if (!comment || !comment.trim()) {
@@ -420,7 +440,7 @@ const updateRejected = async (req, res) => {
         rejectionLevel: 4, // Receiver level (highest in hierarchy)
         rejectedByBranch: rejectedByBranch, // Set branch immediately
       },
-      { new: true }
+      { new: true },
     ).populate("request");
 
     if (!statusDoc)
@@ -436,7 +456,7 @@ const updateRejected = async (req, res) => {
           "Receiver User Found (fallback):",
           receiverUser?.serviceNo,
           "Branches:",
-          receiverUser?.branches
+          receiverUser?.branches,
         );
         if (
           receiverUser &&
@@ -447,7 +467,7 @@ const updateRejected = async (req, res) => {
           await statusDoc.save();
           console.log(
             "Set rejectedByBranch (fallback):",
-            receiverUser.branches[0]
+            receiverUser.branches[0],
           );
         } else {
           console.log("No branches found for receiver");
@@ -465,7 +485,7 @@ const updateRejected = async (req, res) => {
     }
     console.log(
       "Receiver rejection saved with rejectedByBranch:",
-      statusDoc.rejectedByBranch
+      statusDoc.rejectedByBranch,
     );
 
     // Notify ALL lower levels in hierarchy about the rejection
@@ -581,7 +601,7 @@ const updateReturnableItem = async (req, res) => {
 
     // Find the status document and populate the request
     const statusDoc = await Status.findOne({ referenceNumber }).populate(
-      "request"
+      "request",
     );
 
     if (!statusDoc) {
@@ -612,20 +632,20 @@ const updateReturnableItem = async (req, res) => {
         serialNo: item.serialNo,
         itemName: item.itemName,
         itemModel: item.itemModel,
-      }))
+      })),
     );
     console.log("Looking for serial number:", originalSerialNo);
 
     // Find the item index by original serial number
     const itemIndex = statusDoc.request.returnableItems.findIndex(
-      (item) => item.serialNo === originalSerialNo
+      (item) => item.serialNo === originalSerialNo,
     );
 
     if (itemIndex === -1) {
       return res.status(404).json({
         message: "Returnable item not found with the provided serial number",
         availableSerialNumbers: statusDoc.request.returnableItems.map(
-          (item) => item.serialNo
+          (item) => item.serialNo,
         ),
         searchedSerialNumber: originalSerialNo,
       });
@@ -646,7 +666,7 @@ const updateReturnableItem = async (req, res) => {
     const updatedRequest = await Request.findByIdAndUpdate(
       statusDoc.request._id,
       { $set: updateQuery },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedRequest) {
@@ -745,7 +765,7 @@ const markItemsAsReturned = async (req, res) => {
     // Update or add to returnableItems
     serialNumbers.forEach((serialNo) => {
       const existingIndex = request.returnableItems.findIndex(
-        (ri) => ri.serialNo === serialNo
+        (ri) => ri.serialNo === serialNo,
       );
 
       const itemData = request.items.find((item) => item.serialNo === serialNo);
@@ -791,7 +811,6 @@ const markItemsAsReturned = async (req, res) => {
   }
 };
 
-
 const addReturnableItemToRequest = async (req, res) => {
   try {
     const { referenceNumber } = req.params;
@@ -832,7 +851,6 @@ const addReturnableItemToRequest = async (req, res) => {
       message: "Returnable item added successfully",
       request,
     });
-
   } catch (error) {
     console.error("Error adding returnable item:", error);
     res.status(500).json({
