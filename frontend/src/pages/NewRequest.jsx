@@ -1169,13 +1169,19 @@ const NewRequest = () => {
                 {destinationType === "slt" ? (
                   <>
                     <div className="flex gap-4">
-                      <input
-                        type="text"
-                        value={receiverServiceNo}
-                        onChange={(e) => setReceiverServiceNo(e.target.value)}
-                        placeholder="Enter receiver's service number"
-                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                      />
+                                           <input
+  type="text"
+  value={receiverServiceNo}
+  onChange={(e) => setReceiverServiceNo(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSearchReceiver(); // SAME as Search button
+    }
+  }}
+  placeholder="Enter receiver's service number"
+  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+/>
                       <button
                         onClick={handleSearchReceiver}
                         disabled={!receiverServiceNo.trim()}
@@ -1885,15 +1891,19 @@ const NewRequest = () => {
                   {transporterType === "SLT" && (
                     <div className="space-y-4 mt-4">
                       <div className="flex gap-4">
-                        <input
-                          type="text"
-                          value={transporterServiceNo}
-                          onChange={(e) =>
-                            setTransporterServiceNo(e.target.value)
-                          }
-                          placeholder="Enter carrier's service number"
-                          className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        />
+                                               <input
+  type="text"
+  value={transporterServiceNo}
+  onChange={(e) => setTransporterServiceNo(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSearchTransporter();
+    }
+  }}
+  placeholder="Enter transporter's service number"
+  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg"
+/>
                         <button
                           onClick={handleSearchTransporter}
                           disabled={!transporterServiceNo.trim()}
