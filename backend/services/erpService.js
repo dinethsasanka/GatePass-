@@ -170,8 +170,8 @@ const getEmployeeDetails = async (
 
 /**
  * Helper function to compare grade levels
- * Assumes grades are in format: "A.1", "A.2", "A.3", "A.4", etc.
- * Lower number = higher grade (e.g., A.1 > A.2)
+ * Handles both A grades and S grades based on organizational hierarchy
+ * Note: S grades can have A grade supervisors - hierarchy is determined by ERP, not grade type
  * @param {string} grade1 - First grade to compare
  * @param {string} grade2 - Second grade to compare
  * @returns {number} Negative if grade1 > grade2, positive if grade1 < grade2, 0 if equal
@@ -179,16 +179,53 @@ const getEmployeeDetails = async (
 const compareGrades = (grade1, grade2) => {
   if (!grade1 || !grade2) return 0;
 
-  // Extract numeric part after the dot (e.g., "A.1" -> 1)
-  const extractGradeLevel = (grade) => {
-    const match = grade.match(/[A-Z]\.(\d+)/);
-    return match ? parseInt(match[1], 10) : 999; // Default to low priority if parsing fails
+  // Normalize grades (uppercase, trim)
+  const g1 = String(grade1).trim().toUpperCase();
+  const g2 = String(grade2).trim().toUpperCase();
+
+  // Define specific S grade hierarchy
+  const sGradeOrder = {
+    'S.1.1': 1,  // Super Admin - typically highest
+    'S.1': 2,    // Executive
+    'S.2': 5,    // Security Officer - can report to mid-level A grades
+    'S.3': 6,    // Pleader - can report to mid-level A grades
   };
 
-  const level1 = extractGradeLevel(grade1);
-  const level2 = extractGradeLevel(grade2);
+  // Both are S grades with defined hierarchy
+  if (sGradeOrder[g1] !== undefined && sGradeOrder[g2] !== undefined) {
+    return sGradeOrder[g1] - sGradeOrder[g2];
+  }
 
-  return level1 - level2; // Lower number = higher grade
+  // S grade vs A grade: Compare based on actual levels
+  // S.1.1 and S.1 are typically higher than most A grades
+  // S.2 and S.3 can have A grade supervisors
+  if (sGradeOrder[g1] !== undefined && g2.startsWith('A.')) {
+    const g2Number = parseInt(g2.match(/A\.(\d+)/)?.[1] || '999', 10);
+    const s1Level = sGradeOrder[g1];
+    
+    // S.1.1 (1) and S.1 (2) are higher than A.3+
+    // S.2 (5) and S.3 (6) are at mid-level (similar to A.5-A.6)
+    return s1Level - (g2Number + 2); // Adjust for comparison
+  }
+
+  if (sGradeOrder[g2] !== undefined && g1.startsWith('A.')) {
+    const g1Number = parseInt(g1.match(/A\.(\d+)/)?.[1] || '999', 10);
+    const s2Level = sGradeOrder[g2];
+    
+    return (g1Number + 2) - s2Level; // Adjust for comparison
+  }
+
+  // Both are A grades - extract numeric part
+  // Lower number = higher grade (e.g., A.1 > A.2)
+  const extractGradeLevel = (grade) => {
+    const match = grade.match(/A\.(\d+)/);
+    return match ? parseInt(match[1], 10) : 999;
+  };
+
+  const level1 = extractGradeLevel(g1);
+  const level2 = extractGradeLevel(g2);
+
+  return level1 - level2;
 };
 
 /**
@@ -316,6 +353,13 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
       if (b.isImmediateSupervisor) return 1;
       return compareGrades(a.grade, b.grade);
     });
+
+    // Special handling for S.1.1 (top-level executives with no supervisors)
+    if (loggedInEmployeeGrade === 'S.1.1' && uniqueExecutives.length === 0) {
+      console.log(`ℹ️ Grade S.1.1 detected: No higher supervisors available (top of organizational hierarchy)`);
+    } else if (uniqueExecutives.length === 0) {
+      console.log(`⚠️ No executives found with higher grade than ${loggedInEmployeeGrade}`);
+    }
 
     return {
       executives: uniqueExecutives,
