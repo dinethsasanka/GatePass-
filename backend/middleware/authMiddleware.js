@@ -20,21 +20,22 @@ const protect = async (req, res, next) => {
     
     // Check if this is an Azure user (API-only)
     if (decoded.isAzureUser) {
-      console.log(`🔐 Azure user authentication: ${decoded.serviceNo}`);
-      
       try {
         // Fetch user data from ERP API (with cache)
         const azureUserData = await getAzureUserData(decoded.serviceNo, true);
         
-        // Add Azure ID from token
-        azureUserData.azureId = decoded.azureId;
-        azureUserData.email = decoded.email || azureUserData.email;
-        
-        req.user = azureUserData;
-        console.log(`✅ Azure user loaded: ${azureUserData.name} (${azureUserData.role})`);
+        // Build complete user object
+        req.user = {
+          _id: decoded.id,              // Azure ID from token
+          serviceNo: decoded.serviceNo,
+          email: decoded.email,
+          role: decoded.role,
+          ...azureUserData,             // ERP data from cache
+          isAzureUser: true
+        };
         
       } catch (error) {
-        console.error(`❌ Failed to fetch Azure user data:`, error.message);
+        console.error(`Failed to fetch Azure user data:`, error.message);
         return res.status(401).json({ 
           message: 'Azure user data unavailable', 
           error: error.message 
@@ -42,8 +43,6 @@ const protect = async (req, res, next) => {
       }
     } else {
       // Regular user - MongoDB lookup
-      console.log(`🔐 Regular user authentication: ${decoded.id}`);
-      
       const user = await User.findById(decoded.id).select('-password').lean();
       
       if (!user) {
@@ -52,7 +51,6 @@ const protect = async (req, res, next) => {
       
       // Enrich with ERP data
       req.user = await enrichSingleUser(user, true);
-      console.log(`✅ Regular user loaded: ${req.user.name || req.user.serviceNo}`);
     }
     
     next();

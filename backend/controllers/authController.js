@@ -603,14 +603,13 @@ const updateExistingUser = async (user, { erpData, userInfo, azureEmail }) => {
 // ============================================================================
 
 /**
- * Azure AD Login with ERP Enrichment
+ * Azure AD Login - Database-Free Implementation
  * Flow:
  * 1. Validate access token
  * 2. Get user info from Microsoft Graph
  * 3. Extract service number
- * 4. Fetch employee data from ERP (if service number available)
- * 5. Find or create user in MongoDB
- * 6. Return JWT token + user data
+ * 4. Fetch employee data from ERP (cached)
+ * 5. Return JWT token + user data (NO MongoDB operations)
  */
 const azureLogin = async (req, res) => {
   try {
@@ -628,69 +627,53 @@ const azureLogin = async (req, res) => {
     const azureEmail = extractAzureEmail(userInfo);
     const serviceNo = extractServiceNumber(userInfo);
 
-    // Step 4: Fetch ERP data (if service number available)
-    const erpData = await fetchERPData(serviceNo);
-
-    // Step 5: Find existing user
-    const existingUser = await findExistingUser({
-      azureEmail,
-      azureId: userInfo.id,
-      userPrincipalName: userInfo.userPrincipalName
-    });
-
-    let user;
-
-    if (!existingUser) {
-      // Step 6a: Create new user
-      const tempPassword = Math.random().toString(36).slice(-8);
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(tempPassword, salt);
-
-      const userData = buildUserData({ 
-        userInfo, 
-        azureEmail, 
-        erpData, 
-        hashedPassword 
-      });
-
-      user = await User.create(userData);
-      
-    } else {
-      // Step 6b: Update existing user
-      user = await updateExistingUser(existingUser, { 
-        erpData, 
-        userInfo, 
-        azureEmail 
+    // Step 4: Fetch ERP data (REQUIRED for Azure users)
+    if (!serviceNo) {
+      return res.status(400).json({ 
+        message: "Service number not found in Azure profile" 
       });
     }
 
-    // Step 7: Generate JWT and return response
-    const token = generateToken(user.id);
+    const erpData = await fetchERPData(serviceNo);
+    
+    if (!erpData) {
+      return res.status(404).json({ 
+        message: "Employee not found in ERP system",
+        serviceNo 
+      });
+    }
 
-    const response = {
-      _id: user.id,
-      userType: user.userType,
-      userId: user.userId,
-      serviceNo: user.serviceNo,
-      name: user.name,
-      designation: user.designation,
-      section: user.section,
-      group: user.group,
-      contactNo: user.contactNo,
-      role: user.role,
-      branches: user.branches,
-      email: user.email,
-      gradeName: user.gradeName,
+    // Step 5: Build user data from ERP (No MongoDB involved!)
+    const userData = {
+      _id: userInfo.id,                           // Use Azure ID (not MongoDB ID)
+      userType: "SLT",
+      userId: userInfo.userPrincipalName,
+      email: azureEmail,
+      serviceNo: erpData.serviceNo,
+      name: erpData.name,
+      designation: erpData.designation,
+      section: erpData.section || "N/A",
+      group: erpData.group || "N/A",
+      contactNo: erpData.contactNo || "N/A",
+      gradeName: erpData.gradeName || "N/A",
+      fingerScanLocation: erpData.fingerScanLocation,
+      branches: erpData.branches || ["SLT HQ"],
+      role: erpData.role || "User",
       isAzureUser: true,
-      hasERPData: !!erpData,
-      token
+      hasERPData: true
     };
 
-    res.json(response);
+    // Step 6: Generate JWT using Azure ID (not MongoDB ID)
+    const token = generateAzureToken(userInfo.id, userData);
+
+    // Step 7: Return response
+    res.json({
+      ...userData,
+      token
+    });
 
   } catch (error) {
-    console.error('❌ Azure login error:', error.message);
-    console.error('Stack:', error.stack);
+    console.error('Azure login error:', error.message);
     res.status(500).json({ 
       message: "Azure authentication failed", 
       error: error.message 
@@ -740,6 +723,24 @@ const getUserInfoFromGraph = async (accessToken) => {
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
+};
+
+/**
+ * Generate JWT token for Azure users (database-free)
+ * Uses Azure ID instead of MongoDB ID
+ */
+const generateAzureToken = (azureId, userData) => {
+  return jwt.sign(
+    {
+      id: azureId,                    // Azure AD user ID
+      isAzureUser: true,              // Flag to identify Azure tokens
+      serviceNo: userData.serviceNo,  // For cache lookups
+      role: userData.role,            // User role
+      email: userData.email           // User email
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "30d" }
+  );
 };
 
 module.exports = { registerUser, loginUser, azureLogin, getAzureLoginUrl };
