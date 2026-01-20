@@ -29,7 +29,7 @@ function getRoleByGrade(grade) {
   // S.1.1 → Super Admin
   if (normalizedGrade === 'S.1.1') {
     console.log('✅ Role assigned: SuperAdmin (Grade S.1.1)');
-    return 'Approver';
+    return 'SuperAdmin';
   }
 
   // S.3 → Pleader (Patrol Leader)

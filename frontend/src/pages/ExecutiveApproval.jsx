@@ -2422,7 +2422,7 @@ const RequestDetailsModal = ({
 
         {/* Fixed bottom section for comments and buttons */}
         <div className="flex-shrink-0">
-          {activeTab === "pending" && !isSuperAdmin && (
+          {activeTab === "pending" && (
             <div className="border-t border-gray-200 bg-white">
               <div className="mb-3 mt-3 mr-6 ml-6">
                 {/* <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
@@ -2435,7 +2435,7 @@ const RequestDetailsModal = ({
                   </label>
                   <textarea
                     value={comment}
-                    disabled={isSuperAdmin}
+                    
                     onChange={(e) => setComment(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows="1"
