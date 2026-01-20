@@ -3,6 +3,7 @@
  * Assigns roles based on SLT salary grade
  * 
  * Role Mapping:
+ * - Super Admin: S.1.1
  * - Patrol leader (Pleader): S.3
  * - Security Officer: S.2
  * - Executive (Approver): A.1 to A.6, S.1
@@ -11,8 +12,8 @@
 
 /**
  * Get application role based on employee salary grade
- * @param {string} grade - Employee salary grade from ERP (e.g., "A.3", "S.2")
- * @returns {string} - Application role: "Pleader", "Security Officer", "Approver", or "User"
+ * @param {string} grade - Employee salary grade from ERP (e.g., "A.3", "S.2", "S.1.1")
+ * @returns {string} - Application role: "SuperAdmin", "Pleader", "Security Officer", "Approver", or "User"
  */
 function getRoleByGrade(grade) {
   if (!grade) {
@@ -24,6 +25,12 @@ function getRoleByGrade(grade) {
   const normalizedGrade = String(grade).trim().toUpperCase();
   
   console.log(`🔍 Determining role for grade: ${normalizedGrade}`);
+
+  // S.1.1 → Super Admin
+  if (normalizedGrade === 'S.1.1') {
+    console.log('✅ Role assigned: SuperAdmin (Grade S.1.1)');
+    return 'Approver';
+  }
 
   // S.3 → Pleader (Patrol Leader)
   if (normalizedGrade === 'S.3') {
@@ -37,7 +44,7 @@ function getRoleByGrade(grade) {
     return 'Security Officer';
   }
 
-  // A.1 - A.6 and S.1 → Approver (Executive)
+  // S.1 → Approver (Executive)
   if (normalizedGrade === 'S.1') {
     console.log('✅ Role assigned: Approver (Grade S.1)');
     return 'Approver';
