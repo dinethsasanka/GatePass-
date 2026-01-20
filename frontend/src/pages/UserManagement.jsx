@@ -592,28 +592,36 @@ const UserManagement = () => {
               {modalMode === "assignRole" ? (
                 <form onSubmit={handleAssignRoleSave}>
                   {/* ===== ASSIGN ROLE FORM ===== */}
-                  <div className="flex gap-2 mb-4">
-                    <input
-                      type="text"
-                      className="flex-1 px-4 py-2 border rounded-lg"
-                      placeholder="Enter service number"
-                      value={assignForm.serviceNo}
-                      onChange={(e) =>
-                        setAssignForm((p) => ({
-                          ...p,
-                          serviceNo: e.target.value,
-                        }))
-                      }
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSearchByServiceNo}
-                      disabled={isSearching}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
-                    >
-                      {isSearching ? "Searching..." : "Search"}
-                    </button>
-                  </div>
+                 <div className="flex gap-2 mb-4">
+  <input
+    type="text"
+    className="flex-1 px-4 py-2 border rounded-lg"
+    placeholder="Enter service number"
+    value={assignForm.serviceNo}
+    onChange={(e) =>
+      setAssignForm((p) => ({
+        ...p,
+        serviceNo: e.target.value,
+      }))
+    }
+    onKeyDown={(e) => {
+      if (e.key === "Enter") {
+        e.preventDefault(); // stop form submit
+        handleSearchByServiceNo(); // trigger search
+      }
+    }}
+  />
+
+  <button
+    type="button"
+    onClick={handleSearchByServiceNo}
+    disabled={isSearching}
+    className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
+  >
+    {isSearching ? "Searching..." : "Search"}
+  </button>
+</div>
+
 
                   {assignForm.user && (
                     <div className="bg-white rounded-2xl shadow-inner border p-4 mb-6">

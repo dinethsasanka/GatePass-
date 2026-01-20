@@ -7,6 +7,8 @@ const Request = require("../models/Request");
 const User = require("../models/User");
 const { DISPATCH_ROLES } = require("../utils/roleGroup");
 const { sendEmail } = require("../utils/sendMail"); // uses EMAIL_USER / EMAIL_PASS from .env
+const PLeader = require("../models/PLeader");
+const SecurityOfficer = require("../models/SecurityOfficer");
 const {
   emitRequestApproval,
   emitRequestRejection,
@@ -75,7 +77,7 @@ async function findReceiverForInLocation(inLocation) {
 }
 
 // Import user helpers at the top
-const { findRequesterWithERPData } = require('../utils/userHelpers');
+const { findRequesterWithERPData } = require("../utils/userHelpers");
 
 // Try to resolve the Requester user record from the Request document
 // NOW WITH ERP DATA!
@@ -83,7 +85,6 @@ async function findRequesterFromRequest(reqDoc) {
   // Use the new helper that automatically enriches with ERP data
   return await findRequesterWithERPData(reqDoc, true);
 }
-
 
 async function findExecutiveFromRequest(reqDoc) {
   if (!reqDoc) return null;
@@ -111,44 +112,125 @@ function readSelectedReceiverServiceNo(reqDoc) {
  * Verifier Pending = verifyOfficerStatus: 1
  * Optional filter: ?outLocation=BRANCH
  */
+// exports.getPending = async (req, res) => {
+//   try {
+//     if (!isSuperAdmin(req.user?.role) && !isVerifyRole(req.user?.role)) {
+//       return res.status(403).json({ message: "Access denied" });
+//     }
+//     const isSuper = normalizeRole(req.user?.role) === "superadmin";
+//     const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
+//     const branchRegex = toRegexList(branches);
+
+//     const rows = await Status.find({ verifyOfficerStatus: { $in: [1, "1"] } })
+//       .populate({
+//         path: "request",
+//         match: isSuper ? {} : { outLocation: { $in: branchRegex } },
+//       })
+//       .sort({ updatedAt: -1 })
+//       .lean();
+
+//     const filtered = rows.filter((s) => s.request && s.request.show !== false);
+//     return res.json(
+//       filtered.sort(
+//         (a, b) =>
+//           new Date(b.updatedAt || b.createdAt) -
+//           new Date(a.updatedAt || a.createdAt)
+//       )
+//     );
+
+//     // Remove duplicates by keeping only the latest Status per referenceNumber
+//     const uniqueFiltered = [];
+//     const seenReferences = new Set();
+
+//     for (const status of filtered) {
+//       if (!seenReferences.has(status.referenceNumber)) {
+//         seenReferences.add(status.referenceNumber);
+//         uniqueFiltered.push(status);
+//       }
+//     }
+
+//     return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
+//   } catch (err) {
+//     console.error("Verify getPending error:", err);
+//     return res.status(500).json({ message: "Internal server error" });
+//   }
+// };
+
+// normalize helper (same rule used in models)
+const normBranch = (s) =>
+  String(s || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+
 exports.getPending = async (req, res) => {
   try {
     if (!isSuperAdmin(req.user?.role) && !isVerifyRole(req.user?.role)) {
       return res.status(403).json({ message: "Access denied" });
     }
+
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
-    const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
-    const branchRegex = toRegexList(branches);
+
+    let allowedBranchesNorm = null;
+
+    if (!isSuper) {
+      const empNo = String(req.user?.serviceNo || "").trim();
+      if (!empNo) {
+        return res.status(400).json({ message: "Missing serviceNo" });
+      }
+
+      // ✅ fetch BOTH assignment lists (so PL sees it, SO sees it)
+      const [pl, so] = await Promise.all([
+        PLeader.findOne({ employeeNumber: empNo })
+          .select({ branchesNorm: 1 })
+          .lean(),
+        SecurityOfficer.findOne({ employeeNumber: empNo })
+          .select({ branchesNorm: 1 })
+          .lean(),
+      ]);
+
+      const combined = [
+        ...(pl?.branchesNorm || []),
+        ...(so?.branchesNorm || []),
+      ];
+
+      // de-dupe
+      allowedBranchesNorm = Array.from(new Set(combined));
+
+      if (!allowedBranchesNorm.length) return res.json([]);
+    }
 
     const rows = await Status.find({ verifyOfficerStatus: { $in: [1, "1"] } })
-      .populate({
-        path: "request",
-        match: isSuper ? {} : { outLocation: { $in: branchRegex } },
-      })
+      .populate({ path: "request" })
       .sort({ updatedAt: -1 })
       .lean();
 
-    const filtered = rows.filter((s) => s.request && s.request.show !== false);
-    return res.json(
-      filtered.sort(
-        (a, b) =>
-          new Date(b.updatedAt || b.createdAt) -
-          new Date(a.updatedAt || a.createdAt)
-      )
-    );
+    const filtered = rows.filter((s) => {
+      const reqDoc = s.request;
+      if (!reqDoc) return false;
+      if (reqDoc.show === false) return false;
+      if (isSuper) return true;
 
-    // Remove duplicates by keeping only the latest Status per referenceNumber
-    const uniqueFiltered = [];
-    const seenReferences = new Set();
+      const outNorm = normBranch(reqDoc.outLocation);
+      return allowedBranchesNorm.includes(outNorm);
+    });
 
-    for (const status of filtered) {
-      if (!seenReferences.has(status.referenceNumber)) {
-        seenReferences.add(status.referenceNumber);
-        uniqueFiltered.push(status);
+    // Remove duplicates by referenceNumber keeping newest
+    const unique = [];
+    const seen = new Set();
+    for (const st of filtered) {
+      const ref = st.referenceNumber || st?.request?.referenceNumber;
+      if (!ref) {
+        unique.push(st);
+        continue;
+      }
+      if (!seen.has(ref)) {
+        seen.add(ref);
+        unique.push(st);
       }
     }
 
-    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
+    return res.json(sortNewest(unique, ["updatedAt", "createdAt"]));
   } catch (err) {
     console.error("Verify getPending error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -183,7 +265,7 @@ exports.getApproved = async (req, res) => {
       (s) =>
         s.request &&
         s.request.show !== false &&
-        (!outLocation || s.request.outLocation === outLocation)
+        (!outLocation || s.request.outLocation === outLocation),
     );
 
     // Remove duplicates by keeping only the latest Status per referenceNumber
@@ -235,8 +317,8 @@ exports.getRejected = async (req, res) => {
       filtered.sort(
         (a, b) =>
           new Date(b.updatedAt || b.createdAt) -
-          new Date(a.updatedAt || a.createdAt)
-      )
+          new Date(a.updatedAt || a.createdAt),
+      ),
     );
 
     // Remove duplicates by keeping only the latest Status per referenceNumber
@@ -311,7 +393,7 @@ exports.updateApproved = async (req, res) => {
       // Email Petrol Leader (Dispatch) at out-location for approval
       try {
         const pleader = await findPetrolLeaderForInLocation(
-          status.request.outLocation
+          status.request.outLocation,
         );
         if (pleader && pleader.email) {
           const subject = `Non-SLT Gate Pass ready for dispatch: ${referenceNumber}`;
@@ -407,7 +489,7 @@ exports.updateRejected = async (req, res) => {
       "req.user:",
       req.user?.serviceNo,
       "branches:",
-      req.user?.branches
+      req.user?.branches,
     );
     console.log("req.user full:", JSON.stringify(req.user, null, 2));
 
@@ -451,7 +533,7 @@ exports.updateRejected = async (req, res) => {
           "Verifier User Found (fallback):",
           verifierUser?.serviceNo,
           "Branches:",
-          verifierUser?.branches
+          verifierUser?.branches,
         );
         if (
           verifierUser &&
@@ -461,7 +543,7 @@ exports.updateRejected = async (req, res) => {
           status.rejectedByBranch = verifierUser.branches[0];
           console.log(
             "Set rejectedByBranch (fallback):",
-            verifierUser.branches[0]
+            verifierUser.branches[0],
           );
         } else {
           console.log("No branches found for verifier");
@@ -584,7 +666,7 @@ exports.markItemsAsReturned = async (req, res) => {
     // Update or add to returnableItems
     serialNumbers.forEach((serialNo) => {
       const existingIndex = request.returnableItems.findIndex(
-        (ri) => ri.serialNo === serialNo
+        (ri) => ri.serialNo === serialNo,
       );
 
       const itemData = request.items.find((item) => item.serialNo === serialNo);

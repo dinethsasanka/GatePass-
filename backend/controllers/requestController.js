@@ -2,11 +2,29 @@ const Request = require("../models/Request");
 const Status = require("../models/Status");
 const { uploadImage, getImage } = require("../utils/imageUpload");
 const { emitNewRequest } = require("../utils/socketEmitter");
+const ErpLocation = require("../models/ErpLocation");
+const { resolveLocationName } = require("../utils/locationResolver");
+
+async function toLocationName(raw) {
+  if (!raw) return raw;
+
+  const v = String(raw).trim();
+
+  // If frontend already sends location NAME, keep it
+  if (!/^L\d+$/i.test(v)) return v;
+
+  // If frontend sends locationId like "L001", convert to fingerscanLocation
+  const map = await ErpLocation.findOne({
+    locationId: new RegExp(`^${v}$`, "i"),
+  }).lean();
+
+  return map?.fingerscanLocation || v; // fallback: keep "L001" if not found
+}
 
 const createRequest = async (req, res) => {
   try {
-    console.log('📥 Received request body:', req.body);
-    console.log('📁 Received files:', req.files?.length || 0);
+    console.log("📥 Received request body:", req.body);
+    console.log("📁 Received files:", req.files?.length || 0);
 
     const {
       items,
@@ -33,22 +51,26 @@ const createRequest = async (req, res) => {
     } = req.body;
 
     const referenceNumber = `REQ-${Date.now()}-${Math.floor(
-      Math.random() * 1000
+      Math.random() * 1000,
     )}`;
-    
+
     const parsedItems = JSON.parse(items);
-    console.log('📦 Parsed items:', parsedItems.length);
+    console.log("📦 Parsed items:", parsedItems.length);
+
+    // store location NAME in DB (not locationId)
+    const outLocationName = await resolveLocationName(outLocation);
+    const inLocationName = await resolveLocationName(inLocation);
 
     // Process items with images
     const processedItems = await processCSVItems(parsedItems, req.files);
     // Process items with images
-    
-    console.log('Processed items:', processedItems.length);
+
+    console.log("Processed items:", processedItems.length);
 
     // ✅ Filter and create returnableItems array
     const returnableItems = processedItems
-      .filter(item => item.itemReturnable === true)
-      .map(item => ({
+      .filter((item) => item.itemReturnable === true)
+      .map((item) => ({
         itemName: item.itemName,
         serialNo: item.serialNo,
         itemCategory: item.itemCategory,
@@ -58,18 +80,18 @@ const createRequest = async (req, res) => {
         returned: false,
         returnedDate: null,
         status: item.status,
-        remarks: ""
+        remarks: "",
       }));
 
-    console.log('🔄 Returnable items:', returnableItems.length);
+    console.log("🔄 Returnable items:", returnableItems.length);
 
     const requestData = {
       referenceNumber,
       employeeServiceNo: req.user.serviceNo,
       items: processedItems,
       returnableItems: returnableItems,
-      outLocation,
-      inLocation,
+      outLocation: await resolveLocationName(outLocation),
+      inLocation: await resolveLocationName(inLocation),
       executiveOfficerServiceNo,
       receiverAvailable,
       receiverServiceNo: receiverServiceNo || null,
@@ -106,7 +128,7 @@ const createRequest = async (req, res) => {
         transportData.vehicleNumber = vehicleNumber;
         transportData.vehicleModel = vehicleModel;
       }
-      
+
       if (transportMethod === "By Hand") {
         transportData.transporterType = transporterType;
 
@@ -119,13 +141,13 @@ const createRequest = async (req, res) => {
           transportData.nonSLTTransporterEmail = nonSLTTransporterEmail;
         }
       }
-      
+
       requestData.transport = transportData;
     }
 
-    console.log('💾 Creating request in database...');
+    console.log("💾 Creating request in database...");
     const request = await Request.create(requestData);
-    console.log('✅ Request created:', request.referenceNumber);
+    console.log("✅ Request created:", request.referenceNumber);
 
     // Create pending status for the new request
     const newStatus = new Status({
@@ -136,13 +158,13 @@ const createRequest = async (req, res) => {
     });
 
     await newStatus.save();
-    console.log('✅ Status created');
+    console.log("✅ Status created");
 
     // Emit real-time event for new request
     const io = req.app.get("io");
     if (io) {
       emitNewRequest(io, request);
-      console.log('📡 Real-time event emitted');
+      console.log("📡 Real-time event emitted");
     }
 
     res.status(201).json({
@@ -152,9 +174,9 @@ const createRequest = async (req, res) => {
     });
   } catch (error) {
     console.error("❌ Create request error:", error);
-    res.status(400).json({ 
+    res.status(400).json({
       message: error.message,
-      details: error.toString()
+      details: error.toString(),
     });
   }
 };
@@ -167,7 +189,11 @@ const processCSVItems = async (csvItems, files) => {
     files.forEach((file) => {
       fileMap[file.originalname] = file;
     });
-    console.log('📎 File map created with', Object.keys(fileMap).length, 'files');
+    console.log(
+      "📎 File map created with",
+      Object.keys(fileMap).length,
+      "files",
+    );
   }
 
   return Promise.all(
@@ -176,19 +202,24 @@ const processCSVItems = async (csvItems, files) => {
 
       // Process photos for this specific item if they exist
       if (item.originalFileNames && item.originalFileNames.length > 0) {
-        console.log(`📸 Processing ${item.originalFileNames.length} photos for item ${index + 1}`);
-        
+        console.log(
+          `📸 Processing ${item.originalFileNames.length} photos for item ${index + 1}`,
+        );
+
         for (const fileName of item.originalFileNames) {
           const file = fileMap[fileName];
           if (file) {
             try {
               // uploadImage returns { url: '...', path: '...' }
               const uploadedImage = await uploadImage(file, "items");
-              
+
               // CRITICAL: Verify the structure before pushing
               if (uploadedImage && uploadedImage.url && uploadedImage.path) {
                 itemPhotos.push(uploadedImage);
-                console.log(`Uploaded image for item ${index + 1}:`, uploadedImage.url);
+                console.log(
+                  `Uploaded image for item ${index + 1}:`,
+                  uploadedImage.url,
+                );
               } else {
                 console.error(`Invalid image object structure:`, uploadedImage);
               }
@@ -202,10 +233,11 @@ const processCSVItems = async (csvItems, files) => {
       }
 
       // Determine if item is returnable
-      const isReturnable = item.itemReturnable === true ||
-            item.itemReturnable === 'true' ||
-            item.itemReturnable === 'Yes' ||
-            item.itemReturnable === 'yes';
+      const isReturnable =
+        item.itemReturnable === true ||
+        item.itemReturnable === "true" ||
+        item.itemReturnable === "Yes" ||
+        item.itemReturnable === "yes";
 
       const processedItem = {
         itemName: item.itemName,
@@ -222,11 +254,11 @@ const processCSVItems = async (csvItems, files) => {
 
       console.log(`✅ Processed item ${index + 1}:`, {
         name: processedItem.itemName,
-        photos: processedItem.itemPhotos.length
+        photos: processedItem.itemPhotos.length,
       });
 
       return processedItem;
-    })
+    }),
   );
 };
 
@@ -288,7 +320,7 @@ const getRequestByEmployeeServiceNo = async (req, res) => {
         }
 
         return requestObj;
-      })
+      }),
     );
 
     res.json(enhancedRequests);
@@ -316,7 +348,7 @@ const updateRequest = async (req, res) => {
         const photos = [...(item.itemPhotos || [])];
         if (req.files && req.files.length > 0) {
           const itemFiles = req.files.filter(
-            (file) => file.fieldname === `itemPhotos_${index}`
+            (file) => file.fieldname === `itemPhotos_${index}`,
           );
           for (const file of itemFiles) {
             const uploadedImage = await uploadImage(file, "items");
@@ -324,7 +356,7 @@ const updateRequest = async (req, res) => {
           }
         }
         return { ...item, itemPhotos: photos };
-      })
+      }),
     );
 
     const updatedRequest = await Request.findByIdAndUpdate(
@@ -337,7 +369,7 @@ const updateRequest = async (req, res) => {
         receiverAvailable,
         receiverServiceNo,
       },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedRequest) {
@@ -369,7 +401,7 @@ const updateRequestStatus = async (req, res) => {
     const updatedRequest = await Request.findByIdAndUpdate(
       req.params.id,
       { status },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedRequest) {
@@ -434,7 +466,7 @@ const updateExecutiveOfficer = async (req, res) => {
     const updatedRequest = await Request.findByIdAndUpdate(
       req.params.id,
       { executiveOfficerServiceNo },
-      { new: true }
+      { new: true },
     );
 
     if (!updatedRequest) {
@@ -444,7 +476,7 @@ const updateExecutiveOfficer = async (req, res) => {
     const updateExServiceNo = await Status.findOneAndUpdate(
       { request: req.params.id },
       { executiveOfficerServiceNo: executiveOfficerServiceNo },
-      { new: true }
+      { new: true },
     );
 
     res.json({ updatedRequest, updateExServiceNo });
@@ -460,7 +492,7 @@ const cancelRequest = async (req, res) => {
     const request = await Request.findOneAndUpdate(
       { referenceNumber, status: 1 },
       { status: 13, show: false },
-      { new: true }
+      { new: true },
     );
 
     if (!request) {

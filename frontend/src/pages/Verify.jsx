@@ -4041,28 +4041,34 @@ const RequestDetailsModal = ({
                 {staffType === "SLT" ? (
                   <>
                     {/* SLT Employee Search */}
-                    <div className="mb-4">
-                      <div className="flex items-center mb-4">
-                        <input
-                          type="text"
-                          disabled={isSuperAdmin}
-                          value={serviceId}
-                          onChange={(e) => setServiceId(e.target.value)}
-                          placeholder="Enter Service ID"
-                          className="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <button
-                          onClick={handleEmployeeSearch}
-                          disabled={isSuperAdmin}
-                          className={`px-4 py-3 rounded-r-lg ${
-                            isSuperAdmin
-                              ? "bg-gray-300 cursor-not-allowed"
-                              : "bg-blue-500 hover:bg-blue-600 text-white"
-                          }`}
-                        >
-                          <FaSearch />
-                        </button>
-                      </div>
+                              <div className="mb-4">
+                                       <div className="flex items-center mb-4">
+                      <input
+                        type="text"
+                        value={serviceId}
+                        onChange={(e) => setServiceId(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !isSuperAdmin && serviceId.trim()) {
+                            e.preventDefault();
+                            handleEmployeeSearch();
+                          }
+                        }}
+                        placeholder="Enter Service ID"
+                        className="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    
+                      <button
+                        onClick={handleEmployeeSearch}
+                        disabled={isSuperAdmin}
+                        className={`px-4 py-3 rounded-r-lg ${
+                          isSuperAdmin
+                            ? "bg-gray-300 cursor-not-allowed"
+                            : "bg-blue-500 hover:bg-blue-600 text-white"
+                        }`}
+                      >
+                        <FaSearch />
+                      </button>
+                    </div>
 
                       {searchedEmployee && (
                         <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
