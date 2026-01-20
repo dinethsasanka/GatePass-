@@ -351,6 +351,15 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
       return compareGrades(a.grade, b.grade);
     });
 
+    // Auto-select immediate supervisor if ERP didn't provide one
+    let autoSelectedSupervisor = null;
+    if (!immediateSupervisorNo && uniqueExecutives.length > 0) {
+      // Auto-select the first executive (highest in hierarchy)
+      autoSelectedSupervisor = uniqueExecutives[0].employeeNo;
+      uniqueExecutives[0].isImmediateSupervisor = true;
+      console.log(`✨ Auto-selected immediate supervisor: ${autoSelectedSupervisor} (${uniqueExecutives[0].name}) - ERP did not provide supervisor`);
+    }
+
     // Log if no executives found
     if (uniqueExecutives.length === 0) {
       console.log(`ℹ️ No executives found in hierarchy for ${employeeNo} (may be top of organization or ERP data limited)`);
@@ -360,6 +369,7 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
       executives: uniqueExecutives,
       loggedInEmployeeGrade,
       immediateSupervisor: uniqueExecutives.find(e => e.isImmediateSupervisor) || null,
+      autoSelected: !immediateSupervisorNo && autoSelectedSupervisor !== null,
     };
   } catch (error) {
     console.error("❌ Error in getExecutiveHierarchyForEmployee:", error.message);
