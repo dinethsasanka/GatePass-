@@ -315,21 +315,18 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
       }
     }
 
-    // Filter executives to include:
-    // 1. Only those with HIGHER grades than the logged-in employee
-    // 2. Exclude the logged-in employee themselves
+    // Filter executives to:
+    // 1. Exclude the logged-in employee themselves
+    // 2. Include ALL hierarchy levels from ERP (no grade filtering)
+    // Note: S grades can have A grade supervisors and vice versa - hierarchy comes from ERP
     const filteredExecutives = executives
       .filter(exec => {
         // Exclude self
         if (exec.employeeNo === employeeNo) return false;
-
-        // If we have grade info, filter by higher grades only
-        if (loggedInEmployeeGrade && exec.grade) {
-          // Include only if executive has higher grade (lower numeric value)
-          return compareGrades(exec.grade, loggedInEmployeeGrade) < 0;
-        }
-
-        // If no grade info, include all (fallback)
+        
+        // Include all others - let ERP data determine hierarchy
+        // No grade-based filtering since organizational structure 
+        // is more complex than simple grade comparison
         return true;
       })
       .map(exec => ({
@@ -347,18 +344,16 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
       (exec, index, self) => index === self.findIndex(e => e.employeeNo === exec.employeeNo)
     );
 
-    // Sort: immediate supervisor first, then by grade (higher grades first)
+    // Sort: immediate supervisor first, then by grade (for display purposes)
     uniqueExecutives.sort((a, b) => {
       if (a.isImmediateSupervisor) return -1;
       if (b.isImmediateSupervisor) return 1;
       return compareGrades(a.grade, b.grade);
     });
 
-    // Special handling for S.1.1 (top-level executives with no supervisors)
-    if (loggedInEmployeeGrade === 'S.1.1' && uniqueExecutives.length === 0) {
-      console.log(`ℹ️ Grade S.1.1 detected: No higher supervisors available (top of organizational hierarchy)`);
-    } else if (uniqueExecutives.length === 0) {
-      console.log(`⚠️ No executives found with higher grade than ${loggedInEmployeeGrade}`);
+    // Log if no executives found
+    if (uniqueExecutives.length === 0) {
+      console.log(`ℹ️ No executives found in hierarchy for ${employeeNo} (may be top of organization or ERP data limited)`);
     }
 
     return {
