@@ -21,10 +21,14 @@ function getRoleByGrade(grade) {
     return 'User';
   }
 
-  // Normalize grade (remove spaces, uppercase)
-  const normalizedGrade = String(grade).trim().toUpperCase();
+  // Normalize grade (remove spaces, uppercase, remove trailing dots/letters)
+  const normalizedGrade = String(grade)
+    .trim()
+    .toUpperCase()
+    .replace(/\.$/, '')          // Remove trailing dot (S.3. → S.3)
+    .replace(/^([AS]\.\d+).*$/, '$1');  // Remove extra characters (A.7.C → A.7, S.1.1 stays S.1.1)
   
-  console.log(`🔍 Determining role for grade: ${normalizedGrade}`);
+  console.log(`🔍 Determining role for grade: ${grade} → ${normalizedGrade}`);
 
   // S.1.1 → Super Admin
   if (normalizedGrade === 'S.1.1') {
