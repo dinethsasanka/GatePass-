@@ -11,7 +11,7 @@ jobs:
   deploy:
     name: Production Deployment
     runs-on: ubuntu-latest
-    
+
     # Run ONLY if CI succeeded
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
@@ -53,7 +53,6 @@ jobs:
       - name: 🔎 Verify API URL inside build
         run: |
           grep -R "gatepass.slt.lk/api" frontend/dist || (echo "❌ API URL missing in build" && exit 1)
-
 
       # ==================================================
       # VERIFY
@@ -108,26 +107,56 @@ jobs:
             BACKEND_ENV="/var/www/env/backend.env"
 
             mkdir -p "$RELEASE_DIR"
+
+            echo "📦 Copying deployment files..."
             cp -r /home/dpd/GatePass-deploy/* "$RELEASE_DIR/"
+
+            # ==================================================
+            # RELEASE METADATA
+            # ==================================================
+            echo "📝 Writing release metadata..."
+            cat <<EOF > "$RELEASE_DIR/RELEASE_INFO.txt"
+            Release: release-$RELEASE_TIME
+            Deployed at (UTC): $(date -u)
+            Git commit: ${{ github.event.workflow_run.head_sha }}
+            CI workflow: ${{ github.event.workflow_run.name }}
+            CI run ID: ${{ github.event.workflow_run.id }}
+            Branch: main
+            EOF
+
             ln -sfn "$RELEASE_DIR" "$CURRENT_DIR"
 
             # =====================
-            # Backend
+            # PM2 STATUS (BEFORE)
+            # =====================
+            echo "📊 PM2 status BEFORE deployment"
+            pm2 list || true
+
+            # =====================
+            # Backend (FRESH START)
             # =====================
             cd "$CURRENT_DIR/backend"
-
             ln -sfn "$BACKEND_ENV" .env
+
             npm ci --omit=dev
 
-            if pm2 describe Gate-Pass >/dev/null; then
-              pm2 restart Gate-Pass --update-env
-            else
-              pm2 start server.js --name Gate-Pass
-            fi
-            pm2 save
+            echo "🛑 Removing old PM2 process (if exists)"
+            pm2 delete Gate-Pass || true
+
+            echo "▶️ Starting fresh PM2 process"
+            pm2 start server.js --name Gate-Pass
 
             # =====================
-            # Frontend
+            # PM2 STATUS (AFTER)
+            # =====================
+            echo "📊 PM2 status AFTER deployment"
+            pm2 list
+
+            echo "🔍 PM2 process details"
+            pm2 describe Gate-Pass | grep -E "script path|cwd|status"
+
+            # =====================
+            # Frontend (Blue/Green)
             # =====================
             mkdir -p "$FRONTEND_GREEN"
             rm -rf "$FRONTEND_GREEN"/*
@@ -139,11 +168,17 @@ jobs:
             cp -r "$FRONTEND_GREEN" "$FRONTEND_BLUE"
 
             # =====================
+            # ACTIVE RELEASE CHECK
+            # =====================
+            echo "📌 Active release:"
+            readlink -f /var/www/releases/current
+            cat /var/www/releases/current/RELEASE_INFO.txt
+
+            # =====================
             # CLEANUP
             # =====================
             echo "🧹 Cleaning up old releases..."
             cd /var/www/releases
-            # Keep only the 5 most recent release directories
             ls -dt release-* | tail -n +6 | xargs -d '\n' rm -rf || true
 
             echo "🎉 Deployment successful!"
