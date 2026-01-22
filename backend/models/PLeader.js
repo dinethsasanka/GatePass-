@@ -1,7 +1,7 @@
 // backend/models/PLeader.js
 const mongoose = require("mongoose");
 
-// Normalize branch names consistently (Option A)
+// Normalize branch names consistently
 function normBranch(s) {
   return String(s || "")
     .trim()
@@ -12,18 +12,18 @@ function normBranch(s) {
 const PLeaderSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
+
+    // IMPORTANT: matches your MongoDB field
     employeeNumber: { type: String, required: true, trim: true, index: true },
 
-    // Human-readable branch names (as you already store)
     branches: { type: [String], default: [] },
 
-    // Normalized version for matching (UPPERCASE + trimmed + single spaces)
+    // Normalized copy for matching
     branchesNorm: { type: [String], default: [], index: true },
   },
   { timestamps: true },
 );
 
-// Keep branchesNorm always synced with branches
 function syncBranchesNorm(doc) {
   const b = Array.isArray(doc.branches) ? doc.branches : [];
   const normed = b.map(normBranch).filter(Boolean);
@@ -45,13 +45,11 @@ PLeaderSchema.pre("save", function (next) {
 async function syncOnUpdate(next) {
   const update = this.getUpdate() || {};
 
-  // If update uses pipeline, we can’t reliably inspect it here
   if (Array.isArray(update)) return next();
 
   const $set = update.$set || {};
   const $unset = update.$unset || {};
 
-  // branches can be set directly or via $set
   const newBranches = Object.prototype.hasOwnProperty.call(update, "branches")
     ? update.branches
     : Object.prototype.hasOwnProperty.call($set, "branches")
@@ -61,6 +59,7 @@ async function syncOnUpdate(next) {
   if (newBranches !== undefined) {
     const b = Array.isArray(newBranches) ? newBranches : [];
     const normed = b.map(normBranch).filter(Boolean);
+
     const seen = new Set();
     const dedup = normed.filter((x) =>
       seen.has(x) ? false : (seen.add(x), true),
@@ -69,7 +68,6 @@ async function syncOnUpdate(next) {
     update.$set = { ...(update.$set || {}), branchesNorm: dedup };
   }
 
-  // If branches is unset, also clear branchesNorm
   const branchesUnset =
     Object.prototype.hasOwnProperty.call($unset, "branches") ||
     Object.prototype.hasOwnProperty.call($unset, "branchesNorm");
@@ -86,6 +84,11 @@ PLeaderSchema.pre("findOneAndUpdate", syncOnUpdate);
 PLeaderSchema.pre("updateOne", syncOnUpdate);
 PLeaderSchema.pre("updateMany", syncOnUpdate);
 
-// Use existing collection name "PLeaders"
-module.exports = mongoose.model("PLeader", PLeaderSchema, "PLeaders");
-module.exports.normBranch = normBranch;
+// IMPORTANT:
+// model name: "PLeader" (code reference)
+// collection name: "PLeaders" (your real Mongo collection)
+const PLeader = mongoose.model("PLeader", PLeaderSchema, "PLeaders");
+
+PLeader.normBranch = normBranch;
+
+module.exports = PLeader;

@@ -1,8 +1,7 @@
-// backend/utils/locationRouting.js
-const PLeaders = require("../models/PLeaders");
-const SecurityOfficers = require("../models/SecurityOfficers");
+const PLeaders = require("../models/PLeader");
+const SecurityOfficers = require("../models/SecurityOfficer");
 
-// Normalize location string (must match how branches are stored)
+// normalize helper (must match how branchesNorm was created)
 const norm = (s) =>
   String(s || "")
     .trim()
@@ -14,20 +13,24 @@ async function findAuthoritiesForLocation(locationName) {
     return { pleaders: [], security: [] };
   }
 
-  const loc = norm(locationName);
+  const locNorm = norm(locationName);
 
-  // branches is an ARRAY, so direct equality works (no regex needed)
-  const pleaderDocs = await PLeaders.find({ branches: loc })
-    .select("employeeNumber")
+  // ✅ use branchesNorm (array) for exact match
+  const pleaders = await PLeaders.find({
+    branchesNorm: locNorm,
+  })
+    .select({ employeeNumber: 1 })
     .lean();
 
-  const securityDocs = await SecurityOfficers.find({ branches: loc })
-    .select("employeeNumber")
+  const security = await SecurityOfficers.find({
+    branchesNorm: locNorm,
+  })
+    .select({ employeeNumber: 1 })
     .lean();
 
   return {
-    pleaders: pleaderDocs.map((p) => String(p.employeeNumber)),
-    security: securityDocs.map((s) => String(s.employeeNumber)),
+    pleaders: pleaders.map((p) => String(p.employeeNumber).trim()),
+    security: security.map((s) => String(s.employeeNumber).trim()),
   };
 }
 
