@@ -74,7 +74,7 @@ async function findVerifierFromRequest(reqDoc) {
   if (!reqDoc) return null;
 
   return await User.findOne({
-    role: "Verifier",
+    role: "Pleader",
     isActive: true,
     branches: { $in: [reqDoc.outLocation] },
   }).lean();
@@ -85,7 +85,7 @@ async function findDispatcherFromRequest(reqDoc) {
   if (!reqDoc) return null;
 
   return await User.findOne({
-    role: "Dispatcher",
+    role: "Pleader",
     isActive: true,
     branches: { $in: [reqDoc.inLocation] },
   }).lean();
@@ -170,13 +170,9 @@ const getPending = async (req, res) => {
       .map((b) => new RegExp(`^${esc(String(b).trim())}$`, "i"));
 
     const rows = await Status.find({
-      verifyOfficerStatus: 2, // verified approved
-      recieveOfficerStatus: { $ne: 1 }, // not received yet
+      recieveOfficerStatus: { $in: [1, "1"] },
     })
-      .populate({
-        path: "request",
-        match: isSuper ? {} : { inLocation: { $in: branchRegex } },
-      })
+      .populate("request")
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -188,14 +184,38 @@ const getPending = async (req, res) => {
 
       if (myServiceNo) {
         const assignedToMe =
-          String(s.recieveOfficerServiceNumber) === String(myServiceNo);
-        const unassigned = !s.recieveOfficerServiceNumber;
+          String(s.recieveOfficerServiceNumber || "") ===
+          String(myServiceNo || "");
 
-        return assignedToMe || unassigned;
+        if (assignedToMe) return true;
+
+        // only allow unassigned requests if branch matches (dispatcher-receiver scenario)
+        const unassigned = !s.recieveOfficerServiceNumber;
+        if (unassigned) {
+          if (isSuper) return true;
+
+          // branch check (case-insensitive)
+          return branchRegex.some((rx) =>
+            rx.test(String(s.request?.inLocation || "")),
+          );
+        }
+
+        return false;
       }
 
       return true;
     });
+    // keep only newest status per referenceNumber
+    const unique = [];
+    const seen = new Set();
+    for (const s of filtered) {
+      if (!seen.has(s.referenceNumber)) {
+        seen.add(s.referenceNumber);
+        unique.push(s);
+      }
+    }
+    res.status(200).json(sortNewest(unique, ["updatedAt", "createdAt"]));
+    return;
 
     res.status(200).json(filtered);
   } catch (error) {
@@ -322,7 +342,7 @@ const updateApproved = async (req, res) => {
 
     // Update the status (only if currently pending at receiver)
     let statusDoc = await Status.findOneAndUpdate(
-      { referenceNumber, recieveOfficerStatus: { $ne: 2 } },
+      { referenceNumber, recieveOfficerStatus: { $in: [1, "1"] } },
       {
         recieveOfficerStatus: 2,
         recieveOfficerComment: comment || "",

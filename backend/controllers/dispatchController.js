@@ -19,7 +19,7 @@ async function findReceiverForInLocation(inLocation) {
 }
 
 // Import user helpers at the top
-const { findRequesterWithERPData } = require('../utils/userHelpers');
+const { findRequesterWithERPData } = require("../utils/userHelpers");
 
 // Try to resolve Requester from request doc
 // NOW WITH ERP DATA!
@@ -73,29 +73,42 @@ const getPending = async (req, res) => {
 
     const isSuper = isSuperAdmin(req.user?.role);
 
-    const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
-    const branchRegex = toRegexList(branches);
+    const mySvc = String(req.user?.serviceNo || "").trim();
+    if (!isSuper && !mySvc) {
+      return res.status(400).json({ message: "Missing serviceNo" });
+    }
 
-    const approvedRefs = await Status.find({ afterStatus: 8 }).distinct(
-      "referenceNumber"
-    );
-
-    const pendingStatuses = await Status.find({
-      verifyOfficerStatus: 2,
-      referenceNumber: { $nin: approvedRefs },
-    })
-      .populate({
-        path: "request",
-        match: isSuper ? {} : { inLocation: { $in: branchRegex } },
-      })
+    let rows = await Status.find({ afterStatus: { $in: [7, "7"] } })
+      .populate("request")
       .sort({ updatedAt: -1 })
-      .exec();
+      .lean();
 
-    const filtered = pendingStatuses.filter(
-      (s) => s.request && s.request.show !== false
+    // remove hidden / missing requests
+    rows = rows.filter((s) => s.request && s.request.show !== false);
+
+    // superadmin sees all
+    if (!isSuper) {
+      rows = rows.filter(
+        (s) => s.inPLeaders?.includes(mySvc) || s.inSecurity?.includes(mySvc),
+      );
+    }
+
+    // dedupe by referenceNumber (keep newest)
+    const unique = [];
+    const seen = new Set();
+    for (const s of rows) {
+      if (!seen.has(s.referenceNumber)) {
+        seen.add(s.referenceNumber);
+        unique.push(s);
+      }
+    }
+    unique.sort(
+      (a, b) =>
+        new Date(b.updatedAt || b.createdAt) -
+        new Date(a.updatedAt || a.createdAt),
     );
 
-    return res.status(200).json(filtered);
+    return res.status(200).json(unique);
   } catch (error) {
     console.error("Error fetching pending statuses:", error);
     return res.status(500).json({ message: "Server error" });
@@ -105,21 +118,24 @@ const getPending = async (req, res) => {
 const getApproved = async (req, res) => {
   try {
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
-    const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
-    const branchRegex = toRegexList(branches);
-
-    const approvedRequests = await Status.find({ afterStatus: 8 })
-      .populate({
-        path: "request",
-        match: isSuper ? {} : { inLocation: { $in: branchRegex } },
-      })
+    const mySvc = String(req.user?.serviceNo || "").trim();
+    if (!isSuper && !mySvc) {
+      return res.status(400).json({ message: "Missing serviceNo" });
+    }
+    let rows = await Status.find({ afterStatus: { $in: [8, "8"] } })
+      .populate("request")
       .sort({ updatedAt: -1 })
-      .exec();
+      .lean();
 
-    const filtered = approvedRequests.filter(
-      (s) => s.request && (isSuper ? true : s.request.show !== false)
-    );
-    res.status(200).json(filtered);
+    let filtered = rows.filter((s) => s.request && s.request.show !== false);
+
+    if (!isSuper) {
+      filtered = filtered.filter(
+        (s) => s.inPLeaders?.includes(mySvc) || s.inSecurity?.includes(mySvc),
+      );
+    }
+
+    return res.status(200).json(filtered);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -128,20 +144,42 @@ const getApproved = async (req, res) => {
 const getRejected = async (req, res) => {
   try {
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
-    const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
-    const branchRegex = toRegexList(branches);
+    const mySvc = String(req.user?.serviceNo || "").trim();
 
-    const rejectedRequests = await Status.find({ afterStatus: 9 })
-      .populate({
-        path: "request",
-        match: isSuper ? {} : { inLocation: { $in: branchRegex } },
-      })
+    if (!isSuper && !mySvc) {
+      return res.status(400).json({ message: "Missing serviceNo" });
+    }
+
+    let rows = await Status.find({ afterStatus: { $in: [9, "9"] } })
+      .populate("request")
       .sort({ updatedAt: -1 })
-      .exec();
-    const filtered = rejectedRequests.filter(
-      (s) => s.request && (isSuper ? true : s.request.show !== false)
+      .lean();
+
+    rows = rows.filter((s) => s.request && s.request.show !== false);
+
+    if (!isSuper) {
+      rows = rows.filter(
+        (s) => s.inPLeaders?.includes(mySvc) || s.inSecurity?.includes(mySvc),
+      );
+    }
+
+    // dedupe newest per reference
+    const unique = [];
+    const seen = new Set();
+    for (const s of rows) {
+      if (!seen.has(s.referenceNumber)) {
+        seen.add(s.referenceNumber);
+        unique.push(s);
+      }
+    }
+
+    unique.sort(
+      (a, b) =>
+        new Date(b.updatedAt || b.createdAt) -
+        new Date(a.updatedAt || a.createdAt),
     );
-    res.status(200).json(filtered);
+
+    return res.status(200).json(unique);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -228,7 +266,7 @@ const updateApproved = async (req, res) => {
       // Send email notification to dispatcher/receiver
       try {
         const receiverUser = await findReceiverForInLocation(
-          latest.request.inLocation
+          latest.request.inLocation,
         );
         if (receiverUser && receiverUser.email) {
           const subject = `Gate Pass pending dispatcher confirmation: ${referenceNumber}`;
@@ -245,7 +283,7 @@ const updateApproved = async (req, res) => {
       } catch (mailErr) {
         console.error(
           "Email (Dispatch→Dispatcher for no receiver) failed:",
-          mailErr
+          mailErr,
         );
       }
 
@@ -442,7 +480,7 @@ const markItemsAsReturned = async (req, res) => {
     // Update or add to returnableItems
     serialNumbers.forEach((serialNo) => {
       const existingIndex = request.returnableItems.findIndex(
-        (ri) => ri.serialNo === serialNo
+        (ri) => ri.serialNo === serialNo,
       );
 
       const itemData = request.items.find((item) => item.serialNo === serialNo);

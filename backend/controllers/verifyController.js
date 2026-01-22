@@ -9,6 +9,7 @@ const { DISPATCH_ROLES } = require("../utils/roleGroup");
 const { sendEmail } = require("../utils/sendMail"); // uses EMAIL_USER / EMAIL_PASS from .env
 const PLeader = require("../models/PLeader");
 const SecurityOfficer = require("../models/SecurityOfficer");
+const { findAuthoritiesForLocation } = require("../utils/locationRouting");
 const {
   emitRequestApproval,
   emitRequestRejection,
@@ -426,15 +427,36 @@ exports.updateApproved = async (req, res) => {
     // The Dispatch officer will then route it to the receiver
     // DO NOT set recieveOfficerStatus here - that's done by Dispatch
 
-    // Just mark as approved by PL1, waiting for Dispatch (PL2)
+    // ✅ SLT Branch destination: move to Dispatch Pending (IN-location Pleader + Security)
+    const inLocationName = status.request.inLocation;
+
+    // 1) Assign IN-side authorities (Dispatcher side)
+    const inAuthorities = await findAuthoritiesForLocation(inLocationName);
+
+    status.inPLeaders = Array.isArray(inAuthorities.pleaders)
+      ? inAuthorities.pleaders
+      : [];
+    status.inSecurity = Array.isArray(inAuthorities.security)
+      ? inAuthorities.security
+      : [];
+
+    // 2) Receiver should be pending too (selected in New Request screen)
+    status.recieveOfficerStatus = 1;
+    status.recieveOfficerServiceNumber = readSelectedReceiverServiceNo(
+      status.request,
+    );
+
+    // 3) Move workflow to Dispatch Pending
+    status.beforeStatus = status.afterStatus || 5; // safe
+    status.afterStatus = 7; // Dispatch Pending
+
     if (status.request) {
-      status.request.status = 5; // Verify Approved - waiting for Dispatch
+      status.request.status = 7; // Dispatch Pending
       await status.request.save();
     }
 
     await status.save();
 
-    const inLocation = status.request.inLocation;
 
     // Email Petrol Leader (Dispatch) at IN-location for dispatch approval
     try {

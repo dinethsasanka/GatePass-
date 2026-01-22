@@ -295,18 +295,6 @@ exports.updateApproved = async (req, res) => {
         (status.outPLeaders?.length || 0) + (status.outSecurity?.length || 0),
     });
 
-    // Assign IN-gate authorities (receiver side) after Verify Approved
-    const inLocationName = status.request.inLocation;
-
-    const inAuthorities = await findAuthoritiesForLocation(inLocationName);
-
-    status.inPLeaders = Array.isArray(inAuthorities.pleaders)
-      ? inAuthorities.pleaders
-      : [];
-    status.inSecurity = Array.isArray(inAuthorities.security)
-      ? inAuthorities.security
-      : [];
-
     // Do not touch receive stage here
     // Keep request visible
     if (status.request && typeof status.request.show === "undefined") {
