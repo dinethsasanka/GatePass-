@@ -20,6 +20,7 @@ import {
 import {
   getImageUrlSync,
   searchReceiverByServiceNo,
+  searchEmployeeByServiceNo,
   getGatePassRequest,
 } from "../services/RequestService.js";
 import { jsPDF } from "jspdf";
@@ -58,6 +59,21 @@ const getPdfStatusClass = (status = "") => {
   if (status.includes("Approved")) return "status status-approved";
   if (status.includes("Rejected")) return "status status-rejected";
   return "status status-pending";
+};
+
+const mapErpEmployeeToReceiver = (employee, fallbackServiceNo) => {
+  if (!employee) return null;
+
+  return {
+    name: `${employee.employeeTitle || ""} ${
+      employee.employeeFirstName || ""
+    } ${employee.employeeSurname || ""}`.trim(),
+    serviceNo: employee.employeeNo || fallbackServiceNo || "N/A",
+    designation: employee.designation || "-",
+    section: employee.empSection || "-",
+    group: employee.empGroup || "-",
+    contactNo: employee.mobileNo || "-",
+  };
 };
 
 // ----------------------------------------------------
@@ -1734,6 +1750,69 @@ const RequestDetails = () => {
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [selectedReportData, setSelectedReportData] = useState(null);
 
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    const resolveRequestSource = () => {
+      if (fullRequestData) {
+        if (Array.isArray(fullRequestData)) return fullRequestData[0];
+        if (fullRequestData.requestDetails) return fullRequestData.requestDetails;
+        return fullRequestData;
+      }
+      return selectedRequest;
+    };
+
+    const requestSource = resolveRequestSource();
+    if (!requestSource) return;
+
+    if (requestSource.isNonSltPlace) {
+      setReceiver({
+        name: requestSource.receiverName,
+        nic: requestSource.receiverNIC,
+        contactNo: requestSource.receiverContact,
+        serviceNo: requestSource.receiverServiceNo || "N/A",
+        group: "Non-SLT",
+      });
+      return;
+    }
+
+    const receiverServiceNo =
+      requestSource.receiverServiceNo ||
+      requestSource.requestDetails?.receiverServiceNo;
+    if (!receiverServiceNo) {
+      setReceiver(null);
+      return;
+    }
+
+    let isActive = true;
+    const loadReceiver = async () => {
+      try {
+        const response = await searchEmployeeByServiceNo(receiverServiceNo);
+        const employee =
+          response?.data?.data?.[0] ||
+          response?.data?.data ||
+          response?.data?.[0] ||
+          response?.data ||
+          null;
+        const receiverData = mapErpEmployeeToReceiver(
+          employee,
+          receiverServiceNo
+        );
+        if (isActive) setReceiver(receiverData);
+      } catch (error) {
+        if (isActive) {
+          console.error("Error fetching receiver details:", error);
+          setReceiver(null);
+        }
+      }
+    };
+
+    loadReceiver();
+    return () => {
+      isActive = false;
+    };
+  }, [isModalOpen, fullRequestData, selectedRequest]);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -2213,6 +2292,8 @@ const RequestDetails = () => {
   // ---------------------------------------------
   const handleOpenModal = async (row) => {
     const baseRequest = row.request;
+    console.log("receiverServiceNo:", baseRequest?.receiverServiceNo);
+    console.log("full row:", row);
     setSelectedRequest(baseRequest);
     setIsModalOpen(true);
     setFullRequestData(null);
@@ -2232,28 +2313,8 @@ const RequestDetails = () => {
       setUser(null);
     }
 
-    // Receiver
-    if (baseRequest.isNonSltPlace) {
-      setReceiver({
-        name: baseRequest.receiverName,
-        nic: baseRequest.receiverNIC,
-        contactNo: baseRequest.receiverContact,
-        serviceNo: baseRequest.receiverServiceNo || "N/A",
-        group: "Non-SLT",
-      });
-    } else if (baseRequest.receiverServiceNo && !baseRequest.receiver) {
-      try {
-        const receiverData = await searchReceiverByServiceNo(
-          baseRequest.receiverServiceNo
-        );
-        setReceiver(receiverData);
-      } catch (error) {
-        console.error("Error fetching receiver details:", error);
-        setReceiver(null);
-      }
-    } else {
-      setReceiver(baseRequest.receiver || null);
-    }
+    // Receiver (resolved via ERP in useEffect)
+    setReceiver(null);
 
     // Transporter (for SLT transporter we fetch user details)
     if (baseRequest?.transport?.transporterServiceNo) {
