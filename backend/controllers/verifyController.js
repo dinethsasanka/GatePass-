@@ -244,8 +244,32 @@ exports.getApproved = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
-    const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
-    const branchRegex = toRegexList(branches);
+    let allowedBranchesNorm = null;
+
+    if (!isSuper) {
+      const empNo = String(req.user?.serviceNo || "").trim();
+      if (!empNo) {
+        return res.status(400).json({ message: "Missing serviceNo" });
+      }
+
+      const [pl, so] = await Promise.all([
+        PLeader.findOne({ employeeNumber: empNo })
+          .select({ branchesNorm: 1 })
+          .lean(),
+        SecurityOfficer.findOne({ employeeNumber: empNo })
+          .select({ branchesNorm: 1 })
+          .lean(),
+      ]);
+
+      const combined = [
+        ...(pl?.branchesNorm || []),
+        ...(so?.branchesNorm || []),
+      ];
+
+      allowedBranchesNorm = Array.from(new Set(combined));
+
+      if (!allowedBranchesNorm.length) return res.json([]);
+    }
 
     // Get all reference numbers that have been rejected at any level
     const rejectedRefs = await Status.find({
@@ -260,14 +284,15 @@ exports.getApproved = async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-    // Filter by location if provided
-    const { outLocation } = req.query;
-    const filtered = rows.filter(
-      (s) =>
-        s.request &&
-        s.request.show !== false &&
-        (!outLocation || s.request.outLocation === outLocation),
-    );
+    const filtered = rows.filter((s) => {
+      const reqDoc = s.request;
+      if (!reqDoc) return false;
+      if (reqDoc.show === false) return false;
+      if (isSuper) return true;
+
+      const outNorm = normBranch(reqDoc.outLocation);
+      return allowedBranchesNorm.includes(outNorm);
+    });
 
     // Remove duplicates by keeping only the latest Status per referenceNumber
     const uniqueFiltered = [];
@@ -293,8 +318,32 @@ exports.getRejected = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
-    const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
-    const branchRegex = toRegexList(branches);
+    let allowedBranchesNorm = null;
+
+    if (!isSuper) {
+      const empNo = String(req.user?.serviceNo || "").trim();
+      if (!empNo) {
+        return res.status(400).json({ message: "Missing serviceNo" });
+      }
+
+      const [pl, so] = await Promise.all([
+        PLeader.findOne({ employeeNumber: empNo })
+          .select({ branchesNorm: 1 })
+          .lean(),
+        SecurityOfficer.findOne({ employeeNumber: empNo })
+          .select({ branchesNorm: 1 })
+          .lean(),
+      ]);
+
+      const combined = [
+        ...(pl?.branchesNorm || []),
+        ...(so?.branchesNorm || []),
+      ];
+
+      allowedBranchesNorm = Array.from(new Set(combined));
+
+      if (!allowedBranchesNorm.length) return res.json([]);
+    }
 
     // Show rejections where Verifier was involved:
     // 1. Verifier rejected it themselves (verifyOfficerStatus: 3)
@@ -313,7 +362,15 @@ exports.getRejected = async (req, res) => {
       .sort({ updatedAt: -1 })
       .lean();
 
-    const filtered = rows.filter((s) => s.request && s.request.show !== false);
+    const filtered = rows.filter((s) => {
+      const reqDoc = s.request;
+      if (!reqDoc) return false;
+      if (reqDoc.show === false) return false;
+      if (isSuper) return true;
+
+      const outNorm = normBranch(reqDoc.outLocation);
+      return allowedBranchesNorm.includes(outNorm);
+    });
     return res.json(
       filtered.sort(
         (a, b) =>
