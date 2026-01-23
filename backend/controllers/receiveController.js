@@ -245,10 +245,7 @@ const getApproved = async (req, res) => {
       recieveOfficerStatus: 2, // Receiver approved
       referenceNumber: { $nin: rejectedRefs }, // Exclude rejected references
     })
-      .populate({
-        path: "request",
-        match: isSuper ? {} : { inLocation: { $in: branchRegex } },
-      })
+      .populate("request")
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -264,8 +261,16 @@ const getApproved = async (req, res) => {
         const assignedToMe =
           String(s.recieveOfficerServiceNumber) === String(myServiceNo);
         const noSpecificReceiver = !s.recieveOfficerServiceNumber;
+        if (assignedToMe) return true;
 
-        return assignedToMe || noSpecificReceiver;
+        if (noSpecificReceiver) {
+          if (isSuper) return true;
+          return branchRegex.some((rx) =>
+            rx.test(String(s.request?.inLocation || "")),
+          );
+        }
+
+        return false;
       }
 
       // No service number filter - show all
@@ -292,10 +297,7 @@ const getRejected = async (req, res) => {
       .map((b) => new RegExp(`^${esc(String(b).trim())}$`, "i"));
 
     const rows = await Status.find({ recieveOfficerStatus: 3 })
-      .populate({
-        path: "request",
-        match: isSuper ? {} : { inLocation: { $in: branchRegex } },
-      })
+      .populate("request")
       .sort({ updatedAt: -1 })
       .lean();
 
@@ -310,8 +312,16 @@ const getRejected = async (req, res) => {
         const assignedToMe =
           String(s.recieveOfficerServiceNumber) === String(myServiceNo);
         const noSpecificReceiver = !s.recieveOfficerServiceNumber;
+        if (assignedToMe) return true;
 
-        return assignedToMe || noSpecificReceiver;
+        if (noSpecificReceiver) {
+          if (isSuper) return true;
+          return branchRegex.some((rx) =>
+            rx.test(String(s.request?.inLocation || "")),
+          );
+        }
+
+        return false;
       }
 
       // No service number filter - show all

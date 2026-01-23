@@ -765,7 +765,7 @@ const Receive = () => {
 
       // 🔹 Call backend approve API
       await approveStatus(
-        item.referenceNumber,
+        item.refNo,
         comment,
         unloadingDetails,
         userDetails.serviceNo,
@@ -774,9 +774,11 @@ const Receive = () => {
 
       showToast("Request received successfully", "success");
 
-      // 🔹 Refresh list / close modal
-      fetchPendingRequests();
-      closeModal();
+      // Refresh lists and close modal
+      setPendingItems((prev) => prev.filter((i) => i.refNo !== item.refNo));
+      setRefetchTrigger((prev) => prev + 1);
+      setShowModal(false);
+      setComment("");
     } catch (error) {
       console.error("Receive approval failed:", error);
       showToast("Failed to receive request", "error");
@@ -4805,3 +4807,4 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
 };
 
 export default Receive;
+
