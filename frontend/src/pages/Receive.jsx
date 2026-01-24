@@ -132,11 +132,11 @@ const Receive = () => {
 
       try {
         const data = await getPendingStatuses(
-          isSuper ? undefined : userDetails?.serviceNo
+          isSuper ? undefined : userDetails?.serviceNo,
         );
 
         const withRequest = (Array.isArray(data) ? data : []).filter(
-          (s) => s && s.request
+          (s) => s && s.request,
         );
 
         const visible = withRequest.filter((s) => s.request.show !== false);
@@ -157,7 +157,7 @@ const Receive = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch {}
             }
@@ -179,7 +179,7 @@ const Receive = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch {}
             }
@@ -192,7 +192,7 @@ const Receive = () => {
               try {
                 loadUserData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch {}
             }
@@ -201,7 +201,7 @@ const Receive = () => {
             if (statusDetails?.recieveOfficerServiceNumber) {
               try {
                 unLoadUserData = await searchUserByServiceNo(
-                  statusDetails.recieveOfficerServiceNumber
+                  statusDetails.recieveOfficerServiceNumber,
                 );
               } catch {}
             }
@@ -210,7 +210,7 @@ const Receive = () => {
             if (status?.recieveOfficerServiceNumber) {
               try {
                 receiveOfficerData = await searchUserByServiceNo(
-                  status.recieveOfficerServiceNumber
+                  status.recieveOfficerServiceNumber,
                 );
               } catch {}
             }
@@ -227,7 +227,7 @@ const Receive = () => {
                 status?.createdAt ||
                   status?.updatedAt ||
                   status?.request?.updatedAt ||
-                  status?.request?.createdAt
+                  status?.request?.createdAt,
               ),
               items: req.items || [],
               comment: status.comment,
@@ -237,7 +237,7 @@ const Receive = () => {
               statusDetails,
               receiveOfficerData,
             };
-          })
+          }),
         );
 
         const uniqueItems = formatted.reduce((acc, item) => {
@@ -262,7 +262,7 @@ const Receive = () => {
       }
     },
     [activeTab, userDetails?.serviceNo, userDetails?.branches],
-    { status: 6 } // Receiver pending requests
+    { status: 6 }, // Receiver pending requests
   );
 
   // Fetch Pending Items - Now handled by useAutoRefetch hook above
@@ -275,11 +275,11 @@ const Receive = () => {
         // Fetch and format pending items (same logic as useAutoRefetch)
         if (activeTab === "pending") {
           const data = await getPendingStatuses(
-            isSuper ? undefined : userDetails?.serviceNo
+            isSuper ? undefined : userDetails?.serviceNo,
           );
 
           const withRequest = (Array.isArray(data) ? data : []).filter(
-            (s) => s && s.request
+            (s) => s && s.request,
           );
 
           const visible = withRequest.filter((s) => s.request.show !== false);
@@ -300,7 +300,7 @@ const Receive = () => {
                 try {
                   senderDetails = await getCachedUser(
                     senderServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -322,7 +322,7 @@ const Receive = () => {
                 try {
                   receiverDetails = await getCachedUser(
                     receiverServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -335,7 +335,7 @@ const Receive = () => {
                 try {
                   loadUserData = await getCachedUser(
                     loadingDetails.staffServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -344,7 +344,7 @@ const Receive = () => {
               if (statusDetails?.recieveOfficerServiceNumber) {
                 try {
                   unLoadUserData = await searchUserByServiceNo(
-                    statusDetails.recieveOfficerServiceNumber
+                    statusDetails.recieveOfficerServiceNumber,
                   );
                 } catch {}
               }
@@ -353,7 +353,7 @@ const Receive = () => {
               if (status?.recieveOfficerServiceNumber) {
                 try {
                   receiveOfficerData = await searchUserByServiceNo(
-                    status.recieveOfficerServiceNumber
+                    status.recieveOfficerServiceNumber,
                   );
                 } catch {}
               }
@@ -370,7 +370,7 @@ const Receive = () => {
                   status?.createdAt ||
                     status?.updatedAt ||
                     status?.request?.updatedAt ||
-                    status?.request?.createdAt
+                    status?.request?.createdAt,
                 ),
                 items: req.items || [],
                 comment: status.comment,
@@ -380,7 +380,7 @@ const Receive = () => {
                 statusDetails,
                 receiveOfficerData,
               };
-            })
+            }),
           );
 
           const uniqueItems = formatted.reduce((acc, item) => {
@@ -404,7 +404,7 @@ const Receive = () => {
         // approved
         // approved (formatted)
         const approvedData = await getApprovedStatuses(
-          isSuper ? undefined : userDetails?.serviceNo
+          isSuper ? undefined : userDetails?.serviceNo,
         );
 
         const approvedFormatted = await Promise.all(
@@ -422,7 +422,7 @@ const Receive = () => {
                 try {
                   senderDetails = await getCachedUser(
                     senderServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -444,7 +444,7 @@ const Receive = () => {
                 try {
                   receiverDetails = await getCachedUser(
                     receiverServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -457,7 +457,7 @@ const Receive = () => {
                 try {
                   loadUserData = await getCachedUser(
                     loadingDetails.staffServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -467,7 +467,7 @@ const Receive = () => {
                 try {
                   receiveOfficerData = await getCachedUser(
                     status.recieveOfficerServiceNumber,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -484,7 +484,7 @@ const Receive = () => {
                   status?.createdAt ||
                     status?.updatedAt ||
                     req?.updatedAt ||
-                    req?.createdAt
+                    req?.createdAt,
                 ),
                 items: req.items || [],
                 comment: status.comment,
@@ -494,7 +494,7 @@ const Receive = () => {
                 statusDetails: status,
                 receiveOfficerData,
               };
-            })
+            }),
         );
 
         // Remove duplicates by reference number (keep the most recent one)
@@ -517,7 +517,7 @@ const Receive = () => {
 
         // rejected
         const rejectedData = await getRejectedStatuses(
-          isSuper ? undefined : userDetails?.serviceNo
+          isSuper ? undefined : userDetails?.serviceNo,
         );
         setRejectedItems(rejectedData || []);
       } catch (err) {
@@ -542,7 +542,7 @@ const Receive = () => {
           .filter((s) =>
             userDetails?.branches?.length
               ? userDetails.branches.includes(s.request.inLocation)
-              : true
+              : true,
           );
 
         const formattedData = await Promise.all(
@@ -561,7 +561,7 @@ const Receive = () => {
               } catch (error) {
                 console.error(
                   `Error fetching user for service number ${senderServiceNo}:`,
-                  error
+                  error,
                 );
               }
             }
@@ -583,13 +583,13 @@ const Receive = () => {
               try {
                 const userData = await getCachedUser(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
                 if (userData) receiverDetails = userData;
               } catch (error) {
                 console.error(
                   `Error fetching user for service number ${receiverServiceNo}:`,
-                  error
+                  error,
                 );
               }
             }
@@ -602,12 +602,12 @@ const Receive = () => {
               try {
                 loadUserData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 console.error(
                   `Error fetching user for service number ${loadingDetails.staffServiceNo}:`,
-                  error
+                  error,
                 );
               }
             }
@@ -616,12 +616,12 @@ const Receive = () => {
             if (statusDetails?.recieveOfficerServiceNumber) {
               try {
                 unLoadUserData = await searchUserByServiceNo(
-                  statusDetails.recieveOfficerServiceNumber
+                  statusDetails.recieveOfficerServiceNumber,
                 );
               } catch (error) {
                 console.error(
                   `Error fetching user for service number ${statusDetails.recieveOfficerServiceNumber}:`,
-                  error
+                  error,
                 );
               }
             }
@@ -630,12 +630,12 @@ const Receive = () => {
             if (status.recieveOfficerServiceNumber) {
               try {
                 receiveOfficerData = await searchUserByServiceNo(
-                  status.recieveOfficerServiceNumber
+                  status.recieveOfficerServiceNumber,
                 );
               } catch (error) {
                 console.error(
                   `Error fetching user for service number ${status.recieveOfficerServiceNumber}:`,
-                  error
+                  error,
                 );
               }
             }
@@ -652,7 +652,7 @@ const Receive = () => {
                 status?.createdAt ||
                   status?.updatedAt ||
                   status?.request?.updatedAt ||
-                  status?.request?.createdAt
+                  status?.request?.createdAt,
               ),
               items: req.items || [],
               comment: status.comment,
@@ -667,7 +667,7 @@ const Receive = () => {
               rejectedAt: status.rejectedAt,
               rejectionLevel: status.rejectionLevel,
             };
-          })
+          }),
         );
 
         // Remove duplicates by reference number (keep the most recent one)
@@ -734,7 +734,7 @@ const Receive = () => {
         if (!searchedEmployee) {
           showToast(
             "Please search and select an SLT employee for unloading",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -751,7 +751,7 @@ const Receive = () => {
         ) {
           showToast(
             "Please fill all Non-SLT unloading staff details",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -769,14 +769,16 @@ const Receive = () => {
         comment,
         unloadingDetails,
         userDetails.serviceNo,
-        selectedReturnableItems
+        selectedReturnableItems,
       );
 
       showToast("Request received successfully", "success");
 
-      // 🔹 Refresh list / close modal
-      fetchPendingRequests();
-      closeModal();
+      // Refresh lists and close modal
+      setPendingItems((prev) => prev.filter((i) => i.refNo !== item.refNo));
+      setRefetchTrigger((prev) => prev + 1);
+      setShowModal(false);
+      setComment("");
     } catch (error) {
       console.error("Receive approval failed:", error);
       showToast("Failed to receive request", "error");
@@ -825,7 +827,7 @@ const Receive = () => {
                   item.itemQuantity || "1"
                 }</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -849,8 +851,8 @@ const Receive = () => {
           <p>We would like to inform you that ${
             itemDetails.length
           } returnable item(s) under reference number <b>${
-        request.refNo
-      }</b> have been returned by the Receiver.</p>
+            request.refNo
+          }</b> have been returned by the Receiver.</p>
           <p>You can view it under your <i>Completed</i> or relevant section.</p>
         </div>
 
@@ -978,7 +980,7 @@ const Receive = () => {
             <tr>
               <td style="padding: 8px 0; color: #757575;">Requested Date:</td>
               <td style="padding: 8px 0;">${new Date(
-                request.createdAt
+                request.createdAt,
               ).toLocaleDateString()}</td>
             </tr>
           </table>
@@ -1062,7 +1064,7 @@ const Receive = () => {
           console.error("Error rejecting status:", error.message);
           setPendingItems((prev) => [item, ...prev]);
           setRejectedItems((prev) =>
-            prev.filter((i) => i.refNo !== item.refNo)
+            prev.filter((i) => i.refNo !== item.refNo),
           );
           showToast("Failed to reject request. Please try again.", "error");
         });
@@ -1078,7 +1080,7 @@ const Receive = () => {
     if (item.requestDetails?.transport.transporterServiceNo) {
       try {
         const transportResponse = await searchEmployeeByServiceNo(
-          item.requestDetails.transport.transporterServiceNo
+          item.requestDetails.transport.transporterServiceNo,
         );
 
         console.log("Transport response:", transportResponse); // Debug log
@@ -1470,8 +1472,8 @@ const Receive = () => {
               {(activeTab === "pending"
                 ? filteredPendingItems
                 : activeTab === "approved"
-                ? filteredApprovedItems
-                : filteredRejectedItems
+                  ? filteredApprovedItems
+                  : filteredRejectedItems
               ).map((item) => (
                 <tr
                   key={
@@ -1527,8 +1529,8 @@ const Receive = () => {
                                                   activeTab === "pending"
                                                     ? "bg-amber-100 hover:bg-amber-200 text-amber-800"
                                                     : activeTab === "approved"
-                                                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                                                    : "bg-rose-100 text-rose-800 hover:bg-rose-200"
+                                                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                                                      : "bg-rose-100 text-rose-800 hover:bg-rose-200"
                                                 }`}
                     >
                       <FaEye className="mr-2" /> View Details
@@ -1544,8 +1546,8 @@ const Receive = () => {
         {(activeTab === "pending"
           ? pendingItems
           : activeTab === "approved"
-          ? approvedItems
-          : rejectedItems
+            ? approvedItems
+            : rejectedItems
         ).length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -1727,7 +1729,7 @@ const RequestDetailsModal = ({
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
+      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`,
     );
 
     if (!confirmed) return;
@@ -1741,7 +1743,7 @@ const RequestDetailsModal = ({
 
       // Get full details of selected items
       const selectedItemDetails = request.items.filter((item) =>
-        selectedItems.includes(item.serialNo)
+        selectedItems.includes(item.serialNo),
       );
 
       console.log("Selected item details:", selectedItemDetails);
@@ -1755,7 +1757,7 @@ const RequestDetailsModal = ({
       await sendReturnEmail(
         request,
         "Items successfully returned by receiver.",
-        selectedItemDetails
+        selectedItemDetails,
       );
 
       // Show success message
@@ -1763,7 +1765,7 @@ const RequestDetailsModal = ({
         `Successfully marked ${
           response.updatedCount || selectedItems.length
         } item(s) as returned.`,
-        "success"
+        "success",
       );
 
       console.log("Bulk return process completed successfully");
@@ -1780,7 +1782,7 @@ const RequestDetailsModal = ({
 
       showToast(
         error.message || "Failed to update items. Please try again.",
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -1794,7 +1796,7 @@ const RequestDetailsModal = ({
 
     if (!newItem.itemName || !newItem.serialNo || !newItem.itemCategory) {
       alert(
-        "Please fill in all required fields (Item Name, Serial No, Category)"
+        "Please fill in all required fields (Item Name, Serial No, Category)",
       );
       return;
     }
@@ -1839,7 +1841,7 @@ const RequestDetailsModal = ({
       const data = await markItemsAsReturned(request.refNo, [item.serialNo]);
 
       toast.success(
-        data.message || `${item.itemName} marked as returned successfully`
+        data.message || `${item.itemName} marked as returned successfully`,
       );
 
       setRequest((prev) => ({
@@ -1897,15 +1899,15 @@ const RequestDetailsModal = ({
                   itemModel: editValues.itemModel,
                   serialNo: editValues.serialNo,
                 }
-              : item
-          )
+              : item,
+          ),
         );
 
         setEditingItemSerialNo(null);
         setEditValues({ itemModel: "", serialNo: "" });
         showToast(
           "Returnable item updated locally. Changes will be saved when you approve the request.",
-          "success"
+          "success",
         );
         return;
       }
@@ -1915,7 +1917,7 @@ const RequestDetailsModal = ({
         request.refNo,
         originalSerialNo,
         editValues.itemModel,
-        editValues.serialNo
+        editValues.serialNo,
       );
 
       // Update the selectedReturnableItems array locally
@@ -1927,8 +1929,8 @@ const RequestDetailsModal = ({
                 itemModel: editValues.itemModel,
                 serialNo: editValues.serialNo,
               }
-            : item
-        )
+            : item,
+        ),
       );
 
       setEditingItemSerialNo(null);
@@ -1948,20 +1950,20 @@ const RequestDetailsModal = ({
                   itemModel: editValues.itemModel,
                   serialNo: editValues.serialNo,
                 }
-              : item
-          )
+              : item,
+          ),
         );
 
         setEditingItemSerialNo(null);
         setEditValues({ itemModel: "", serialNo: "" });
         showToast(
           "Returnable item updated locally. Changes will be saved when you approve the request.",
-          "info"
+          "info",
         );
       } else {
         showToast(
           "Failed to update returnable item: " + error.message,
-          "error"
+          "error",
         );
       }
     }
@@ -1977,7 +1979,7 @@ const RequestDetailsModal = ({
     request,
     transporterDetails,
     loadingStaff,
-    selectedReturnableItems
+    selectedReturnableItems,
   ) => {
     // Create a temporary iframe to hold the printable content
     const printFrame = document.createElement("iframe");
@@ -2377,7 +2379,7 @@ const RequestDetailsModal = ({
           <span class="label">Loading Time:</span> ${
             request?.requestDetails?.loading?.loadingTime
               ? new Date(
-                  request.requestDetails.loading.loadingTime
+                  request.requestDetails.loading.loadingTime,
                 ).toLocaleString()
               : "N/A"
           }
@@ -2512,7 +2514,7 @@ const RequestDetailsModal = ({
           <span class="label">Loading Time:</span> ${
             request?.requestDetails?.unLoading?.loadingTime
               ? new Date(
-                  request.requestDetails.unLoading.loadingTime
+                  request.requestDetails.unLoading.loadingTime,
                 ).toLocaleString()
               : "N/A"
           }
@@ -2616,7 +2618,7 @@ const RequestDetailsModal = ({
                   <td>${item?.itemQuantity || "-"}</td>
                   <td>${item?.itemModel || "-"}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -2648,7 +2650,7 @@ const RequestDetailsModal = ({
                   <td>${item?.returnQuantity || item?.itemQuantity || "-"}</td>
                   <td>${item?.itemModel || "-"}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -2740,7 +2742,7 @@ const RequestDetailsModal = ({
       yPos,
       col1Width + col2Width + col3Width + col4Width + col5Width,
       8,
-      "F"
+      "F",
     );
 
     doc.text("Item Name", margin + 3, yPos + 5.5);
@@ -2750,7 +2752,7 @@ const RequestDetailsModal = ({
     doc.text(
       "Model",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
-      yPos + 5.5
+      yPos + 5.5,
     );
 
     yPos += 8;
@@ -2769,7 +2771,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
 
         doc.text("Item Name", margin + 3, yPos + 5.5);
@@ -2778,12 +2780,12 @@ const RequestDetailsModal = ({
         doc.text(
           "Qty",
           margin + col1Width + col2Width + col3Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
         doc.text(
           "Model",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
 
         yPos += 8;
@@ -2797,7 +2799,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
       }
 
@@ -2812,27 +2814,27 @@ const RequestDetailsModal = ({
       doc.text(
         truncateText(item?.itemName || "N/A", 25),
         margin + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.serialNo || "N/A", 15),
         margin + col1Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.itemCategory || "N/A", 12),
         margin + col1Width + col2Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemQuantity?.toString() || "1",
         margin + col1Width + col2Width + col3Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemModel || "N/A",
         margin + col1Width + col2Width + col3Width + col4Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       // doc.text(item?.itemReturnable ? 'Returnable' : 'Non-Returnable',
       //          margin + col1Width + col2Width + col3Width + col4Width + 3, yPos + 5.5);
@@ -2842,7 +2844,7 @@ const RequestDetailsModal = ({
         margin,
         yPos + 8,
         margin + col1Width + col2Width + col3Width + col4Width + col5Width,
-        yPos + 8
+        yPos + 8,
       );
 
       yPos += 8;
@@ -2856,7 +2858,7 @@ const RequestDetailsModal = ({
       "This is an electronically generated document and does not require signature.",
       pageWidth / 2,
       footerYPos,
-      { align: "center" }
+      { align: "center" },
     );
 
     // Save the PDF
@@ -2872,8 +2874,8 @@ const RequestDetailsModal = ({
             activeTab === "pending"
               ? "bg-gradient-to-r from-amber-600 to-orange-300"
               : activeTab === "approved"
-              ? "bg-gradient-to-br from-emerald-600 to-green-600"
-              : "bg-gradient-to-br from-rose-600 to-red-400"
+                ? "bg-gradient-to-br from-emerald-600 to-green-600"
+                : "bg-gradient-to-br from-rose-600 to-red-400"
           }`}
         >
           <div className="flex justify-between items-center">
@@ -3476,34 +3478,38 @@ const RequestDetailsModal = ({
                 {staffType === "SLT" ? (
                   <>
                     {/* SLT Employee Search */}
-                  <div className="mb-4">
+                    <div className="mb-4">
                       <div className="flex items-center mb-4">
-  <input
-    type="text"
-    value={serviceId}
-    onChange={(e) => setServiceId(e.target.value)}
-    onKeyDown={(e) => {
-      if (e.key === "Enter" && !isSuperAdmin && serviceId.trim()) {
-        e.preventDefault();
-        handleEmployeeSearch();
-      }
-    }}
-    placeholder="Enter Service ID"
-    className="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  />
+                        <input
+                          type="text"
+                          value={serviceId}
+                          onChange={(e) => setServiceId(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (
+                              e.key === "Enter" &&
+                              !isSuper &&
+                              serviceId.trim()
+                            ) {
+                              e.preventDefault();
+                              handleEmployeeSearch();
+                            }
+                          }}
+                          placeholder="Enter Service ID"
+                          className="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
 
-  <button
-    onClick={handleEmployeeSearch}
-    disabled={isSuperAdmin}
-    className={`px-4 py-3 rounded-r-lg ${
-      isSuperAdmin
-        ? "bg-gray-300 cursor-not-allowed"
-        : "bg-blue-500 hover:bg-blue-600 text-white"
-    }`}
-  >
-    <FaSearch />
-  </button>
-</div>
+                        <button
+                          onClick={handleEmployeeSearch}
+                          disabled={isSuper}
+                          className={`px-4 py-3 rounded-r-lg ${
+                            isSuper
+                              ? "bg-gray-300 cursor-not-allowed"
+                              : "bg-blue-500 hover:bg-blue-600 text-white"
+                          }`}
+                        >
+                          <FaSearch />
+                        </button>
+                      </div>
 
                       {searchedEmployee && (
                         <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
@@ -3711,7 +3717,7 @@ const RequestDetailsModal = ({
                           onClick={() =>
                             handleEmployeeSearch(
                               transportServiceId,
-                              "transport"
+                              "transport",
                             )
                           }
                           className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-r-lg transition-colors"
@@ -3951,8 +3957,8 @@ const RequestDetailsModal = ({
                   (item) =>
                     item.status === "returnable" &&
                     !(request.returnableItems || []).find(
-                      (ri) => ri.serialNo === item.serialNo
-                    )?.returned
+                      (ri) => ri.serialNo === item.serialNo,
+                    )?.returned,
                 ).length > 0 && (
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
@@ -3966,8 +3972,8 @@ const RequestDetailsModal = ({
                               (item) =>
                                 item.status === "returnable" &&
                                 !(request.returnableItems || []).find(
-                                  (ri) => ri.serialNo === item.serialNo
-                                )?.returned
+                                  (ri) => ri.serialNo === item.serialNo,
+                                )?.returned,
                             ).length
                         }
                         onChange={(e) => {
@@ -3977,8 +3983,8 @@ const RequestDetailsModal = ({
                                 (item) =>
                                   item.status === "returnable" &&
                                   !(request.returnableItems || []).find(
-                                    (ri) => ri.serialNo === item.serialNo
-                                  )?.returned
+                                    (ri) => ri.serialNo === item.serialNo,
+                                  )?.returned,
                               )
                               .map((item) => item.serialNo);
                             setSelectedItems(allUnreturnedItems);
@@ -4028,8 +4034,8 @@ const RequestDetailsModal = ({
                                   (item) =>
                                     item.status === "returnable" &&
                                     !(request.returnableItems || []).find(
-                                      (ri) => ri.serialNo === item.serialNo
-                                    )?.returned
+                                      (ri) => ri.serialNo === item.serialNo,
+                                    )?.returned,
                                 ).length
                             }
                             onChange={(e) => {
@@ -4039,8 +4045,8 @@ const RequestDetailsModal = ({
                                     (item) =>
                                       item.status === "returnable" &&
                                       !(request.returnableItems || []).find(
-                                        (ri) => ri.serialNo === item.serialNo
-                                      )?.returned
+                                        (ri) => ri.serialNo === item.serialNo,
+                                      )?.returned,
                                   )
                                   .map((item) => item.serialNo);
                                 setSelectedItems(allUnreturnedItems);
@@ -4101,7 +4107,7 @@ const RequestDetailsModal = ({
                                   <input
                                     type="checkbox"
                                     checked={selectedItems.includes(
-                                      item.serialNo
+                                      item.serialNo,
                                     )}
                                     onChange={(e) => {
                                       if (e.target.checked) {
@@ -4112,8 +4118,8 @@ const RequestDetailsModal = ({
                                       } else {
                                         setSelectedItems(
                                           selectedItems.filter(
-                                            (s) => s !== item.serialNo
-                                          )
+                                            (s) => s !== item.serialNo,
+                                          ),
                                         );
                                       }
                                     }}
@@ -4165,7 +4171,7 @@ const RequestDetailsModal = ({
                               <td className="px-6 py-4">
                                 {item.returnDate
                                   ? new Date(
-                                      item.returnDate
+                                      item.returnDate,
                                     ).toLocaleDateString()
                                   : "N/A"}
                               </td>
@@ -4183,7 +4189,7 @@ const RequestDetailsModal = ({
                                           <button
                                             onClick={() =>
                                               handleSaveReturnableItem(
-                                                item.serialNo
+                                                item.serialNo,
                                               )
                                             }
                                             className="p-2 text-green-600 hover:text-green-800 transition-colors"
@@ -4223,7 +4229,7 @@ const RequestDetailsModal = ({
 
                 {/* Empty state */}
                 {(request.items || []).filter(
-                  (item) => item.status === "returnable"
+                  (item) => item.status === "returnable",
                 ).length === 0 && (
                   <div className="flex flex-col items-center justify-center py-8">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -4419,7 +4425,7 @@ const RequestDetailsModal = ({
                             request,
                             transporterDetails,
                             searchedEmployee,
-                            selectedReturnableItems
+                            selectedReturnableItems,
                           )
                         }
                         className="px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-all flex items-center"
@@ -4520,7 +4526,7 @@ const RequestDetailsModal = ({
                           item.status ===
                             "return to Out Location Petrol Leader" ||
                           item.status === "return to Petrol Leader" ||
-                          item.status === "return to Executive Officer"
+                          item.status === "return to Executive Officer",
                       )?.length > 0 ? (
                         <ul className="list-disc list-inside space-y-1 text-gray-600">
                           {request.items
@@ -4531,7 +4537,7 @@ const RequestDetailsModal = ({
                                 item.status ===
                                   "return to Out Location Petrol Leader" ||
                                 item.status === "return to Petrol Leader" ||
-                                item.status === "return to Executive Officer"
+                                item.status === "return to Executive Officer",
                             )
                             .map((item, index) => (
                               <li key={index}>
@@ -4620,7 +4626,7 @@ const RequestDetailsModal = ({
                     </label>
                     <textarea
                       value={comment}
-                      disabled={isSuperAdmin}
+                      disabled={isSuper}
                       onChange={(e) => setComment(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       placeholder="Add your comments here..."
@@ -4801,3 +4807,4 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
 };
 
 export default Receive;
+

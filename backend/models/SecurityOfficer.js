@@ -86,10 +86,12 @@ SecurityOfficerSchema.pre("updateMany", syncOnUpdate);
 
 // Collection name: adjust if your Mongo collection is named differently.
 // If your actual collection is "SecurityOfficers", keep as below:
-module.exports = mongoose.model(
-  
-  "SecurityOfficers",
-  SecurityOfficerSchema
+const SecurityOfficer = mongoose.model(
+  "SecurityOfficer", // model name (singular is best practice)
+  SecurityOfficerSchema,
+  "SecurityOfficers", // <-- EXACT Mongo collection name
 );
 
-module.exports.normBranch = normBranch;
+SecurityOfficer.normBranch = normBranch;
+
+module.exports = SecurityOfficer;

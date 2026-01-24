@@ -45,12 +45,36 @@ const isNonSltIdentifier = (serviceNo) => {
   if (!serviceNo) return false;
   // Check for NSL prefix
   if (serviceNo.startsWith("NSL")) return true;
-  // Check for pure numeric 4-6 digits (like 0005, 0008, 010086, 007354)
-  if (/^\d{4,6}$/.test(serviceNo)) return true;
   return false;
 };
 
+const mapErpEmployeeToReceiver = (employee, fallbackServiceNo) => {
+  if (!employee) return null;
+
+  return {
+    name: `${employee.employeeTitle || ""} ${
+      employee.employeeFirstName || ""
+    } ${employee.employeeSurname || ""}`.trim(),
+    serviceNo: employee.employeeNo || fallbackServiceNo || "N/A",
+    designation: employee.designation || "-",
+    section: employee.empSection || "-",
+    group: employee.empGroup || "-",
+    contactNo: employee.mobileNo || "-",
+  };
+};
+
 const Dispatch = () => {
+  const fetchReceiverFromErp = async (serviceNo) => {
+    const response = await searchEmployeeByServiceNo(serviceNo);
+    const employee =
+      response?.data?.data?.[0] ||
+      response?.data?.data ||
+      response?.data?.[0] ||
+      response?.data ||
+      null;
+    return mapErpEmployeeToReceiver(employee, serviceNo);
+  };
+
   const [activeTab, setActiveTab] = useState("pending");
   const [showModal, setShowModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -116,7 +140,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  fetchReceiverFromErp
                 );
               } catch (e) {}
             } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
@@ -257,7 +281,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  fetchReceiverFromErp
                 );
               } catch (e) {}
             } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
@@ -382,7 +406,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  fetchReceiverFromErp
                 );
               } catch (e) {
                 // Silently handle missing users
@@ -474,7 +498,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  fetchReceiverFromErp
                 );
               } catch (e) {
                 // Silently handle missing users

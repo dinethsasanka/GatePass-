@@ -5,6 +5,7 @@
 const Status = require("../models/Status");
 const Request = require("../models/Request");
 const User = require("../models/User");
+const { findAuthoritiesForLocation } = require("../utils/locationRouting");
 const {
   emitRequestApproval,
   emitRequestRejection,
@@ -44,11 +45,11 @@ async function findVerifierForOutLocation(outLocation) {
     // assuming user.branches (array of branch strings)
     branches: { $in: [outLocation] },
   }).lean();
-  return Pleader;
+  return verifier;
 }
 
 // Import user helpers at the top
-const { findRequesterWithERPData } = require('../utils/userHelpers');
+const { findRequesterWithERPData } = require("../utils/userHelpers");
 
 // Try to resolve the Requester user record from the Request document
 // NOW WITH ERP DATA!
@@ -56,7 +57,6 @@ async function findRequesterFromRequest(reqDoc) {
   // Use the new helper that automatically enriches with ERP data
   return await findRequesterWithERPData(reqDoc, true);
 }
-
 
 // helpers to avoid role/serviceNo formatting issues
 const normalizeRole = (r) =>
@@ -163,7 +163,7 @@ exports.getApproved = async (req, res) => {
         s.request &&
         s.request.show !== false &&
         (!svcNo ||
-          String(s.request.executiveOfficerServiceNo) === String(svcNo))
+          String(s.request.executiveOfficerServiceNo) === String(svcNo)),
     );
 
     // Remove duplicates by keeping only the latest Status per referenceNumber
@@ -217,7 +217,7 @@ exports.getRejected = async (req, res) => {
         s.request &&
         s.request.show !== false &&
         (!svcNo ||
-          String(s.request.executiveOfficerServiceNo) === String(svcNo))
+          String(s.request.executiveOfficerServiceNo) === String(svcNo)),
     );
 
     // Remove duplicates by keeping only the latest Status per referenceNumber
@@ -268,6 +268,32 @@ exports.updateApproved = async (req, res) => {
 
     // The CRITICAL part: Verifier must be PENDING (1), not 2
     status.verifyOfficerStatus = 1;
+
+    // ✅ Assign OUT-location Pleaders + Security Officers into Status
+    const outLocationName = status.request.outLocation;
+
+    const outAuthorities = await findAuthoritiesForLocation(outLocationName);
+
+    // SAVE ALL matching employees (NOT only one)
+    // status.outPLeaders = outAuthorities.pleaders;
+    // status.outSecurity = outAuthorities.security;
+
+    status.outPLeaders = Array.isArray(outAuthorities.pleaders)
+      ? outAuthorities.pleaders
+      : [];
+
+    status.outSecurity = Array.isArray(outAuthorities.security)
+      ? outAuthorities.security
+      : [];
+
+    console.log("OUT ASSIGNED (FINAL)", {
+      ref: referenceNumber,
+      outLocationName,
+      pleaders: status.outPLeaders,
+      security: status.outSecurity,
+      total:
+        (status.outPLeaders?.length || 0) + (status.outSecurity?.length || 0),
+    });
 
     // Do not touch receive stage here
     // Keep request visible
@@ -342,7 +368,7 @@ exports.updateRejected = async (req, res) => {
       "req.user:",
       req.user?.serviceNo,
       "branches:",
-      req.user?.branches
+      req.user?.branches,
     );
 
     if (!comment || !comment.trim()) {
@@ -386,7 +412,7 @@ exports.updateRejected = async (req, res) => {
           "Executive User Found (fallback):",
           executiveUser?.serviceNo,
           "Branches:",
-          executiveUser?.branches
+          executiveUser?.branches,
         );
         if (
           executiveUser &&
@@ -396,7 +422,7 @@ exports.updateRejected = async (req, res) => {
           status.rejectedByBranch = executiveUser.branches[0];
           console.log(
             "Set rejectedByBranch (fallback):",
-            executiveUser.branches[0]
+            executiveUser.branches[0],
           );
         } else {
           console.log("No branches found for executive");
@@ -501,7 +527,7 @@ exports.markItemsAsReturned = async (req, res) => {
     // Update or add to returnableItems
     serialNumbers.forEach((serialNo) => {
       const existingIndex = request.returnableItems.findIndex(
-        (ri) => ri.serialNo === serialNo
+        (ri) => ri.serialNo === serialNo,
       );
 
       const itemData = request.items.find((item) => item.serialNo === serialNo);

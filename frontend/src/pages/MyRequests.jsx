@@ -436,8 +436,8 @@ const RequestDetailsModal = ({
     const col1Width = 60; // Item Name
     const col2Width = 40; // Serial No
     const col3Width = 30; // Category
-    //const col4Width = 20; // Quantity
-    const col5Width = 30; // Status
+    const col4Width = 20; // Quantity
+    const col5Width = 30; // Model
 
     // Draw table header
     doc.setFillColor(240, 240, 240);
@@ -530,11 +530,11 @@ const RequestDetailsModal = ({
         margin + col1Width + col2Width + 3,
         yPos + 5.5
       );
-      // doc.text(
-      //   item?.itemQuantity?.toString() || "1",
-      //   margin + col1Width + col2Width + col3Width + 3,
-      //   yPos + 5.5
-      // );
+      doc.text(
+        item?.itemQuantity?.toString() || "1",
+        margin + col1Width + col2Width + col3Width + 3,
+        yPos + 5.5
+      );
       doc.text(
         truncateText(item?.itemModel || "N/A", 15),
         margin + col1Width + col2Width + col3Width + col4Width + 3,

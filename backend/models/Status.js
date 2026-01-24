@@ -26,13 +26,19 @@ const StatusSchema = new mongoose.Schema(
     rejectedAt: { type: Date }, // When it was rejected
     rejectionLevel: { type: Number }, // 1: Executive, 2: Verifier, 3: Dispatcher, 4: Receiver
 
+    outPLeaders: { type: [String], default: [] }, // e.g. ["011841", "011932"]
+    outSecurity: { type: [String], default: [] },
+
+    inPLeaders: { type: [String], default: [] },
+    inSecurity: { type: [String], default: [] },
+
     request: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Request",
       required: true,
     }, //refID
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Status = mongoose.model("Status", StatusSchema);
