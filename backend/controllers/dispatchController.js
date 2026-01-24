@@ -43,6 +43,91 @@ const isSuperAdmin = (role) => normalizeRole(role) === "superadmin";
 const isDispatchRole = (role) =>
   DISPATCH_ROLES.map(normalizeRole).includes(normalizeRole(role));
 
+const getLatestDispatchStatuses = async () => {
+  let rows = await Status.find({
+    afterStatus: { $in: [7, 8, 9, "7", "8", "9"] },
+  })
+    .populate("request")
+    .sort({ updatedAt: -1, createdAt: -1 })
+    .lean();
+
+  rows = rows.filter((s) => s.request && s.request.show !== false);
+
+  const rank = (s) => {
+    const v = Number(s.afterStatus);
+    if (v === 9) return 3;
+    if (v === 8) return 2;
+    if (v === 7) return 1;
+    return 0;
+  };
+  const pickByRef = new Map();
+  const rolesByRef = new Map();
+  for (const s of rows) {
+    const key = s.referenceNumber;
+    if (!rolesByRef.has(key)) {
+      rolesByRef.set(key, {
+        inPLeaders: Array.isArray(s.inPLeaders) ? s.inPLeaders : [],
+        inSecurity: Array.isArray(s.inSecurity) ? s.inSecurity : [],
+        outPLeaders: Array.isArray(s.outPLeaders) ? s.outPLeaders : [],
+        outSecurity: Array.isArray(s.outSecurity) ? s.outSecurity : [],
+      });
+    } else {
+      const cached = rolesByRef.get(key);
+      if (!cached.inPLeaders.length && Array.isArray(s.inPLeaders)) {
+        cached.inPLeaders = s.inPLeaders;
+      }
+      if (!cached.inSecurity.length && Array.isArray(s.inSecurity)) {
+        cached.inSecurity = s.inSecurity;
+      }
+      if (!cached.outPLeaders.length && Array.isArray(s.outPLeaders)) {
+        cached.outPLeaders = s.outPLeaders;
+      }
+      if (!cached.outSecurity.length && Array.isArray(s.outSecurity)) {
+        cached.outSecurity = s.outSecurity;
+      }
+    }
+
+    const current = pickByRef.get(key);
+    if (!current) {
+      pickByRef.set(key, s);
+      continue;
+    }
+
+    const r1 = rank(current);
+    const r2 = rank(s);
+    if (r2 > r1) {
+      pickByRef.set(key, s);
+      continue;
+    }
+
+    if (r2 === r1) {
+      const t1 = new Date(current.updatedAt || current.createdAt || 0).getTime();
+      const t2 = new Date(s.updatedAt || s.createdAt || 0).getTime();
+      if (t2 > t1) pickByRef.set(key, s);
+    }
+  }
+
+  const picked = Array.from(pickByRef.values());
+  for (const s of picked) {
+    const role = rolesByRef.get(s.referenceNumber);
+    if (!role) continue;
+    if (!Array.isArray(s.inPLeaders) || !s.inPLeaders.length) {
+      s.inPLeaders = role.inPLeaders;
+    }
+    if (!Array.isArray(s.inSecurity) || !s.inSecurity.length) {
+      s.inSecurity = role.inSecurity;
+    }
+    if (!Array.isArray(s.outPLeaders) || !s.outPLeaders.length) {
+      s.outPLeaders = role.outPLeaders;
+    }
+    if (!Array.isArray(s.outSecurity) || !s.outSecurity.length) {
+      s.outSecurity = role.outSecurity;
+    }
+  }
+
+  return picked;
+};
+
 // Create a new status
 const createStatus = async (req, res) => {
   try {
@@ -78,37 +163,21 @@ const getPending = async (req, res) => {
       return res.status(400).json({ message: "Missing serviceNo" });
     }
 
-    let rows = await Status.find({ afterStatus: { $in: [7, "7"] } })
-      .populate("request")
-      .sort({ updatedAt: -1 })
-      .lean();
-
-    // remove hidden / missing requests
-    rows = rows.filter((s) => s.request && s.request.show !== false);
+    let rows = await getLatestDispatchStatuses();
+    rows = rows.filter((s) => String(s.afterStatus) === "7");
 
     // superadmin sees all
     if (!isSuper) {
       rows = rows.filter(
-        (s) => s.inPLeaders?.includes(mySvc) || s.inSecurity?.includes(mySvc),
+        (s) =>
+          s.inPLeaders?.includes(mySvc) ||
+          s.inSecurity?.includes(mySvc) ||
+          s.outPLeaders?.includes(mySvc) ||
+          s.outSecurity?.includes(mySvc),
       );
     }
 
-    // dedupe by referenceNumber (keep newest)
-    const unique = [];
-    const seen = new Set();
-    for (const s of rows) {
-      if (!seen.has(s.referenceNumber)) {
-        seen.add(s.referenceNumber);
-        unique.push(s);
-      }
-    }
-    unique.sort(
-      (a, b) =>
-        new Date(b.updatedAt || b.createdAt) -
-        new Date(a.updatedAt || a.createdAt),
-    );
-
-    return res.status(200).json(unique);
+    return res.status(200).json(rows);
   } catch (error) {
     console.error("Error fetching pending statuses:", error);
     return res.status(500).json({ message: "Server error" });
@@ -122,16 +191,16 @@ const getApproved = async (req, res) => {
     if (!isSuper && !mySvc) {
       return res.status(400).json({ message: "Missing serviceNo" });
     }
-    let rows = await Status.find({ afterStatus: { $in: [8, "8"] } })
-      .populate("request")
-      .sort({ updatedAt: -1 })
-      .lean();
-
-    let filtered = rows.filter((s) => s.request && s.request.show !== false);
+    let filtered = await getLatestDispatchStatuses();
+    filtered = filtered.filter((s) => String(s.afterStatus) === "8");
 
     if (!isSuper) {
       filtered = filtered.filter(
-        (s) => s.inPLeaders?.includes(mySvc) || s.inSecurity?.includes(mySvc),
+        (s) =>
+          s.inPLeaders?.includes(mySvc) ||
+          s.inSecurity?.includes(mySvc) ||
+          s.outPLeaders?.includes(mySvc) ||
+          s.outSecurity?.includes(mySvc),
       );
     }
 
@@ -150,36 +219,20 @@ const getRejected = async (req, res) => {
       return res.status(400).json({ message: "Missing serviceNo" });
     }
 
-    let rows = await Status.find({ afterStatus: { $in: [9, "9"] } })
-      .populate("request")
-      .sort({ updatedAt: -1 })
-      .lean();
-
-    rows = rows.filter((s) => s.request && s.request.show !== false);
+    let rows = await getLatestDispatchStatuses();
+    rows = rows.filter((s) => String(s.afterStatus) === "9");
 
     if (!isSuper) {
       rows = rows.filter(
-        (s) => s.inPLeaders?.includes(mySvc) || s.inSecurity?.includes(mySvc),
+        (s) =>
+          s.inPLeaders?.includes(mySvc) ||
+          s.inSecurity?.includes(mySvc) ||
+          s.outPLeaders?.includes(mySvc) ||
+          s.outSecurity?.includes(mySvc),
       );
     }
 
-    // dedupe newest per reference
-    const unique = [];
-    const seen = new Set();
-    for (const s of rows) {
-      if (!seen.has(s.referenceNumber)) {
-        seen.add(s.referenceNumber);
-        unique.push(s);
-      }
-    }
-
-    unique.sort(
-      (a, b) =>
-        new Date(b.updatedAt || b.createdAt) -
-        new Date(a.updatedAt || a.createdAt),
-    );
-
-    return res.status(200).json(unique);
+    return res.status(200).json(rows);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -218,6 +271,10 @@ const updateApproved = async (req, res) => {
     const newStatus = new Status({
       referenceNumber,
       request: latest.request?._id || latest.request,
+      inPLeaders: latest.inPLeaders || [],
+      inSecurity: latest.inSecurity || [],
+      outPLeaders: latest.outPLeaders || [],
+      outSecurity: latest.outSecurity || [],
       // Pleader stage explicit fields
       pleaderStatus: 2, // 2 = Approved by Pleader (Dispatch)
       pleaderServiceNo: req.user?.serviceNo
@@ -381,6 +438,10 @@ const updateRejected = async (req, res) => {
     const newStatus = new Status({
       referenceNumber,
       request: latest.request?._id || latest.request,
+      inPLeaders: latest.inPLeaders || [],
+      inSecurity: latest.inSecurity || [],
+      outPLeaders: latest.outPLeaders || [],
+      outSecurity: latest.outSecurity || [],
       beforeStatus: 7,
       afterStatus: 9,
       comment: comment.trim(),
