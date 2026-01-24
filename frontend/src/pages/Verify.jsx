@@ -22,7 +22,11 @@ import { emailSent } from "../services/emailService.js";
 import { jsPDF } from "jspdf";
 import logoUrl from "../assets/SLTMobitel_Logo.png";
 import { useLocation } from "react-router-dom";
-import { getCachedUser, setCachedUser } from "../utils/userCache.js";
+import {
+  getCachedUser,
+  getCachedUserAllowRefresh,
+  setCachedUser,
+} from "../utils/userCache.js";
 import { useAutoRefetch } from "../hooks/useRealtimeUpdates.js";
 import {
   FaClock,
@@ -55,9 +59,63 @@ const isNonSltIdentifier = (serviceNo) => {
   if (!serviceNo) return false;
   // Check for NSL prefix
   if (serviceNo.startsWith("NSL")) return true;
-  // Check for pure numeric 4-6 digits (like 0005, 0008, 010086, 007354)
-  if (/^\d{4,6}$/.test(serviceNo)) return true;
   return false;
+};
+
+const ensureReceiverDetails = (receiverDetails, receiverServiceNo, request) => {
+  if (receiverDetails || !receiverServiceNo) return receiverDetails;
+  return {
+    name:
+      request?.receiverName ||
+      request?.requestDetails?.receiverName ||
+      request?.request?.receiverName ||
+      "N/A",
+    serviceNo: receiverServiceNo,
+    group: "N/A",
+    contactNo:
+      request?.receiverContact ||
+      request?.requestDetails?.receiverContact ||
+      request?.request?.receiverContact ||
+      "N/A",
+  };
+};
+
+const mapErpEmployeeToReceiver = (employee, fallbackServiceNo) => {
+  if (!employee) return null;
+
+  return {
+    name: `${employee.employeeTitle || ""} ${
+      employee.employeeFirstName || ""
+    } ${employee.employeeSurname || ""}`.trim(),
+    serviceNo: employee.employeeNo || fallbackServiceNo || "N/A",
+    designation: employee.designation || "-",
+    section: employee.empSection || "-",
+    group: employee.empGroup || "-",
+    contactNo: employee.mobileNo || "-",
+  };
+};
+
+const fetchReceiverFromErp = async (serviceNo) => {
+  try {
+    const response = await searchEmployeeByServiceNo(serviceNo);
+    const employee =
+      response?.data?.data?.[0] ||
+      response?.data?.data ||
+      response?.data?.[0] ||
+      response?.data ||
+      null;
+    return mapErpEmployeeToReceiver(employee, serviceNo);
+  } catch {
+    return null;
+  }
+};
+
+const fetchReceiverDetails = async (serviceNo) => {
+  try {
+    const userData = await searchUserByServiceNo(serviceNo);
+    if (userData) return userData;
+  } catch {}
+  return await fetchReceiverFromErp(serviceNo);
 };
 
 const Verify = () => {
@@ -161,7 +219,7 @@ const Verify = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                const userData = await searchUserByServiceNo(receiverServiceNo);
+                const userData = await fetchReceiverDetails(receiverServiceNo);
                 if (userData) receiverDetails = userData;
               } catch (error) {}
             } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
@@ -171,6 +229,11 @@ const Verify = () => {
                 contactNo: status.request?.receiverContact || "N/A",
               };
             }
+            receiverDetails = ensureReceiverDetails(
+              receiverDetails,
+              receiverServiceNo,
+              status.request,
+            );
 
             return {
               refNo: status.referenceNumber,
@@ -281,7 +344,7 @@ const Verify = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                const userData = await searchUserByServiceNo(receiverServiceNo);
+                const userData = await fetchReceiverDetails(receiverServiceNo);
                 if (userData) receiverDetails = userData;
               } catch (error) {}
             } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
@@ -291,6 +354,11 @@ const Verify = () => {
                 contactNo: status.request?.receiverContact || "N/A",
               };
             }
+            receiverDetails = ensureReceiverDetails(
+              receiverDetails,
+              receiverServiceNo,
+              status.request,
+            );
             return {
               refNo: status.referenceNumber,
               senderDetails: senderDetails,
@@ -393,10 +461,7 @@ const Verify = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                receiverDetails = await getCachedUser(
-                  receiverServiceNo,
-                  searchUserByServiceNo
-                );
+                receiverDetails = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
               } catch (error) {
                 // Silently handle missing users
               }
@@ -407,6 +472,11 @@ const Verify = () => {
                 contactNo: status.request?.receiverContact || "N/A",
               };
             }
+            receiverDetails = ensureReceiverDetails(
+              receiverDetails,
+              receiverServiceNo,
+              status.request,
+            );
 
             // OPTIMIZATION: Don't fetch loading staff, executive, or verify officers for approved items
             // They're already approved and these details are not needed in the list view
@@ -515,10 +585,7 @@ const Verify = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                const userData = await getCachedUser(
-                  receiverServiceNo,
-                  searchUserByServiceNo
-                );
+                const userData = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
                 if (userData) {
                   receiverDetails = userData;
                 }
@@ -533,6 +600,11 @@ const Verify = () => {
                 contactNo: status.request?.receiverContact || "N/A",
               };
             }
+            receiverDetails = ensureReceiverDetails(
+              receiverDetails,
+              receiverServiceNo,
+              status.request,
+            );
 
             let loadUserData = null;
 
@@ -3564,7 +3636,7 @@ const RequestDetailsModal = ({
                       </div>
                     </div>
                   </div>
-                ) : request?.receiverDetails ? (
+                ) : (
                   <div className="bg-gray-50 rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
                       <FaUserCheck className="mr-2" /> Receiver Details
@@ -3575,7 +3647,11 @@ const RequestDetailsModal = ({
                           Name
                         </label>
                         <p className="text-gray-800">
-                          {request?.receiverDetails?.name || "N/A"}
+                          {request?.receiverDetails?.name ||
+                            request?.receiverName ||
+                            request?.requestDetails?.receiverName ||
+                            request?.request?.receiverName ||
+                            "N/A"}
                         </p>
                       </div>
                       <div>
@@ -3591,7 +3667,11 @@ const RequestDetailsModal = ({
                           Service No
                         </label>
                         <p className="text-gray-800">
-                          {request?.receiverDetails?.serviceNo || "N/A"}
+                          {request?.receiverDetails?.serviceNo ||
+                            request?.receiverServiceNo ||
+                            request?.requestDetails?.receiverServiceNo ||
+                            request?.request?.receiverServiceNo ||
+                            "N/A"}
                         </p>
                       </div>
                       <div>
@@ -3599,18 +3679,13 @@ const RequestDetailsModal = ({
                           Contact
                         </label>
                         <p className="text-gray-800">
-                          {request?.receiverDetails?.contactNo || "N/A"}
+                          {request?.receiverDetails?.contactNo ||
+                            request?.receiverContact ||
+                            request?.requestDetails?.receiverContact ||
+                            request?.request?.receiverContact ||
+                            "N/A"}
                         </p>
                       </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
-                      <FaUserCheck className="mr-2" /> Receiver Details
-                    </h3>
-                    <div className="text-center py-4 text-gray-500">
-                      <p>No receiver information available</p>
                     </div>
                   </div>
                 )}
@@ -4749,3 +4824,4 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
 };
 
 export default Verify;
+

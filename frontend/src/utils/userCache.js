@@ -49,6 +49,21 @@ export const getCachedUser = async (serviceNo, fetchFunction) => {
 };
 
 /**
+ * Cached user lookup that can retry when a previous lookup cached null.
+ */
+export const getCachedUserAllowRefresh = async (serviceNo, fetchFunction) => {
+  if (!serviceNo) {
+    return null;
+  }
+
+  if (userCache.has(serviceNo) && userCache.get(serviceNo) === null) {
+    userCache.delete(serviceNo);
+  }
+
+  return getCachedUser(serviceNo, fetchFunction);
+};
+
+/**
  * Clear the cache (useful when user data might have changed)
  */
 export const clearUserCache = () => {
