@@ -235,7 +235,10 @@ const Receive = () => {
             let receiverDetails = null;
             if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
               try {
-                receiverDetails = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                receiverDetails = await getCachedUserAllowRefresh(
+                  receiverServiceNo,
+                  fetchReceiverDetails,
+                );
               } catch {}
             }
             receiverDetails = ensureReceiverDetails(
@@ -380,7 +383,10 @@ const Receive = () => {
               let receiverDetails = null;
               if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
                 try {
-                  receiverDetails = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                  receiverDetails = await getCachedUserAllowRefresh(
+                    receiverServiceNo,
+                    fetchReceiverDetails,
+                  );
                 } catch {}
               }
               receiverDetails = ensureReceiverDetails(
@@ -504,7 +510,10 @@ const Receive = () => {
               let receiverDetails = null;
               if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
                 try {
-                  receiverDetails = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                  receiverDetails = await getCachedUserAllowRefresh(
+                    receiverServiceNo,
+                    fetchReceiverDetails,
+                  );
                 } catch {}
               }
               receiverDetails = ensureReceiverDetails(
@@ -645,7 +654,10 @@ const Receive = () => {
             let receiverDetails = null;
             if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
               try {
-                const userData = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                const userData = await getCachedUserAllowRefresh(
+                  receiverServiceNo,
+                  fetchReceiverDetails,
+                );
                 if (userData) receiverDetails = userData;
               } catch (error) {
                 console.error(
@@ -4919,8 +4931,3 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
 };
 
 export default Receive;
-
-
-
-
-
