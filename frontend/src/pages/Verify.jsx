@@ -118,6 +118,38 @@ const fetchReceiverDetails = async (serviceNo) => {
   return await fetchReceiverFromErp(serviceNo);
 };
 
+const fetchOfficerData = async (status) => {
+  const execServiceNo =
+    status?.executiveOfficerServiceNo || status?.request?.executiveOfficerServiceNo;
+  const verifyServiceNo =
+    status?.verifyOfficerServiceNumber ||
+    status?.verifyOfficerServiceNo ||
+    status?.request?.verifyOfficerServiceNo;
+
+  let executiveOfficerData = null;
+  let verifyOfficerData = null;
+
+  if (execServiceNo) {
+    try {
+      executiveOfficerData = await getCachedUser(
+        execServiceNo,
+        searchUserByServiceNo
+      );
+    } catch {}
+  }
+
+  if (verifyServiceNo) {
+    try {
+      verifyOfficerData = await getCachedUser(
+        verifyServiceNo,
+        searchUserByServiceNo
+      );
+    } catch {}
+  }
+
+  return { executiveOfficerData, verifyOfficerData };
+};
+
 const Verify = () => {
   const [activeTab, setActiveTab] = useState("pending");
   const [showModal, setShowModal] = useState(false);
@@ -171,6 +203,8 @@ const Verify = () => {
             const senderServiceNo = status.request?.employeeServiceNo;
             const receiverServiceNo = status.request?.receiverServiceNo;
             const transportData = status.request?.transport;
+            const loadingDetails = status.request?.loading;
+            const statusDetails = status;
             const isNonSltPlace = status.request?.isNonSltPlace;
             let senderDetails = null;
 
@@ -235,11 +269,32 @@ const Verify = () => {
               status.request,
             );
 
+            let loadUserData = null;
+            if (
+              loadingDetails &&
+              loadingDetails.staffType === "SLT" &&
+              loadingDetails.staffServiceNo
+            ) {
+              try {
+                const userData = await getCachedUser(
+                  loadingDetails.staffServiceNo,
+                  searchUserByServiceNo
+                );
+                loadUserData = userData;
+              } catch (error) {
+                // Silently handle missing users - expected for test data
+              }
+            }
+
+            const { executiveOfficerData, verifyOfficerData } =
+              await fetchOfficerData(status);
+
             return {
               refNo: status.referenceNumber,
               senderDetails: senderDetails,
               receiverDetails: receiverDetails,
               transportData: transportData,
+              loadingDetails: loadingDetails,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
@@ -249,6 +304,10 @@ const Verify = () => {
               comment: status.comment,
               request: status.request,
               requestDetails: { ...status.request },
+              loadUserData,
+              statusDetails: statusDetails,
+              executiveOfficerData,
+              verifyOfficerData,
             };
           })
         );
@@ -295,6 +354,8 @@ const Verify = () => {
             const senderServiceNo = status.request?.employeeServiceNo;
             const receiverServiceNo = status.request?.receiverServiceNo;
             const transportData = status.request?.transport;
+            const loadingDetails = status.request?.loading;
+            const statusDetails = status;
             const isNonSltPlace = status.request?.isNonSltPlace;
             let senderDetails = null;
             // Check if the sender is the logged-in user
@@ -359,11 +420,32 @@ const Verify = () => {
               receiverServiceNo,
               status.request,
             );
+
+            let loadUserData = null;
+            if (
+              loadingDetails &&
+              loadingDetails.staffType === "SLT" &&
+              loadingDetails.staffServiceNo
+            ) {
+              try {
+                const userData = await getCachedUser(
+                  loadingDetails.staffServiceNo,
+                  searchUserByServiceNo
+                );
+                loadUserData = userData;
+              } catch (error) {
+                // Silently handle missing users - expected for test data
+              }
+            }
+
+            const { executiveOfficerData, verifyOfficerData } =
+              await fetchOfficerData(status);
             return {
               refNo: status.referenceNumber,
               senderDetails: senderDetails,
               receiverDetails: receiverDetails,
               transportData: transportData,
+              loadingDetails: loadingDetails,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
@@ -373,6 +455,10 @@ const Verify = () => {
               comment: status.comment,
               request: status.request,
               requestDetails: { ...status.request },
+              loadUserData,
+              statusDetails: statusDetails,
+              executiveOfficerData,
+              verifyOfficerData,
             };
           })
         );
@@ -478,8 +564,25 @@ const Verify = () => {
               status.request,
             );
 
-            // OPTIMIZATION: Don't fetch loading staff, executive, or verify officers for approved items
-            // They're already approved and these details are not needed in the list view
+            let loadUserData = null;
+            if (
+              loadingDetails &&
+              loadingDetails.staffType === "SLT" &&
+              loadingDetails.staffServiceNo
+            ) {
+              try {
+                const userData = await getCachedUser(
+                  loadingDetails.staffServiceNo,
+                  searchUserByServiceNo
+                );
+                loadUserData = userData;
+              } catch (error) {
+                // Silently handle missing users - expected for test data
+              }
+            }
+
+            const { executiveOfficerData, verifyOfficerData } =
+              await fetchOfficerData(status);
 
             return {
               refNo: status.referenceNumber,
@@ -496,8 +599,10 @@ const Verify = () => {
               comment: status.verifyOfficerComment,
               request: status.request,
               requestDetails: { ...status.request },
-              // Removed loadUserData, executiveOfficerData, verifyOfficerData for performance
-              // They can be fetched on-demand when viewing request details
+              loadUserData,
+              statusDetails: statusDetails,
+              executiveOfficerData,
+              verifyOfficerData,
             };
           })
         );
@@ -624,6 +729,9 @@ const Verify = () => {
               }
             }
 
+            const { executiveOfficerData, verifyOfficerData } =
+              await fetchOfficerData(status);
+
             return {
               refNo: status.referenceNumber,
               senderDetails: senderDetails,
@@ -641,6 +749,8 @@ const Verify = () => {
               requestDetails: { ...status.request },
               loadUserData: loadUserData,
               statusDetails: statusDetails,
+              executiveOfficerData,
+              verifyOfficerData,
               rejectedBy: status.rejectedBy,
               rejectedByServiceNo: status.rejectedByServiceNo,
               rejectedByBranch: status.rejectedByBranch,
@@ -2930,12 +3040,12 @@ const RequestDetailsModal = ({
             </div>
             <div class="item">
                 <span class="label">Name:</span> ${
-                  request.loadUserData?.serviceNo || "N/A"
+                  request.loadUserData?.name || "N/A"
                 }
               </div>
               <div class="item">
                 <span class="label">Service No:</span> ${
-                  request.loadUserData?.name || "N/A"
+                  request.loadUserData?.serviceNo || "N/A"
                 }
               </div>
               <div class="item">

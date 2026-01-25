@@ -122,6 +122,38 @@ const fetchReceiverDetails = async (serviceNo) => {
   return await fetchReceiverFromErp(serviceNo);
 };
 
+const fetchOfficerData = async (status) => {
+  const execServiceNo =
+    status?.executiveOfficerServiceNo || status?.request?.executiveOfficerServiceNo;
+  const verifyServiceNo =
+    status?.verifyOfficerServiceNumber ||
+    status?.verifyOfficerServiceNo ||
+    status?.request?.verifyOfficerServiceNo;
+
+  let executiveOfficerData = null;
+  let verifyOfficerData = null;
+
+  if (execServiceNo) {
+    try {
+      executiveOfficerData = await getCachedUser(
+        execServiceNo,
+        searchUserByServiceNo
+      );
+    } catch {}
+  }
+
+  if (verifyServiceNo) {
+    try {
+      verifyOfficerData = await getCachedUser(
+        verifyServiceNo,
+        searchUserByServiceNo
+      );
+    } catch {}
+  }
+
+  return { executiveOfficerData, verifyOfficerData };
+};
+
 const Receive = () => {
   const [activeTab, setActiveTab] = useState("pending");
   const [showModal, setShowModal] = useState(false);
@@ -258,11 +290,12 @@ const Receive = () => {
             }
 
             let unLoadUserData = null;
-            if (statusDetails?.recieveOfficerServiceNumber) {
+            const unloadServiceNo =
+              req?.unLoading?.staffServiceNo ||
+              statusDetails?.recieveOfficerServiceNumber;
+            if (unloadServiceNo) {
               try {
-                unLoadUserData = await searchUserByServiceNo(
-                  statusDetails.recieveOfficerServiceNumber,
-                );
+                unLoadUserData = await searchUserByServiceNo(unloadServiceNo);
               } catch {}
             }
 
@@ -274,6 +307,9 @@ const Receive = () => {
                 );
               } catch {}
             }
+
+            const { executiveOfficerData, verifyOfficerData } =
+              await fetchOfficerData(statusDetails || status);
 
             return {
               refNo: status.referenceNumber,
@@ -296,6 +332,8 @@ const Receive = () => {
               unLoadUserData,
               statusDetails,
               receiveOfficerData,
+              executiveOfficerData,
+              verifyOfficerData,
             };
           }),
         );
@@ -403,11 +441,12 @@ const Receive = () => {
               }
 
               let unLoadUserData = null;
-              if (statusDetails?.recieveOfficerServiceNumber) {
+              const unloadServiceNo =
+                req?.unLoading?.staffServiceNo ||
+                statusDetails?.recieveOfficerServiceNumber;
+              if (unloadServiceNo) {
                 try {
-                  unLoadUserData = await searchUserByServiceNo(
-                    statusDetails.recieveOfficerServiceNumber,
-                  );
+                  unLoadUserData = await searchUserByServiceNo(unloadServiceNo);
                 } catch {}
               }
 
@@ -536,6 +575,19 @@ const Receive = () => {
                 } catch {}
               }
 
+              let unLoadUserData = null;
+              if (req?.unLoading?.staffServiceNo) {
+                try {
+                  unLoadUserData = await getCachedUser(
+                    req.unLoading.staffServiceNo,
+                    searchUserByServiceNo,
+                  );
+                } catch {}
+              }
+
+              const { executiveOfficerData, verifyOfficerData } =
+                await fetchOfficerData(status);
+
               return {
                 refNo: status.referenceNumber,
                 senderDetails,
@@ -554,9 +606,11 @@ const Receive = () => {
                 comment: status.comment,
                 requestDetails: { ...req },
                 loadUserData,
-                unLoadUserData: null,
+                unLoadUserData,
                 statusDetails: status,
                 receiveOfficerData,
+                executiveOfficerData,
+                verifyOfficerData,
               };
             }),
         );
@@ -679,14 +733,15 @@ const Receive = () => {
             }
 
             let unLoadUserData = null;
-            if (statusDetails?.recieveOfficerServiceNumber) {
+            const unloadServiceNo =
+              req?.unLoading?.staffServiceNo ||
+              statusDetails?.recieveOfficerServiceNumber;
+            if (unloadServiceNo) {
               try {
-                unLoadUserData = await searchUserByServiceNo(
-                  statusDetails.recieveOfficerServiceNumber,
-                );
+                unLoadUserData = await searchUserByServiceNo(unloadServiceNo);
               } catch (error) {
                 console.error(
-                  `Error fetching user for service number ${statusDetails.recieveOfficerServiceNumber}:`,
+                  `Error fetching user for service number ${unloadServiceNo}:`,
                   error,
                 );
               }
@@ -727,6 +782,8 @@ const Receive = () => {
               unLoadUserData,
               statusDetails,
               receiveOfficerData,
+              executiveOfficerData,
+              verifyOfficerData,
               rejectedBy: status.rejectedBy,
               rejectedByServiceNo: status.rejectedByServiceNo,
               rejectedByBranch: status.rejectedByBranch,
@@ -2438,40 +2495,55 @@ const RequestDetailsModal = ({
       <div class="grid">
         <div class="item">
           <span class="label">Loading Location:</span> ${
-            request?.requestDetails?.loading?.loadingLocation || "N/A"
+            request?.requestDetails?.loading?.loadingLocation ||
+            request?.request?.loading?.loadingLocation ||
+            request?.loading?.loadingLocation ||
+            "N/A"
           }
         </div>
         <div class="item">
           <span class="label">Loading Time:</span> ${
-            request?.requestDetails?.loading?.loadingTime
+            request?.requestDetails?.loading?.loadingTime ||
+            request?.request?.loading?.loadingTime ||
+            request?.loading?.loadingTime
               ? new Date(
-                  request.requestDetails.loading.loadingTime,
+                  request?.requestDetails?.loading?.loadingTime ||
+                    request?.request?.loading?.loadingTime ||
+                    request?.loading?.loadingTime,
                 ).toLocaleString()
               : "N/A"
           }
         </div>
         <div class="item">
           <span class="label">Staff Type:</span> ${
-            request?.requestDetails?.loading?.staffType || "N/A"
+            request?.requestDetails?.loading?.staffType ||
+            request?.request?.loading?.staffType ||
+            request?.loading?.staffType ||
+            "N/A"
           }
         </div>
         
         ${
-          request?.requestDetails?.loading?.staffType === "SLT"
+          (request?.requestDetails?.loading?.staffType ||
+            request?.request?.loading?.staffType ||
+            request?.loading?.staffType) === "SLT"
             ? `
           <div class="item">
             <span class="label">Staff Service No:</span> ${
-              request?.requestDetails?.loading?.staffServiceNo || "N/A"
+              request?.requestDetails?.loading?.staffServiceNo ||
+              request?.request?.loading?.staffServiceNo ||
+              request?.loading?.staffServiceNo ||
+              "N/A"
             }
           </div>
           <div class="item">
               <span class="label">Name:</span> ${
-                request.loadUserData?.serviceNo || "N/A"
+                request.loadUserData?.name || "N/A"
               }
             </div>
             <div class="item">
               <span class="label">Service No:</span> ${
-                request.loadUserData?.name || "N/A"
+                request.loadUserData?.serviceNo || "N/A"
               }
             </div>
             <div class="item">
@@ -2573,40 +2645,55 @@ const RequestDetailsModal = ({
       <div class="grid">
         <div class="item">
           <span class="label">Loading Location:</span> ${
-            request?.requestDetails?.unLoading?.loadingLocation || "N/A"
+            request?.requestDetails?.unLoading?.loadingLocation ||
+            request?.request?.unLoading?.loadingLocation ||
+            request?.unLoading?.loadingLocation ||
+            "N/A"
           }
         </div>
         <div class="item">
           <span class="label">Loading Time:</span> ${
-            request?.requestDetails?.unLoading?.loadingTime
+            request?.requestDetails?.unLoading?.loadingTime ||
+            request?.request?.unLoading?.loadingTime ||
+            request?.unLoading?.loadingTime
               ? new Date(
-                  request.requestDetails.unLoading.loadingTime,
+                  request?.requestDetails?.unLoading?.loadingTime ||
+                    request?.request?.unLoading?.loadingTime ||
+                    request?.unLoading?.loadingTime,
                 ).toLocaleString()
               : "N/A"
           }
         </div>
         <div class="item">
           <span class="label">Staff Type:</span> ${
-            request?.requestDetails?.unLoading?.staffType || "N/A"
+            request?.requestDetails?.unLoading?.staffType ||
+            request?.request?.unLoading?.staffType ||
+            request?.unLoading?.staffType ||
+            "N/A"
           }
         </div>
         
         ${
-          request?.requestDetails?.unLoading?.staffType === "SLT"
+          (request?.requestDetails?.unLoading?.staffType ||
+            request?.request?.unLoading?.staffType ||
+            request?.unLoading?.staffType) === "SLT"
             ? `
           <div class="item">
             <span class="label">Staff Service No:</span> ${
-              request?.requestDetails?.unLoading?.staffServiceNo || "N/A"
+              request?.requestDetails?.unLoading?.staffServiceNo ||
+              request?.request?.unLoading?.staffServiceNo ||
+              request?.unLoading?.staffServiceNo ||
+              "N/A"
             }
           </div>
           <div class="item">
               <span class="label">Name:</span> ${
-                request.unLoadUserData?.serviceNo || "N/A"
+                request.unLoadUserData?.name || "N/A"
               }
             </div>
             <div class="item">
               <span class="label">Service No:</span> ${
-                request.unLoadUserData?.name || "N/A"
+                request.unLoadUserData?.serviceNo || "N/A"
               }
             </div>
             <div class="item">
@@ -2633,22 +2720,34 @@ const RequestDetailsModal = ({
             : `
           <div class="item">
             <span class="label">Staff Name:</span> ${
-              request?.requestDetails?.unLoading?.nonSLTStaffName || "N/A"
+              request?.requestDetails?.unLoading?.nonSLTStaffName ||
+              request?.request?.unLoading?.nonSLTStaffName ||
+              request?.unLoading?.nonSLTStaffName ||
+              "N/A"
             }
           </div>
           <div class="item">
             <span class="label">Company:</span> ${
-              request?.requestDetails?.unLoading?.nonSLTStaffCompany || "N/A"
+              request?.requestDetails?.unLoading?.nonSLTStaffCompany ||
+              request?.request?.unLoading?.nonSLTStaffCompany ||
+              request?.unLoading?.nonSLTStaffCompany ||
+              "N/A"
             }
           </div>
           <div class="item">
             <span class="label">NIC:</span> ${
-              request?.requestDetails?.unLoading?.nonSLTStaffNIC || "N/A"
+              request?.requestDetails?.unLoading?.nonSLTStaffNIC ||
+              request?.request?.unLoading?.nonSLTStaffNIC ||
+              request?.unLoading?.nonSLTStaffNIC ||
+              "N/A"
             }
           </div>
           <div class="item">
             <span class="label">Contact:</span> ${
-              request?.requestDetails?.unLoading?.nonSLTStaffContact || "N/A"
+              request?.requestDetails?.unLoading?.nonSLTStaffContact ||
+              request?.request?.unLoading?.nonSLTStaffContact ||
+              request?.unLoading?.nonSLTStaffContact ||
+              "N/A"
             }
           </div>
           <div class="item">

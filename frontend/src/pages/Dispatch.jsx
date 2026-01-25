@@ -313,10 +313,14 @@ const Dispatch = () => {
               } catch (e) {}
             }
 
-            if (status.verifyOfficerServiceNumber) {
+            const vo =
+              status.verifyOfficerServiceNumber ||
+              status.verifyOfficerServiceNo ||
+              status.request?.verifyOfficerServiceNo;
+            if (vo) {
               try {
                 verifyOfficerData = await getCachedUser(
-                  status.verifyOfficerServiceNumber,
+                  vo,
                   searchUserByServiceNo
                 );
               } catch (e) {}
@@ -382,9 +386,14 @@ const Dispatch = () => {
           filteredData.map(async (status) => {
             const senderServiceNo = status.request?.employeeServiceNo;
             const receiverServiceNo = status.request?.receiverServiceNo;
+            const loadingDetails = status.request?.loading;
+            const statusDetails = status;
             const isNonSltPlace = status.request?.isNonSltPlace;
             let senderDetails = null;
             let receiverDetails = null;
+            let loadUserData = null;
+            let exerctiveOfficerData = null;
+            let verifyOfficerData = null;
 
             if (senderServiceNo) {
               // Fetch user data for ANY service number (SLT or Non-SLT)
@@ -419,16 +428,56 @@ const Dispatch = () => {
               };
             }
 
+            if (
+              loadingDetails?.staffType === "SLT" &&
+              loadingDetails.staffServiceNo
+            ) {
+              try {
+                loadUserData = await getCachedUser(
+                  loadingDetails.staffServiceNo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
+            if (status.executiveOfficerServiceNo) {
+              try {
+                exerctiveOfficerData = await getCachedUser(
+                  status.executiveOfficerServiceNo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
+            const vo =
+              status.verifyOfficerServiceNumber ||
+              status.verifyOfficerServiceNo ||
+              status.request?.verifyOfficerServiceNo;
+            if (vo) {
+              try {
+                verifyOfficerData = await getCachedUser(
+                  vo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
             return {
               refNo: status.referenceNumber,
               senderDetails: senderDetails,
               receiverDetails: receiverDetails,
+              transportData: status.request?.transport,
+              loadingDetails: loadingDetails,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(status.createdAt).toLocaleString(),
               items: status.request?.items || [],
               comment: status.comment,
               requestDetails: { ...status.request },
+              loadUserData: loadUserData,
+              statusDetails: statusDetails,
+              executiveOfficerData: exerctiveOfficerData,
+              verifyOfficerData: verifyOfficerData,
             };
           })
         );
@@ -474,9 +523,14 @@ const Dispatch = () => {
           filteredData.map(async (status) => {
             const senderServiceNo = status.request?.employeeServiceNo;
             const receiverServiceNo = status.request?.receiverServiceNo;
+            const loadingDetails = status.request?.loading;
+            const statusDetails = status;
             const isNonSltPlace = status.request?.isNonSltPlace;
             let senderDetails = null;
             let receiverDetails = null;
+            let loadUserData = null;
+            let exerctiveOfficerData = null;
+            let verifyOfficerData = null;
 
             if (senderServiceNo) {
               // Fetch user data for ANY service number (SLT or Non-SLT)
@@ -511,16 +565,56 @@ const Dispatch = () => {
               };
             }
 
+            if (
+              loadingDetails?.staffType === "SLT" &&
+              loadingDetails.staffServiceNo
+            ) {
+              try {
+                loadUserData = await getCachedUser(
+                  loadingDetails.staffServiceNo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
+            if (status.executiveOfficerServiceNo) {
+              try {
+                exerctiveOfficerData = await getCachedUser(
+                  status.executiveOfficerServiceNo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
+            const vo =
+              status.verifyOfficerServiceNumber ||
+              status.verifyOfficerServiceNo ||
+              status.request?.verifyOfficerServiceNo;
+            if (vo) {
+              try {
+                verifyOfficerData = await getCachedUser(
+                  vo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
             return {
               refNo: status.referenceNumber,
               senderDetails: senderDetails,
               receiverDetails: receiverDetails,
+              transportData: status.request?.transport,
+              loadingDetails: loadingDetails,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(status.createdAt).toLocaleString(),
               items: status.request?.items || [],
               comment: status.comment,
               requestDetails: { ...status.request },
+              loadUserData: loadUserData,
+              statusDetails: statusDetails,
+              executiveOfficerData: exerctiveOfficerData,
+              verifyOfficerData: verifyOfficerData,
               isNonSlt: status.request?.isNonSltPlace || false,
             };
           })

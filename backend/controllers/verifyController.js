@@ -411,7 +411,7 @@ exports.updateApproved = async (req, res) => {
     }
 
     const { referenceNumber } = req.params;
-    const { comment } = req.body;
+    const { comment, loadingDetails } = req.body;
 
     const status = await Status.findOne({ referenceNumber })
       .populate("request")
@@ -434,7 +434,28 @@ exports.updateApproved = async (req, res) => {
 
     // record who approved (from JWT)
     if (req.user?.serviceNo) {
-      status.verifyOfficerServiceNo = String(req.user.serviceNo).trim();
+      status.verifyOfficerServiceNumber = String(req.user.serviceNo).trim();
+      if (status.request) {
+        status.request.verifyOfficerServiceNo = status.verifyOfficerServiceNumber;
+      }
+    }
+
+    if (loadingDetails && status.request) {
+      status.request.loading = {
+        loadingType: "Loading",
+        loadingLocation:
+          loadingDetails.loadingLocation || status.request.outLocation,
+        loadingTime: loadingDetails.loadingTime
+          ? new Date(loadingDetails.loadingTime)
+          : new Date(),
+        staffType: loadingDetails.staffType,
+        staffServiceNo: loadingDetails.staffServiceNo,
+        nonSLTStaffName: loadingDetails.nonSLTStaffName,
+        nonSLTStaffCompany: loadingDetails.nonSLTStaffCompany,
+        nonSLTStaffNIC: loadingDetails.nonSLTStaffNIC,
+        nonSLTStaffContact: loadingDetails.nonSLTStaffContact,
+        nonSLTStaffEmail: loadingDetails.nonSLTStaffEmail,
+      };
     }
 
     // If Non-SLT destination, route to PL2 (Dispatch) at outLocation
@@ -512,6 +533,9 @@ exports.updateApproved = async (req, res) => {
       await status.request.save();
     }
 
+    if (status.request && status.request.isModified()) {
+      await status.request.save();
+    }
     await status.save();
 
 
@@ -595,6 +619,12 @@ exports.updateRejected = async (req, res) => {
     status.rejectedBy = "Verifier";
     status.rejectedByServiceNo =
       req.user?.serviceNo || status.verifyOfficerServiceNumber;
+    if (req.user?.serviceNo) {
+      status.verifyOfficerServiceNumber = String(req.user.serviceNo).trim();
+      if (status.request) {
+        status.request.verifyOfficerServiceNo = status.verifyOfficerServiceNumber;
+      }
+    }
     status.rejectedAt = new Date();
     status.rejectionLevel = 2; // Verifier level (after Executive)
 
