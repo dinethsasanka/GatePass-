@@ -170,17 +170,38 @@ const getPending = async (req, res) => {
       .map((b) => new RegExp(`^${esc(String(b).trim())}$`, "i"));
 
     const rows = await Status.find({
-      recieveOfficerStatus: { $in: [1, "1"] },
+      recieveOfficerStatus: { $in: [1, "1", 2, "2", 3, "3"] }, // ✅ include approved/rejected too
     })
       .populate("request")
-      .sort({ updatedAt: -1 })
+      .sort({ updatedAt: -1, createdAt: -1 }) // ✅ sort newest strongly
       .lean();
 
-    const filtered = rows.filter((s) => {
+    // keep only latest Status per referenceNumber (because DB may have duplicates/history)
+    const latest = [];
+    const seenLatest = new Set();
+
+    for (const st of rows) {
+      const ref = st.referenceNumber || st?.request?.referenceNumber;
+      if (!ref) {
+        latest.push(st);
+        continue;
+      }
+      if (!seenLatest.has(ref)) {
+        seenLatest.add(ref);
+        latest.push(st);
+      }
+    }
+
+    const filtered = latest.filter((s) => {
       if (!s.request) return false;
 
       // hide request if non-super and show=false
       if (!isSuper && s.request.show === false) return false;
+      // ✅ only show if the LATEST receiver status is still pending
+      if (![1, "1"].includes(s.recieveOfficerStatus)) return false;
+
+      // optional safety: if request already completed, never show in pending
+      if (s.request?.status === 11) return false;
 
       if (myServiceNo) {
         const assignedToMe =
@@ -205,19 +226,10 @@ const getPending = async (req, res) => {
 
       return true;
     });
-    // keep only newest status per referenceNumber
-    const unique = [];
-    const seen = new Set();
-    for (const s of filtered) {
-      if (!seen.has(s.referenceNumber)) {
-        seen.add(s.referenceNumber);
-        unique.push(s);
-      }
-    }
-    res.status(200).json(sortNewest(unique, ["updatedAt", "createdAt"]));
-    return;
 
-    res.status(200).json(filtered);
+    return res
+      .status(200)
+      .json(sortNewest(filtered, ["updatedAt", "createdAt"]));
   } catch (error) {
     console.error("Error fetching receiver pending:", error);
     res.status(500).json({ message: "Server error" });
@@ -348,11 +360,16 @@ const updateApproved = async (req, res) => {
   try {
     const { comment, unloadingDetails, userServiceNumber, returnableItems } =
       req.body;
-    const { referenceNumber } = req.params;
+    const referenceNumber = String(req.params.referenceNumber || "").trim();
 
-    // Update the status (only if currently pending at receiver)
+    const reqDoc = await Request.findOne({ referenceNumber }).select({
+      _id: 1,
+    });
+    if (!reqDoc) return res.status(404).json({ message: "Request not found" });
+
+    // Update the Status using request ObjectId (not Status.referenceNumber)
     let statusDoc = await Status.findOneAndUpdate(
-      { referenceNumber, recieveOfficerStatus: { $in: [1, "1"] } },
+      { request: reqDoc._id, recieveOfficerStatus: { $in: [1, "1"] } },
       {
         recieveOfficerStatus: 2,
         recieveOfficerComment: comment || "",
@@ -360,7 +377,7 @@ const updateApproved = async (req, res) => {
           ? String(userServiceNumber)
           : undefined,
       },
-      { new: true },
+      { new: true, sort: { updatedAt: -1, createdAt: -1 } },
     ).populate("request");
 
     if (!statusDoc)
