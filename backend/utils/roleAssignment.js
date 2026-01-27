@@ -25,8 +25,7 @@ function getRoleByGrade(grade) {
   const normalizedGrade = String(grade)
     .trim()
     .toUpperCase()
-    .replace(/\.$/, '')          // Remove trailing dot (S.3. → S.3)
-    .replace(/^([AS]\.\d+).*$/, '$1');  // Remove extra characters (A.7.C → A.7, S.1.1 stays S.1.1)
+    .replace(/^([AS]\.\d+(?:\.\d+)?)\.?[A-Z]*$/, '$1');  // Preserve S.1.1, remove S.3., A.7.C → A.7
   
   console.log(`🔍 Determining role for grade: ${grade} → ${normalizedGrade}`);
 

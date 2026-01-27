@@ -24,7 +24,11 @@ import { emailSent } from "../services/emailService.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { jsPDF } from "jspdf";
 import logoUrl from "../assets/SLTMobitel_Logo.png";
-import { getCachedUser, setCachedUser } from "../utils/userCache.js";
+import {
+  getCachedUser,
+  getCachedUserAllowRefresh,
+  setCachedUser,
+} from "../utils/userCache.js";
 import { useAutoRefetch } from "../hooks/useRealtimeUpdates.js";
 import {
   FaClock,
@@ -59,9 +63,95 @@ const isNonSltIdentifier = (serviceNo) => {
   if (!serviceNo) return false;
   // Check for NSL prefix
   if (serviceNo.startsWith("NSL")) return true;
-  // Check for pure numeric 4-6 digits (like 0005, 0008, 010086, 007354)
-  if (/^\d{4,6}$/.test(serviceNo)) return true;
   return false;
+};
+
+const ensureReceiverDetails = (receiverDetails, receiverServiceNo, request) => {
+  if (receiverDetails || !receiverServiceNo) return receiverDetails;
+  return {
+    name:
+      request?.receiverName ||
+      request?.requestDetails?.receiverName ||
+      request?.request?.receiverName ||
+      "N/A",
+    serviceNo: receiverServiceNo,
+    group: "N/A",
+    contactNo:
+      request?.receiverContact ||
+      request?.requestDetails?.receiverContact ||
+      request?.request?.receiverContact ||
+      "N/A",
+  };
+};
+
+const mapErpEmployeeToReceiver = (employee, fallbackServiceNo) => {
+  if (!employee) return null;
+
+  return {
+    name: `${employee.employeeTitle || ""} ${
+      employee.employeeFirstName || ""
+    } ${employee.employeeSurname || ""}`.trim(),
+    serviceNo: employee.employeeNo || fallbackServiceNo || "N/A",
+    designation: employee.designation || "-",
+    section: employee.empSection || "-",
+    group: employee.empGroup || "-",
+    contactNo: employee.mobileNo || "-",
+  };
+};
+
+const fetchReceiverFromErp = async (serviceNo) => {
+  try {
+    const response = await searchEmployeeByServiceNo(serviceNo);
+    const employee =
+      response?.data?.data?.[0] ||
+      response?.data?.data ||
+      response?.data?.[0] ||
+      response?.data ||
+      null;
+    return mapErpEmployeeToReceiver(employee, serviceNo);
+  } catch {
+    return null;
+  }
+};
+
+const fetchReceiverDetails = async (serviceNo) => {
+  try {
+    const userData = await searchUserByServiceNo(serviceNo);
+    if (userData) return userData;
+  } catch {}
+  return await fetchReceiverFromErp(serviceNo);
+};
+
+const fetchOfficerData = async (status) => {
+  const execServiceNo =
+    status?.executiveOfficerServiceNo || status?.request?.executiveOfficerServiceNo;
+  const verifyServiceNo =
+    status?.verifyOfficerServiceNumber ||
+    status?.verifyOfficerServiceNo ||
+    status?.request?.verifyOfficerServiceNo;
+
+  let executiveOfficerData = null;
+  let verifyOfficerData = null;
+
+  if (execServiceNo) {
+    try {
+      executiveOfficerData = await getCachedUser(
+        execServiceNo,
+        searchUserByServiceNo
+      );
+    } catch {}
+  }
+
+  if (verifyServiceNo) {
+    try {
+      verifyOfficerData = await getCachedUser(
+        verifyServiceNo,
+        searchUserByServiceNo
+      );
+    } catch {}
+  }
+
+  return { executiveOfficerData, verifyOfficerData };
 };
 
 const Receive = () => {
@@ -132,11 +222,11 @@ const Receive = () => {
 
       try {
         const data = await getPendingStatuses(
-          isSuper ? undefined : userDetails?.serviceNo
+          isSuper ? undefined : userDetails?.serviceNo,
         );
 
         const withRequest = (Array.isArray(data) ? data : []).filter(
-          (s) => s && s.request
+          (s) => s && s.request,
         );
 
         const visible = withRequest.filter((s) => s.request.show !== false);
@@ -157,7 +247,7 @@ const Receive = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch {}
             }
@@ -177,12 +267,17 @@ const Receive = () => {
             let receiverDetails = null;
             if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
               try {
-                receiverDetails = await getCachedUser(
+                receiverDetails = await getCachedUserAllowRefresh(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  fetchReceiverDetails,
                 );
               } catch {}
             }
+            receiverDetails = ensureReceiverDetails(
+              receiverDetails,
+              receiverServiceNo,
+              status.request,
+            );
 
             let loadUserData = null;
             if (
@@ -192,17 +287,18 @@ const Receive = () => {
               try {
                 loadUserData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch {}
             }
 
             let unLoadUserData = null;
-            if (statusDetails?.recieveOfficerServiceNumber) {
+            const unloadServiceNo =
+              req?.unLoading?.staffServiceNo ||
+              statusDetails?.recieveOfficerServiceNumber;
+            if (unloadServiceNo) {
               try {
-                unLoadUserData = await searchUserByServiceNo(
-                  statusDetails.recieveOfficerServiceNumber
-                );
+                unLoadUserData = await searchUserByServiceNo(unloadServiceNo);
               } catch {}
             }
 
@@ -210,10 +306,13 @@ const Receive = () => {
             if (status?.recieveOfficerServiceNumber) {
               try {
                 receiveOfficerData = await searchUserByServiceNo(
-                  status.recieveOfficerServiceNumber
+                  status.recieveOfficerServiceNumber,
                 );
               } catch {}
             }
+
+            const { executiveOfficerData, verifyOfficerData } =
+              await fetchOfficerData(statusDetails || status);
 
             return {
               refNo: status.referenceNumber,
@@ -227,7 +326,7 @@ const Receive = () => {
                 status?.createdAt ||
                   status?.updatedAt ||
                   status?.request?.updatedAt ||
-                  status?.request?.createdAt
+                  status?.request?.createdAt,
               ),
               items: req.items || [],
               comment: status.comment,
@@ -236,8 +335,10 @@ const Receive = () => {
               unLoadUserData,
               statusDetails,
               receiveOfficerData,
+              executiveOfficerData,
+              verifyOfficerData,
             };
-          })
+          }),
         );
 
         const uniqueItems = formatted.reduce((acc, item) => {
@@ -262,7 +363,7 @@ const Receive = () => {
       }
     },
     [activeTab, userDetails?.serviceNo, userDetails?.branches],
-    { status: 6 } // Receiver pending requests
+    { status: 6 }, // Receiver pending requests
   );
 
   // Fetch Pending Items - Now handled by useAutoRefetch hook above
@@ -275,11 +376,11 @@ const Receive = () => {
         // Fetch and format pending items (same logic as useAutoRefetch)
         if (activeTab === "pending") {
           const data = await getPendingStatuses(
-            isSuper ? undefined : userDetails?.serviceNo
+            isSuper ? undefined : userDetails?.serviceNo,
           );
 
           const withRequest = (Array.isArray(data) ? data : []).filter(
-            (s) => s && s.request
+            (s) => s && s.request,
           );
 
           const visible = withRequest.filter((s) => s.request.show !== false);
@@ -300,7 +401,7 @@ const Receive = () => {
                 try {
                   senderDetails = await getCachedUser(
                     senderServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -320,12 +421,17 @@ const Receive = () => {
               let receiverDetails = null;
               if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
                 try {
-                  receiverDetails = await getCachedUser(
+                  receiverDetails = await getCachedUserAllowRefresh(
                     receiverServiceNo,
-                    searchUserByServiceNo
+                    fetchReceiverDetails,
                   );
                 } catch {}
               }
+              receiverDetails = ensureReceiverDetails(
+                receiverDetails,
+                receiverServiceNo,
+                status.request,
+              );
 
               let loadUserData = null;
               if (
@@ -335,17 +441,18 @@ const Receive = () => {
                 try {
                   loadUserData = await getCachedUser(
                     loadingDetails.staffServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
 
               let unLoadUserData = null;
-              if (statusDetails?.recieveOfficerServiceNumber) {
+              const unloadServiceNo =
+                req?.unLoading?.staffServiceNo ||
+                statusDetails?.recieveOfficerServiceNumber;
+              if (unloadServiceNo) {
                 try {
-                  unLoadUserData = await searchUserByServiceNo(
-                    statusDetails.recieveOfficerServiceNumber
-                  );
+                  unLoadUserData = await searchUserByServiceNo(unloadServiceNo);
                 } catch {}
               }
 
@@ -353,7 +460,7 @@ const Receive = () => {
               if (status?.recieveOfficerServiceNumber) {
                 try {
                   receiveOfficerData = await searchUserByServiceNo(
-                    status.recieveOfficerServiceNumber
+                    status.recieveOfficerServiceNumber,
                   );
                 } catch {}
               }
@@ -370,7 +477,7 @@ const Receive = () => {
                   status?.createdAt ||
                     status?.updatedAt ||
                     status?.request?.updatedAt ||
-                    status?.request?.createdAt
+                    status?.request?.createdAt,
                 ),
                 items: req.items || [],
                 comment: status.comment,
@@ -380,7 +487,7 @@ const Receive = () => {
                 statusDetails,
                 receiveOfficerData,
               };
-            })
+            }),
           );
 
           const uniqueItems = formatted.reduce((acc, item) => {
@@ -404,7 +511,7 @@ const Receive = () => {
         // approved
         // approved (formatted)
         const approvedData = await getApprovedStatuses(
-          isSuper ? undefined : userDetails?.serviceNo
+          isSuper ? undefined : userDetails?.serviceNo,
         );
 
         const approvedFormatted = await Promise.all(
@@ -422,7 +529,7 @@ const Receive = () => {
                 try {
                   senderDetails = await getCachedUser(
                     senderServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -442,12 +549,17 @@ const Receive = () => {
               let receiverDetails = null;
               if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
                 try {
-                  receiverDetails = await getCachedUser(
+                  receiverDetails = await getCachedUserAllowRefresh(
                     receiverServiceNo,
-                    searchUserByServiceNo
+                    fetchReceiverDetails,
                   );
                 } catch {}
               }
+              receiverDetails = ensureReceiverDetails(
+                receiverDetails,
+                receiverServiceNo,
+                status.request,
+              );
 
               let loadUserData = null;
               if (
@@ -457,7 +569,7 @@ const Receive = () => {
                 try {
                   loadUserData = await getCachedUser(
                     loadingDetails.staffServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -467,10 +579,23 @@ const Receive = () => {
                 try {
                   receiveOfficerData = await getCachedUser(
                     status.recieveOfficerServiceNumber,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
+
+              let unLoadUserData = null;
+              if (req?.unLoading?.staffServiceNo) {
+                try {
+                  unLoadUserData = await getCachedUser(
+                    req.unLoading.staffServiceNo,
+                    searchUserByServiceNo,
+                  );
+                } catch {}
+              }
+
+              const { executiveOfficerData, verifyOfficerData } =
+                await fetchOfficerData(status);
 
               return {
                 refNo: status.referenceNumber,
@@ -484,17 +609,19 @@ const Receive = () => {
                   status?.createdAt ||
                     status?.updatedAt ||
                     req?.updatedAt ||
-                    req?.createdAt
+                    req?.createdAt,
                 ),
                 items: req.items || [],
                 comment: status.comment,
                 requestDetails: { ...req },
                 loadUserData,
-                unLoadUserData: null,
+                unLoadUserData,
                 statusDetails: status,
                 receiveOfficerData,
+                executiveOfficerData,
+                verifyOfficerData,
               };
-            })
+            }),
         );
 
         // Remove duplicates by reference number (keep the most recent one)
@@ -517,7 +644,7 @@ const Receive = () => {
 
         // rejected
         const rejectedData = await getRejectedStatuses(
-          isSuper ? undefined : userDetails?.serviceNo
+          isSuper ? undefined : userDetails?.serviceNo,
         );
         setRejectedItems(rejectedData || []);
       } catch (err) {
@@ -542,7 +669,7 @@ const Receive = () => {
           .filter((s) =>
             userDetails?.branches?.length
               ? userDetails.branches.includes(s.request.inLocation)
-              : true
+              : true,
           );
 
         const formattedData = await Promise.all(
@@ -561,7 +688,7 @@ const Receive = () => {
               } catch (error) {
                 console.error(
                   `Error fetching user for service number ${senderServiceNo}:`,
-                  error
+                  error,
                 );
               }
             }
@@ -581,18 +708,23 @@ const Receive = () => {
             let receiverDetails = null;
             if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
               try {
-                const userData = await getCachedUser(
+                const userData = await getCachedUserAllowRefresh(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  fetchReceiverDetails,
                 );
                 if (userData) receiverDetails = userData;
               } catch (error) {
                 console.error(
                   `Error fetching user for service number ${receiverServiceNo}:`,
-                  error
+                  error,
                 );
               }
             }
+            receiverDetails = ensureReceiverDetails(
+              receiverDetails,
+              receiverServiceNo,
+              status.request,
+            );
 
             let loadUserData = null;
             if (
@@ -602,26 +734,27 @@ const Receive = () => {
               try {
                 loadUserData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 console.error(
                   `Error fetching user for service number ${loadingDetails.staffServiceNo}:`,
-                  error
+                  error,
                 );
               }
             }
 
             let unLoadUserData = null;
-            if (statusDetails?.recieveOfficerServiceNumber) {
+            const unloadServiceNo =
+              req?.unLoading?.staffServiceNo ||
+              statusDetails?.recieveOfficerServiceNumber;
+            if (unloadServiceNo) {
               try {
-                unLoadUserData = await searchUserByServiceNo(
-                  statusDetails.recieveOfficerServiceNumber
-                );
+                unLoadUserData = await searchUserByServiceNo(unloadServiceNo);
               } catch (error) {
                 console.error(
-                  `Error fetching user for service number ${statusDetails.recieveOfficerServiceNumber}:`,
-                  error
+                  `Error fetching user for service number ${unloadServiceNo}:`,
+                  error,
                 );
               }
             }
@@ -630,12 +763,12 @@ const Receive = () => {
             if (status.recieveOfficerServiceNumber) {
               try {
                 receiveOfficerData = await searchUserByServiceNo(
-                  status.recieveOfficerServiceNumber
+                  status.recieveOfficerServiceNumber,
                 );
               } catch (error) {
                 console.error(
                   `Error fetching user for service number ${status.recieveOfficerServiceNumber}:`,
-                  error
+                  error,
                 );
               }
             }
@@ -652,7 +785,7 @@ const Receive = () => {
                 status?.createdAt ||
                   status?.updatedAt ||
                   status?.request?.updatedAt ||
-                  status?.request?.createdAt
+                  status?.request?.createdAt,
               ),
               items: req.items || [],
               comment: status.comment,
@@ -661,13 +794,15 @@ const Receive = () => {
               unLoadUserData,
               statusDetails,
               receiveOfficerData,
+              executiveOfficerData,
+              verifyOfficerData,
               rejectedBy: status.rejectedBy,
               rejectedByServiceNo: status.rejectedByServiceNo,
               rejectedByBranch: status.rejectedByBranch,
               rejectedAt: status.rejectedAt,
               rejectionLevel: status.rejectionLevel,
             };
-          })
+          }),
         );
 
         // Remove duplicates by reference number (keep the most recent one)
@@ -734,7 +869,7 @@ const Receive = () => {
         if (!searchedEmployee) {
           showToast(
             "Please search and select an SLT employee for unloading",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -751,7 +886,7 @@ const Receive = () => {
         ) {
           showToast(
             "Please fill all Non-SLT unloading staff details",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -769,14 +904,16 @@ const Receive = () => {
         comment,
         unloadingDetails,
         userDetails.serviceNo,
-        selectedReturnableItems
+        selectedReturnableItems,
       );
 
       showToast("Request received successfully", "success");
 
-      // 🔹 Refresh list / close modal
-      fetchPendingRequests();
-      closeModal();
+      // Refresh lists and close modal
+      setPendingItems((prev) => prev.filter((i) => i.refNo !== item.refNo));
+      setRefetchTrigger((prev) => prev + 1);
+      setShowModal(false);
+      setComment("");
     } catch (error) {
       console.error("Receive approval failed:", error);
       showToast("Failed to receive request", "error");
@@ -825,7 +962,7 @@ const Receive = () => {
                   item.itemQuantity || "1"
                 }</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -849,8 +986,8 @@ const Receive = () => {
           <p>We would like to inform you that ${
             itemDetails.length
           } returnable item(s) under reference number <b>${
-        request.refNo
-      }</b> have been returned by the Receiver.</p>
+            request.refNo
+          }</b> have been returned by the Receiver.</p>
           <p>You can view it under your <i>Completed</i> or relevant section.</p>
         </div>
 
@@ -978,7 +1115,7 @@ const Receive = () => {
             <tr>
               <td style="padding: 8px 0; color: #757575;">Requested Date:</td>
               <td style="padding: 8px 0;">${new Date(
-                request.createdAt
+                request.createdAt,
               ).toLocaleDateString()}</td>
             </tr>
           </table>
@@ -1062,7 +1199,7 @@ const Receive = () => {
           console.error("Error rejecting status:", error.message);
           setPendingItems((prev) => [item, ...prev]);
           setRejectedItems((prev) =>
-            prev.filter((i) => i.refNo !== item.refNo)
+            prev.filter((i) => i.refNo !== item.refNo),
           );
           showToast("Failed to reject request. Please try again.", "error");
         });
@@ -1078,7 +1215,7 @@ const Receive = () => {
     if (item.requestDetails?.transport.transporterServiceNo) {
       try {
         const transportResponse = await searchEmployeeByServiceNo(
-          item.requestDetails.transport.transporterServiceNo
+          item.requestDetails.transport.transporterServiceNo,
         );
 
         console.log("Transport response:", transportResponse); // Debug log
@@ -1470,8 +1607,8 @@ const Receive = () => {
               {(activeTab === "pending"
                 ? filteredPendingItems
                 : activeTab === "approved"
-                ? filteredApprovedItems
-                : filteredRejectedItems
+                  ? filteredApprovedItems
+                  : filteredRejectedItems
               ).map((item) => (
                 <tr
                   key={
@@ -1527,8 +1664,8 @@ const Receive = () => {
                                                   activeTab === "pending"
                                                     ? "bg-amber-100 hover:bg-amber-200 text-amber-800"
                                                     : activeTab === "approved"
-                                                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                                                    : "bg-rose-100 text-rose-800 hover:bg-rose-200"
+                                                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                                                      : "bg-rose-100 text-rose-800 hover:bg-rose-200"
                                                 }`}
                     >
                       <FaEye className="mr-2" /> View Details
@@ -1544,8 +1681,8 @@ const Receive = () => {
         {(activeTab === "pending"
           ? pendingItems
           : activeTab === "approved"
-          ? approvedItems
-          : rejectedItems
+            ? approvedItems
+            : rejectedItems
         ).length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -1727,7 +1864,7 @@ const RequestDetailsModal = ({
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
+      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`,
     );
 
     if (!confirmed) return;
@@ -1741,7 +1878,7 @@ const RequestDetailsModal = ({
 
       // Get full details of selected items
       const selectedItemDetails = request.items.filter((item) =>
-        selectedItems.includes(item.serialNo)
+        selectedItems.includes(item.serialNo),
       );
 
       console.log("Selected item details:", selectedItemDetails);
@@ -1755,7 +1892,7 @@ const RequestDetailsModal = ({
       await sendReturnEmail(
         request,
         "Items successfully returned by receiver.",
-        selectedItemDetails
+        selectedItemDetails,
       );
 
       // Show success message
@@ -1763,7 +1900,7 @@ const RequestDetailsModal = ({
         `Successfully marked ${
           response.updatedCount || selectedItems.length
         } item(s) as returned.`,
-        "success"
+        "success",
       );
 
       console.log("Bulk return process completed successfully");
@@ -1780,7 +1917,7 @@ const RequestDetailsModal = ({
 
       showToast(
         error.message || "Failed to update items. Please try again.",
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -1794,7 +1931,7 @@ const RequestDetailsModal = ({
 
     if (!newItem.itemName || !newItem.serialNo || !newItem.itemCategory) {
       alert(
-        "Please fill in all required fields (Item Name, Serial No, Category)"
+        "Please fill in all required fields (Item Name, Serial No, Category)",
       );
       return;
     }
@@ -1839,7 +1976,7 @@ const RequestDetailsModal = ({
       const data = await markItemsAsReturned(request.refNo, [item.serialNo]);
 
       toast.success(
-        data.message || `${item.itemName} marked as returned successfully`
+        data.message || `${item.itemName} marked as returned successfully`,
       );
 
       setRequest((prev) => ({
@@ -1897,15 +2034,15 @@ const RequestDetailsModal = ({
                   itemModel: editValues.itemModel,
                   serialNo: editValues.serialNo,
                 }
-              : item
-          )
+              : item,
+          ),
         );
 
         setEditingItemSerialNo(null);
         setEditValues({ itemModel: "", serialNo: "" });
         showToast(
           "Returnable item updated locally. Changes will be saved when you approve the request.",
-          "success"
+          "success",
         );
         return;
       }
@@ -1915,7 +2052,7 @@ const RequestDetailsModal = ({
         request.refNo,
         originalSerialNo,
         editValues.itemModel,
-        editValues.serialNo
+        editValues.serialNo,
       );
 
       // Update the selectedReturnableItems array locally
@@ -1927,8 +2064,8 @@ const RequestDetailsModal = ({
                 itemModel: editValues.itemModel,
                 serialNo: editValues.serialNo,
               }
-            : item
-        )
+            : item,
+        ),
       );
 
       setEditingItemSerialNo(null);
@@ -1948,20 +2085,20 @@ const RequestDetailsModal = ({
                   itemModel: editValues.itemModel,
                   serialNo: editValues.serialNo,
                 }
-              : item
-          )
+              : item,
+          ),
         );
 
         setEditingItemSerialNo(null);
         setEditValues({ itemModel: "", serialNo: "" });
         showToast(
           "Returnable item updated locally. Changes will be saved when you approve the request.",
-          "info"
+          "info",
         );
       } else {
         showToast(
           "Failed to update returnable item: " + error.message,
-          "error"
+          "error",
         );
       }
     }
@@ -1977,7 +2114,7 @@ const RequestDetailsModal = ({
     request,
     transporterDetails,
     loadingStaff,
-    selectedReturnableItems
+    selectedReturnableItems,
   ) => {
     // Create a temporary iframe to hold the printable content
     const printFrame = document.createElement("iframe");
@@ -2370,40 +2507,55 @@ const RequestDetailsModal = ({
       <div class="grid">
         <div class="item">
           <span class="label">Loading Location:</span> ${
-            request?.requestDetails?.loading?.loadingLocation || "N/A"
+            request?.requestDetails?.loading?.loadingLocation ||
+            request?.request?.loading?.loadingLocation ||
+            request?.loading?.loadingLocation ||
+            "N/A"
           }
         </div>
         <div class="item">
           <span class="label">Loading Time:</span> ${
-            request?.requestDetails?.loading?.loadingTime
+            request?.requestDetails?.loading?.loadingTime ||
+            request?.request?.loading?.loadingTime ||
+            request?.loading?.loadingTime
               ? new Date(
-                  request.requestDetails.loading.loadingTime
+                  request?.requestDetails?.loading?.loadingTime ||
+                    request?.request?.loading?.loadingTime ||
+                    request?.loading?.loadingTime,
                 ).toLocaleString()
               : "N/A"
           }
         </div>
         <div class="item">
           <span class="label">Staff Type:</span> ${
-            request?.requestDetails?.loading?.staffType || "N/A"
+            request?.requestDetails?.loading?.staffType ||
+            request?.request?.loading?.staffType ||
+            request?.loading?.staffType ||
+            "N/A"
           }
         </div>
         
         ${
-          request?.requestDetails?.loading?.staffType === "SLT"
+          (request?.requestDetails?.loading?.staffType ||
+            request?.request?.loading?.staffType ||
+            request?.loading?.staffType) === "SLT"
             ? `
           <div class="item">
             <span class="label">Staff Service No:</span> ${
-              request?.requestDetails?.loading?.staffServiceNo || "N/A"
+              request?.requestDetails?.loading?.staffServiceNo ||
+              request?.request?.loading?.staffServiceNo ||
+              request?.loading?.staffServiceNo ||
+              "N/A"
             }
           </div>
           <div class="item">
               <span class="label">Name:</span> ${
-                request.loadUserData?.serviceNo || "N/A"
+                request.loadUserData?.name || "N/A"
               }
             </div>
             <div class="item">
               <span class="label">Service No:</span> ${
-                request.loadUserData?.name || "N/A"
+                request.loadUserData?.serviceNo || "N/A"
               }
             </div>
             <div class="item">
@@ -2505,40 +2657,55 @@ const RequestDetailsModal = ({
       <div class="grid">
         <div class="item">
           <span class="label">Loading Location:</span> ${
-            request?.requestDetails?.unLoading?.loadingLocation || "N/A"
+            request?.requestDetails?.unLoading?.loadingLocation ||
+            request?.request?.unLoading?.loadingLocation ||
+            request?.unLoading?.loadingLocation ||
+            "N/A"
           }
         </div>
         <div class="item">
           <span class="label">Loading Time:</span> ${
-            request?.requestDetails?.unLoading?.loadingTime
+            request?.requestDetails?.unLoading?.loadingTime ||
+            request?.request?.unLoading?.loadingTime ||
+            request?.unLoading?.loadingTime
               ? new Date(
-                  request.requestDetails.unLoading.loadingTime
+                  request?.requestDetails?.unLoading?.loadingTime ||
+                    request?.request?.unLoading?.loadingTime ||
+                    request?.unLoading?.loadingTime,
                 ).toLocaleString()
               : "N/A"
           }
         </div>
         <div class="item">
           <span class="label">Staff Type:</span> ${
-            request?.requestDetails?.unLoading?.staffType || "N/A"
+            request?.requestDetails?.unLoading?.staffType ||
+            request?.request?.unLoading?.staffType ||
+            request?.unLoading?.staffType ||
+            "N/A"
           }
         </div>
         
         ${
-          request?.requestDetails?.unLoading?.staffType === "SLT"
+          (request?.requestDetails?.unLoading?.staffType ||
+            request?.request?.unLoading?.staffType ||
+            request?.unLoading?.staffType) === "SLT"
             ? `
           <div class="item">
             <span class="label">Staff Service No:</span> ${
-              request?.requestDetails?.unLoading?.staffServiceNo || "N/A"
+              request?.requestDetails?.unLoading?.staffServiceNo ||
+              request?.request?.unLoading?.staffServiceNo ||
+              request?.unLoading?.staffServiceNo ||
+              "N/A"
             }
           </div>
           <div class="item">
               <span class="label">Name:</span> ${
-                request.unLoadUserData?.serviceNo || "N/A"
+                request.unLoadUserData?.name || "N/A"
               }
             </div>
             <div class="item">
               <span class="label">Service No:</span> ${
-                request.unLoadUserData?.name || "N/A"
+                request.unLoadUserData?.serviceNo || "N/A"
               }
             </div>
             <div class="item">
@@ -2565,22 +2732,34 @@ const RequestDetailsModal = ({
             : `
           <div class="item">
             <span class="label">Staff Name:</span> ${
-              request?.requestDetails?.unLoading?.nonSLTStaffName || "N/A"
+              request?.requestDetails?.unLoading?.nonSLTStaffName ||
+              request?.request?.unLoading?.nonSLTStaffName ||
+              request?.unLoading?.nonSLTStaffName ||
+              "N/A"
             }
           </div>
           <div class="item">
             <span class="label">Company:</span> ${
-              request?.requestDetails?.unLoading?.nonSLTStaffCompany || "N/A"
+              request?.requestDetails?.unLoading?.nonSLTStaffCompany ||
+              request?.request?.unLoading?.nonSLTStaffCompany ||
+              request?.unLoading?.nonSLTStaffCompany ||
+              "N/A"
             }
           </div>
           <div class="item">
             <span class="label">NIC:</span> ${
-              request?.requestDetails?.unLoading?.nonSLTStaffNIC || "N/A"
+              request?.requestDetails?.unLoading?.nonSLTStaffNIC ||
+              request?.request?.unLoading?.nonSLTStaffNIC ||
+              request?.unLoading?.nonSLTStaffNIC ||
+              "N/A"
             }
           </div>
           <div class="item">
             <span class="label">Contact:</span> ${
-              request?.requestDetails?.unLoading?.nonSLTStaffContact || "N/A"
+              request?.requestDetails?.unLoading?.nonSLTStaffContact ||
+              request?.request?.unLoading?.nonSLTStaffContact ||
+              request?.unLoading?.nonSLTStaffContact ||
+              "N/A"
             }
           </div>
           <div class="item">
@@ -2616,7 +2795,7 @@ const RequestDetailsModal = ({
                   <td>${item?.itemQuantity || "-"}</td>
                   <td>${item?.itemModel || "-"}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -2648,7 +2827,7 @@ const RequestDetailsModal = ({
                   <td>${item?.returnQuantity || item?.itemQuantity || "-"}</td>
                   <td>${item?.itemModel || "-"}</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -2740,7 +2919,7 @@ const RequestDetailsModal = ({
       yPos,
       col1Width + col2Width + col3Width + col4Width + col5Width,
       8,
-      "F"
+      "F",
     );
 
     doc.text("Item Name", margin + 3, yPos + 5.5);
@@ -2750,7 +2929,7 @@ const RequestDetailsModal = ({
     doc.text(
       "Model",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
-      yPos + 5.5
+      yPos + 5.5,
     );
 
     yPos += 8;
@@ -2769,7 +2948,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
 
         doc.text("Item Name", margin + 3, yPos + 5.5);
@@ -2778,12 +2957,12 @@ const RequestDetailsModal = ({
         doc.text(
           "Qty",
           margin + col1Width + col2Width + col3Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
         doc.text(
           "Model",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
 
         yPos += 8;
@@ -2797,7 +2976,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
       }
 
@@ -2812,27 +2991,27 @@ const RequestDetailsModal = ({
       doc.text(
         truncateText(item?.itemName || "N/A", 25),
         margin + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.serialNo || "N/A", 15),
         margin + col1Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.itemCategory || "N/A", 12),
         margin + col1Width + col2Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemQuantity?.toString() || "1",
         margin + col1Width + col2Width + col3Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemModel || "N/A",
         margin + col1Width + col2Width + col3Width + col4Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       // doc.text(item?.itemReturnable ? 'Returnable' : 'Non-Returnable',
       //          margin + col1Width + col2Width + col3Width + col4Width + 3, yPos + 5.5);
@@ -2842,7 +3021,7 @@ const RequestDetailsModal = ({
         margin,
         yPos + 8,
         margin + col1Width + col2Width + col3Width + col4Width + col5Width,
-        yPos + 8
+        yPos + 8,
       );
 
       yPos += 8;
@@ -2856,7 +3035,7 @@ const RequestDetailsModal = ({
       "This is an electronically generated document and does not require signature.",
       pageWidth / 2,
       footerYPos,
-      { align: "center" }
+      { align: "center" },
     );
 
     // Save the PDF
@@ -2872,8 +3051,8 @@ const RequestDetailsModal = ({
             activeTab === "pending"
               ? "bg-gradient-to-r from-amber-600 to-orange-300"
               : activeTab === "approved"
-              ? "bg-gradient-to-br from-emerald-600 to-green-600"
-              : "bg-gradient-to-br from-rose-600 to-red-400"
+                ? "bg-gradient-to-br from-emerald-600 to-green-600"
+                : "bg-gradient-to-br from-rose-600 to-red-400"
           }`}
         >
           <div className="flex justify-between items-center">
@@ -3117,7 +3296,9 @@ const RequestDetailsModal = ({
                   </div>
                 </div>
 
-                {request.receiverDetails ? (
+                {request?.isNonSltPlace ||
+                request?.requestDetails?.isNonSltPlace ||
+                request?.request?.isNonSltPlace ? (
                   <div className="bg-gray-50 rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
                       <FaUserCheck className="mr-2" /> Receiver Details
@@ -3128,23 +3309,21 @@ const RequestDetailsModal = ({
                           Name
                         </label>
                         <p className="text-gray-800">
-                          {request.receiverDetails?.name}
+                          {request?.receiverName ||
+                            request?.requestDetails?.receiverName ||
+                            request?.request?.receiverName ||
+                            "N/A"}
                         </p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">
-                          Group
+                          NIC
                         </label>
                         <p className="text-gray-800">
-                          {request.receiverDetails?.group}
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-600">
-                          Service No
-                        </label>
-                        <p className="text-gray-800">
-                          {request.receiverDetails?.serviceNo}
+                          {request?.receiverNIC ||
+                            request?.requestDetails?.receiverNIC ||
+                            request?.request?.receiverNIC ||
+                            "N/A"}
                         </p>
                       </div>
                       <div>
@@ -3152,7 +3331,10 @@ const RequestDetailsModal = ({
                           Contact
                         </label>
                         <p className="text-gray-800">
-                          {request.receiverDetails?.contactNo}
+                          {request?.receiverContact ||
+                            request?.requestDetails?.receiverContact ||
+                            request?.request?.receiverContact ||
+                            "N/A"}
                         </p>
                       </div>
                     </div>
@@ -3162,8 +3344,51 @@ const RequestDetailsModal = ({
                     <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
                       <FaUserCheck className="mr-2" /> Receiver Details
                     </h3>
-                    <div className="text-center py-4 text-gray-500">
-                      <p>No receiver information available</p>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">
+                          Name
+                        </label>
+                        <p className="text-gray-800">
+                          {request?.receiverDetails?.name ||
+                            request?.receiverName ||
+                            request?.requestDetails?.receiverName ||
+                            request?.request?.receiverName ||
+                            "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">
+                          Group
+                        </label>
+                        <p className="text-gray-800">
+                          {request?.receiverDetails?.group || "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">
+                          Service No
+                        </label>
+                        <p className="text-gray-800">
+                          {request?.receiverDetails?.serviceNo ||
+                            request?.receiverServiceNo ||
+                            request?.requestDetails?.receiverServiceNo ||
+                            request?.request?.receiverServiceNo ||
+                            "N/A"}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">
+                          Contact
+                        </label>
+                        <p className="text-gray-800">
+                          {request?.receiverDetails?.contactNo ||
+                            request?.receiverContact ||
+                            request?.requestDetails?.receiverContact ||
+                            request?.request?.receiverContact ||
+                            "N/A"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -3476,34 +3701,38 @@ const RequestDetailsModal = ({
                 {staffType === "SLT" ? (
                   <>
                     {/* SLT Employee Search */}
-                  <div className="mb-4">
+                    <div className="mb-4">
                       <div className="flex items-center mb-4">
-  <input
-    type="text"
-    value={serviceId}
-    onChange={(e) => setServiceId(e.target.value)}
-    onKeyDown={(e) => {
-      if (e.key === "Enter" && !isSuperAdmin && serviceId.trim()) {
-        e.preventDefault();
-        handleEmployeeSearch();
-      }
-    }}
-    placeholder="Enter Service ID"
-    className="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  />
+                        <input
+                          type="text"
+                          value={serviceId}
+                          onChange={(e) => setServiceId(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (
+                              e.key === "Enter" &&
+                              !isSuper &&
+                              serviceId.trim()
+                            ) {
+                              e.preventDefault();
+                              handleEmployeeSearch();
+                            }
+                          }}
+                          placeholder="Enter Service ID"
+                          className="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
 
-  <button
-    onClick={handleEmployeeSearch}
-    disabled={isSuperAdmin}
-    className={`px-4 py-3 rounded-r-lg ${
-      isSuperAdmin
-        ? "bg-gray-300 cursor-not-allowed"
-        : "bg-blue-500 hover:bg-blue-600 text-white"
-    }`}
-  >
-    <FaSearch />
-  </button>
-</div>
+                        <button
+                          onClick={handleEmployeeSearch}
+                          disabled={isSuper}
+                          className={`px-4 py-3 rounded-r-lg ${
+                            isSuper
+                              ? "bg-gray-300 cursor-not-allowed"
+                              : "bg-blue-500 hover:bg-blue-600 text-white"
+                          }`}
+                        >
+                          <FaSearch />
+                        </button>
+                      </div>
 
                       {searchedEmployee && (
                         <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
@@ -3711,7 +3940,7 @@ const RequestDetailsModal = ({
                           onClick={() =>
                             handleEmployeeSearch(
                               transportServiceId,
-                              "transport"
+                              "transport",
                             )
                           }
                           className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-r-lg transition-colors"
@@ -3951,8 +4180,8 @@ const RequestDetailsModal = ({
                   (item) =>
                     item.status === "returnable" &&
                     !(request.returnableItems || []).find(
-                      (ri) => ri.serialNo === item.serialNo
-                    )?.returned
+                      (ri) => ri.serialNo === item.serialNo,
+                    )?.returned,
                 ).length > 0 && (
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
@@ -3966,8 +4195,8 @@ const RequestDetailsModal = ({
                               (item) =>
                                 item.status === "returnable" &&
                                 !(request.returnableItems || []).find(
-                                  (ri) => ri.serialNo === item.serialNo
-                                )?.returned
+                                  (ri) => ri.serialNo === item.serialNo,
+                                )?.returned,
                             ).length
                         }
                         onChange={(e) => {
@@ -3977,8 +4206,8 @@ const RequestDetailsModal = ({
                                 (item) =>
                                   item.status === "returnable" &&
                                   !(request.returnableItems || []).find(
-                                    (ri) => ri.serialNo === item.serialNo
-                                  )?.returned
+                                    (ri) => ri.serialNo === item.serialNo,
+                                  )?.returned,
                               )
                               .map((item) => item.serialNo);
                             setSelectedItems(allUnreturnedItems);
@@ -4028,8 +4257,8 @@ const RequestDetailsModal = ({
                                   (item) =>
                                     item.status === "returnable" &&
                                     !(request.returnableItems || []).find(
-                                      (ri) => ri.serialNo === item.serialNo
-                                    )?.returned
+                                      (ri) => ri.serialNo === item.serialNo,
+                                    )?.returned,
                                 ).length
                             }
                             onChange={(e) => {
@@ -4039,8 +4268,8 @@ const RequestDetailsModal = ({
                                     (item) =>
                                       item.status === "returnable" &&
                                       !(request.returnableItems || []).find(
-                                        (ri) => ri.serialNo === item.serialNo
-                                      )?.returned
+                                        (ri) => ri.serialNo === item.serialNo,
+                                      )?.returned,
                                   )
                                   .map((item) => item.serialNo);
                                 setSelectedItems(allUnreturnedItems);
@@ -4101,7 +4330,7 @@ const RequestDetailsModal = ({
                                   <input
                                     type="checkbox"
                                     checked={selectedItems.includes(
-                                      item.serialNo
+                                      item.serialNo,
                                     )}
                                     onChange={(e) => {
                                       if (e.target.checked) {
@@ -4112,8 +4341,8 @@ const RequestDetailsModal = ({
                                       } else {
                                         setSelectedItems(
                                           selectedItems.filter(
-                                            (s) => s !== item.serialNo
-                                          )
+                                            (s) => s !== item.serialNo,
+                                          ),
                                         );
                                       }
                                     }}
@@ -4165,7 +4394,7 @@ const RequestDetailsModal = ({
                               <td className="px-6 py-4">
                                 {item.returnDate
                                   ? new Date(
-                                      item.returnDate
+                                      item.returnDate,
                                     ).toLocaleDateString()
                                   : "N/A"}
                               </td>
@@ -4183,7 +4412,7 @@ const RequestDetailsModal = ({
                                           <button
                                             onClick={() =>
                                               handleSaveReturnableItem(
-                                                item.serialNo
+                                                item.serialNo,
                                               )
                                             }
                                             className="p-2 text-green-600 hover:text-green-800 transition-colors"
@@ -4223,7 +4452,7 @@ const RequestDetailsModal = ({
 
                 {/* Empty state */}
                 {(request.items || []).filter(
-                  (item) => item.status === "returnable"
+                  (item) => item.status === "returnable",
                 ).length === 0 && (
                   <div className="flex flex-col items-center justify-center py-8">
                     <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -4419,7 +4648,7 @@ const RequestDetailsModal = ({
                             request,
                             transporterDetails,
                             searchedEmployee,
-                            selectedReturnableItems
+                            selectedReturnableItems,
                           )
                         }
                         className="px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-all flex items-center"
@@ -4520,7 +4749,7 @@ const RequestDetailsModal = ({
                           item.status ===
                             "return to Out Location Petrol Leader" ||
                           item.status === "return to Petrol Leader" ||
-                          item.status === "return to Executive Officer"
+                          item.status === "return to Executive Officer",
                       )?.length > 0 ? (
                         <ul className="list-disc list-inside space-y-1 text-gray-600">
                           {request.items
@@ -4531,7 +4760,7 @@ const RequestDetailsModal = ({
                                 item.status ===
                                   "return to Out Location Petrol Leader" ||
                                 item.status === "return to Petrol Leader" ||
-                                item.status === "return to Executive Officer"
+                                item.status === "return to Executive Officer",
                             )
                             .map((item, index) => (
                               <li key={index}>
@@ -4620,7 +4849,7 @@ const RequestDetailsModal = ({
                     </label>
                     <textarea
                       value={comment}
-                      disabled={isSuperAdmin}
+                      disabled={isSuper}
                       onChange={(e) => setComment(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                       placeholder="Add your comments here..."

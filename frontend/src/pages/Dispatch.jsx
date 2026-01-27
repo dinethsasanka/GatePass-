@@ -45,12 +45,36 @@ const isNonSltIdentifier = (serviceNo) => {
   if (!serviceNo) return false;
   // Check for NSL prefix
   if (serviceNo.startsWith("NSL")) return true;
-  // Check for pure numeric 4-6 digits (like 0005, 0008, 010086, 007354)
-  if (/^\d{4,6}$/.test(serviceNo)) return true;
   return false;
 };
 
+const mapErpEmployeeToReceiver = (employee, fallbackServiceNo) => {
+  if (!employee) return null;
+
+  return {
+    name: `${employee.employeeTitle || ""} ${
+      employee.employeeFirstName || ""
+    } ${employee.employeeSurname || ""}`.trim(),
+    serviceNo: employee.employeeNo || fallbackServiceNo || "N/A",
+    designation: employee.designation || "-",
+    section: employee.empSection || "-",
+    group: employee.empGroup || "-",
+    contactNo: employee.mobileNo || "-",
+  };
+};
+
 const Dispatch = () => {
+  const fetchReceiverFromErp = async (serviceNo) => {
+    const response = await searchEmployeeByServiceNo(serviceNo);
+    const employee =
+      response?.data?.data?.[0] ||
+      response?.data?.data ||
+      response?.data?.[0] ||
+      response?.data ||
+      null;
+    return mapErpEmployeeToReceiver(employee, serviceNo);
+  };
+
   const [activeTab, setActiveTab] = useState("pending");
   const [showModal, setShowModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -116,7 +140,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  fetchReceiverFromErp
                 );
               } catch (e) {}
             } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
@@ -257,7 +281,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  fetchReceiverFromErp
                 );
               } catch (e) {}
             } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
@@ -289,10 +313,14 @@ const Dispatch = () => {
               } catch (e) {}
             }
 
-            if (status.verifyOfficerServiceNumber) {
+            const vo =
+              status.verifyOfficerServiceNumber ||
+              status.verifyOfficerServiceNo ||
+              status.request?.verifyOfficerServiceNo;
+            if (vo) {
               try {
                 verifyOfficerData = await getCachedUser(
-                  status.verifyOfficerServiceNumber,
+                  vo,
                   searchUserByServiceNo
                 );
               } catch (e) {}
@@ -358,9 +386,14 @@ const Dispatch = () => {
           filteredData.map(async (status) => {
             const senderServiceNo = status.request?.employeeServiceNo;
             const receiverServiceNo = status.request?.receiverServiceNo;
+            const loadingDetails = status.request?.loading;
+            const statusDetails = status;
             const isNonSltPlace = status.request?.isNonSltPlace;
             let senderDetails = null;
             let receiverDetails = null;
+            let loadUserData = null;
+            let exerctiveOfficerData = null;
+            let verifyOfficerData = null;
 
             if (senderServiceNo) {
               // Fetch user data for ANY service number (SLT or Non-SLT)
@@ -382,7 +415,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  fetchReceiverFromErp
                 );
               } catch (e) {
                 // Silently handle missing users
@@ -395,16 +428,56 @@ const Dispatch = () => {
               };
             }
 
+            if (
+              loadingDetails?.staffType === "SLT" &&
+              loadingDetails.staffServiceNo
+            ) {
+              try {
+                loadUserData = await getCachedUser(
+                  loadingDetails.staffServiceNo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
+            if (status.executiveOfficerServiceNo) {
+              try {
+                exerctiveOfficerData = await getCachedUser(
+                  status.executiveOfficerServiceNo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
+            const vo =
+              status.verifyOfficerServiceNumber ||
+              status.verifyOfficerServiceNo ||
+              status.request?.verifyOfficerServiceNo;
+            if (vo) {
+              try {
+                verifyOfficerData = await getCachedUser(
+                  vo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
             return {
               refNo: status.referenceNumber,
               senderDetails: senderDetails,
               receiverDetails: receiverDetails,
+              transportData: status.request?.transport,
+              loadingDetails: loadingDetails,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(status.createdAt).toLocaleString(),
               items: status.request?.items || [],
               comment: status.comment,
               requestDetails: { ...status.request },
+              loadUserData: loadUserData,
+              statusDetails: statusDetails,
+              executiveOfficerData: exerctiveOfficerData,
+              verifyOfficerData: verifyOfficerData,
             };
           })
         );
@@ -450,9 +523,14 @@ const Dispatch = () => {
           filteredData.map(async (status) => {
             const senderServiceNo = status.request?.employeeServiceNo;
             const receiverServiceNo = status.request?.receiverServiceNo;
+            const loadingDetails = status.request?.loading;
+            const statusDetails = status;
             const isNonSltPlace = status.request?.isNonSltPlace;
             let senderDetails = null;
             let receiverDetails = null;
+            let loadUserData = null;
+            let exerctiveOfficerData = null;
+            let verifyOfficerData = null;
 
             if (senderServiceNo) {
               // Fetch user data for ANY service number (SLT or Non-SLT)
@@ -474,7 +552,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  searchUserByServiceNo
+                  fetchReceiverFromErp
                 );
               } catch (e) {
                 // Silently handle missing users
@@ -487,16 +565,56 @@ const Dispatch = () => {
               };
             }
 
+            if (
+              loadingDetails?.staffType === "SLT" &&
+              loadingDetails.staffServiceNo
+            ) {
+              try {
+                loadUserData = await getCachedUser(
+                  loadingDetails.staffServiceNo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
+            if (status.executiveOfficerServiceNo) {
+              try {
+                exerctiveOfficerData = await getCachedUser(
+                  status.executiveOfficerServiceNo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
+            const vo =
+              status.verifyOfficerServiceNumber ||
+              status.verifyOfficerServiceNo ||
+              status.request?.verifyOfficerServiceNo;
+            if (vo) {
+              try {
+                verifyOfficerData = await getCachedUser(
+                  vo,
+                  searchUserByServiceNo
+                );
+              } catch (e) {}
+            }
+
             return {
               refNo: status.referenceNumber,
               senderDetails: senderDetails,
               receiverDetails: receiverDetails,
+              transportData: status.request?.transport,
+              loadingDetails: loadingDetails,
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(status.createdAt).toLocaleString(),
               items: status.request?.items || [],
               comment: status.comment,
               requestDetails: { ...status.request },
+              loadUserData: loadUserData,
+              statusDetails: statusDetails,
+              executiveOfficerData: exerctiveOfficerData,
+              verifyOfficerData: verifyOfficerData,
               isNonSlt: status.request?.isNonSltPlace || false,
             };
           })

@@ -235,17 +235,21 @@ export const getImageUrlSync = (imageData) => {
   }
 
   // If it's just a string path
-  if (typeof imageData === "string") {
-    if (imageData.startsWith("http")) {
-      return imageData;
-    }
+    if (typeof imageData === "string") {
+      if (imageData.startsWith("http")) {
+        return imageData;
+      }
 
-    if (imageData.startsWith("/backend/uploads")) {
-      return `${API_BASE_URL}${imageData}`;
-    }
+      if (imageData.startsWith("/uploads")) {
+        return `${API_BASE_URL}${imageData}`;
+      }
 
-    return `${API_BASE_URL}/backend/uploads/images/${imageData}`;
-  }
+      if (imageData.startsWith("/backend/uploads")) {
+        return `${API_BASE_URL}${imageData}`;
+      }
+
+      return `${API_BASE_URL}/uploads/images/${imageData}`;
+    }
 
   return null;
 };

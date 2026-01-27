@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+const PLeader = require("../models/PLeader");
 
 // Import user enrichment helpers
 const { 
@@ -7,6 +8,65 @@ const {
   getUserWithERPData 
 } = require('../utils/userHelpers');
 const ErpLocation = require("../models/ErpLocation");
+
+const resolveBranchNames = async (branches) => {
+  const raw = Array.isArray(branches) ? branches : [];
+  const ids = raw.map((b) => String(b || "").trim()).filter(Boolean);
+
+  if (!ids.length) return [];
+
+  const locs = await ErpLocation.find({ locationId: { $in: ids } })
+    .select({ locationId: 1, fingerscanLocation: 1 })
+    .lean();
+
+  const byId = new Map(
+    locs.map((l) => [String(l.locationId).trim(), l.fingerscanLocation])
+  );
+
+  return ids
+    .map((id) => byId.get(id) || id)
+    .filter((v) => typeof v === "string" && v.trim())
+    .map((v) => v.trim());
+};
+
+const normalizeBranchesForUser = async (branches) => {
+  if (branches === undefined) return undefined;
+  return await resolveBranchNames(branches);
+};
+
+const syncPLeaderFromUser = async (user, previousServiceNo = null) => {
+  if (!user) return;
+
+  const serviceNo = user.serviceNo ? String(user.serviceNo).trim() : "";
+  const prevServiceNo = previousServiceNo
+    ? String(previousServiceNo).trim()
+    : "";
+
+  if (prevServiceNo && prevServiceNo !== serviceNo) {
+    await PLeader.deleteOne({ employeeNumber: prevServiceNo });
+  }
+
+  if (user.role !== "Pleader") {
+    if (serviceNo) {
+      await PLeader.deleteOne({ employeeNumber: serviceNo });
+    }
+    return;
+  }
+
+  if (!serviceNo) return;
+
+  const branches = await resolveBranchNames(user.branches);
+
+  await PLeader.findOneAndUpdate(
+    { employeeNumber: serviceNo },
+    {
+      name: user.name || "",
+      employeeNumber: serviceNo,
+      branches,
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+};
 
 // Get all users WITH ERP DATA
 const getAllUsers = async (req, res) => {
@@ -49,6 +109,8 @@ const createUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     // Create user
+    const normalizedBranches = await normalizeBranchesForUser(branches);
+
     const user = await User.create({
       userType,
       userId,
@@ -61,8 +123,10 @@ const createUser = async (req, res) => {
       contactNo,
       role,
       email,
-      branches: branches || [],
+      branches: normalizedBranches || [],
     });
+
+    await syncPLeaderFromUser(user);
 
     // Return user without password
     const newUser = await User.findById(user._id).select("-password");
@@ -97,6 +161,8 @@ const updateUser = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
+    const previousServiceNo = user.serviceNo;
+
     // Update fields
     if (userType) user.userType = userType;
     if (userId) user.userId = userId;
@@ -108,7 +174,9 @@ const updateUser = async (req, res) => {
     if (contactNo) user.contactNo = contactNo;
     if (role) user.role = role;
     if (email) user.email = email;
-    if (branches !== undefined) user.branches = branches;
+    if (branches !== undefined) {
+      user.branches = await normalizeBranchesForUser(branches);
+    }
 
     // Update password if provided
     if (password) {
@@ -117,6 +185,8 @@ const updateUser = async (req, res) => {
     }
 
     await user.save();
+
+    await syncPLeaderFromUser(user, previousServiceNo);
 
     // Return updated user without password
     const updatedUser = await User.findById(id).select("-password");
@@ -138,6 +208,9 @@ const deleteUser = async (req, res) => {
     }
 
     await User.findByIdAndDelete(id);
+    if (user.serviceNo) {
+      await PLeader.deleteOne({ employeeNumber: String(user.serviceNo).trim() });
+    }
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -216,6 +289,8 @@ const upsertUserRole = async (req, res) => {
       });
     }
 
+    const normalizedBranches = await normalizeBranchesForUser(branches);
+
     // Try to find user by service number
     let user = await User.findOne({ serviceNo });
 
@@ -236,7 +311,7 @@ const upsertUserRole = async (req, res) => {
         contactNo,
         email: safeEmail,
         role,
-        branches: Array.isArray(branches) ? branches : [],
+        branches: normalizedBranches || [],
         isActive: true,
         gradeName: gradeName ?? null,
         fingerScanLocation: safeFingerScanLocation,
@@ -244,7 +319,9 @@ const upsertUserRole = async (req, res) => {
     } else {
       // UPDATE existing user
       user.role = role;
-      user.branches = Array.isArray(branches) ? branches : user.branches;
+      if (branches !== undefined) {
+        user.branches = normalizedBranches || [];
+      }
       user.email = safeEmail;
       user.section = safeSection;
       user.gradeName = gradeName ?? user.gradeName ?? null;
@@ -254,6 +331,8 @@ const upsertUserRole = async (req, res) => {
 
       await user.save();
     }
+
+    await syncPLeaderFromUser(user);
 
     const savedUser = await User.findById(user._id).select("-password");
 

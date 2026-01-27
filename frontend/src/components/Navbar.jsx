@@ -56,13 +56,18 @@ const Navbar = () => {
   useEffect(() => {
     const fetchBranchName = async () => {
       if (userBranch && userBranch !== "Not Assigned") {
+        const isLocationId = /^L\d+$/i.test(userBranch.trim());
+        if (!isLocationId) return;
+
         try {
           const token = localStorage.getItem("token");
           if (!token) return;
 
           // Call API to get branch name
           const response = await fetch(
-            `http://localhost:5000/api/erp/branch/${userBranch}`,
+            `${import.meta.env.VITE_API_URL}/erp/branch/${encodeURIComponent(
+              userBranch,
+            )}`,
             {
               headers: {
                 Authorization: `Bearer ${token}`,
