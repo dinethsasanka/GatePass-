@@ -1,4 +1,4 @@
-const Holiday = require("../models/Holiday");
+const { getHolidays } = require("../services/intranetService");
 
 const DEV_TIME_OVERRIDE = {
   enable: false,
@@ -19,14 +19,26 @@ const isRestrictedPeriod = async (override = {}) => {
 
   const todayISO = now.toISOString().split("T")[0];
 
-  // Public Holiday (HIGHEST PRIORITY)
-  const holiday = await Holiday.findOne({ dateISO: todayISO }).lean();
-  if (holiday) {
-    return {
-      restricted: true,
-      reason: "HOLIDAY",
-      holidayName: holiday.name,
-    };
+  // Public Holiday (HIGHEST PRIORITY) - Check via Intranet API
+  try {
+    const currentYear = now.getFullYear();
+    const holidays = await getHolidays(currentYear);
+    
+    // Find if today is a holiday
+    const todayHoliday = holidays.find(h => h.dateISO === todayISO);
+    
+    if (todayHoliday) {
+      return {
+        restricted: true,
+        reason: "HOLIDAY",
+        holidayName: todayHoliday.name,
+        date: todayISO,
+      };
+    }
+  } catch (error) {
+    console.error("Error fetching holidays from intranet API:", error.message);
+    // If API fails, continue to check other restrictions (weekend, off-hours)
+    // Don't block the entire flow due to API failure
   }
 
   // Weekend

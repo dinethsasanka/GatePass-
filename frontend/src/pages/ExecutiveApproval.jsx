@@ -110,11 +110,11 @@ const fetchReceiverDetails = async (serviceNo) => {
 const ExecutiveApproval = () => {
   const [activeTab, setActiveTab] = useState("pending");
   const [showModal, setShowModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setselectedItem] = useState(null);
   const [comment, setComment] = useState("");
-  const [pendingItems, setPendingItems] = useState([]);
-  const [approvedItems, setApprovedItems] = useState([]);
-  const [rejectedItems, setRejectedItems] = useState([]);
+  const [pendingItems, setpendingItems] = useState([]);
+  const [approvedItems, setapprovedItems] = useState([]);
+  const [rejectedDESCRIPTIONs, setRejectedDESCRIPTIONs] = useState([]);
   const [transportData, setTransportData] = useState(null);
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
@@ -221,7 +221,7 @@ const ExecutiveApproval = () => {
               };
             })
           );
-          setPendingItems(formattedData);
+          setpendingItems(formattedData);
         } catch (error) {
           console.error("Error in real-time refetch:", error);
         }
@@ -331,7 +331,7 @@ const ExecutiveApproval = () => {
           })
         );
 
-        setPendingItems(formattedData);
+        setpendingItems(formattedData);
       } catch (error) {
         console.error("Error fetching pending statuses:", error);
       }
@@ -441,7 +441,7 @@ const ExecutiveApproval = () => {
             };
           })
         );
-        setApprovedItems(formattedData);
+        setapprovedItems(formattedData);
       } catch (error) {
         console.error("Error fetching pending statuses:", error);
       }
@@ -556,7 +556,7 @@ const ExecutiveApproval = () => {
           })
         );
 
-        setRejectedItems(formattedData);
+        setRejectedDESCRIPTIONs(formattedData);
       } catch (error) {
         console.error("Error fetching pending statuses:", error);
       }
@@ -605,8 +605,8 @@ const ExecutiveApproval = () => {
       };
 
       // Update UI state
-      setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
-      setApprovedItems([...approvedItems, approvedItem]);
+      setpendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
+      setapprovedItems([...approvedItems, approvedItem]);
 
       // Send email to petrol leader
       await sendApprovalEmailToPetrolLeader(approvedItem, comment);
@@ -630,19 +630,19 @@ const ExecutiveApproval = () => {
         return;
       }
 
-      const emailSubject = `Returnable Items Update: ${request.refNo}`;
+      const emailSubject = `Returnable items Update: ${request.refNo}`;
 
       // Create items table for email
       const itemsTable =
         itemDetails.length > 0
           ? `
         <div style="margin: 20px 0;">
-          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned Items</h3>
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned items</h3>
           <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
             <thead>
               <tr style="background-color: #f5f5f5;">
-                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Item Name</th>
-                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial No</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">item Name</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial Number</th>
                 <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Category</th>
                 <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Quantity</th>
               </tr>
@@ -653,13 +653,13 @@ const ExecutiveApproval = () => {
                   (item) => `
                 <tr>
                   <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                    item.itemName || "N/A"
+                    item.itemDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                    item.serialNo || "N/A"
+                    item.serialNumber || "N/A"
                   }</td>
                   <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                    item.itemCategory || "N/A"
+                    item.categoryDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border-bottom: 1px solid #eee;">${
                     item.itemQuantity || "1"
@@ -677,7 +677,7 @@ const ExecutiveApproval = () => {
       const emailBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
           <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable Items Update</h2>
+            <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable items Update</h2>
             <p style="color: #757575; font-size: 14px;">Reference Number: ${
               request.refNo
             }</p>
@@ -758,9 +758,9 @@ const ExecutiveApproval = () => {
               <td style="padding: 8px 0;">${request.inLocation}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #757575;">Items:</td>
+              <td style="padding: 8px 0; color: #757575;">items:</td>
               <td style="padding: 8px 0;">${request.items
-                .map((item) => `${item.itemName} (${item.serialNo})`)
+                .map((item) => `${item.itemDescription} (${item.serialNumber})`)
                 .join(", ")}</td>
             </tr>
             <tr>
@@ -864,14 +864,14 @@ const ExecutiveApproval = () => {
         </div>
         
         <div style="margin-bottom: 20px;">
-          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Items (${
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">items (${
             request.items.length
           })</h3>
           <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
             <thead>
               <tr style="background-color: #f5f5f5;">
-                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Item Name</th>
-                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial No</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">item Name</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial Number</th>
                 <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Quantity</th>
               </tr>
             </thead>
@@ -881,10 +881,10 @@ const ExecutiveApproval = () => {
                   (item) => `
                 <tr>
                   <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                    item.itemName || "N/A"
+                    item.itemDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                    item.serialNo || "N/A"
+                    item.serialNumber || "N/A"
                   }</td>
                   <td style="padding: 8px; border-bottom: 1px solid #eee;">${
                     item.itemQuantity || "1"
@@ -991,8 +991,8 @@ const ExecutiveApproval = () => {
       };
 
       // Update UI state
-      setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
-      setRejectedItems([...rejectedItems, rejectedItem]);
+      setpendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
+      setRejectedDESCRIPTIONs([...rejectedDESCRIPTIONs, rejectedItem]);
 
       // Reset modal and comment
       setShowModal(false);
@@ -1003,7 +1003,7 @@ const ExecutiveApproval = () => {
   };
 
   const handleModelOpen = async (item) => {
-  setSelectedItem(item);
+  setselectedItem(item);
 
   if (item.requestDetails?.transport.transporterServiceNo) {
     try {
@@ -1085,9 +1085,9 @@ const ExecutiveApproval = () => {
     });
   };
 
-  const filteredPendingItems = applyFilters(pendingItems);
-  const filteredApprovedItems = applyFilters(approvedItems);
-  const filteredRejectedItems = applyFilters(rejectedItems);
+  const filteredpendingItems = applyFilters(pendingItems);
+  const filteredapprovedItems = applyFilters(approvedItems);
+  const filteredRejectedItems = applyFilters(rejectedDESCRIPTIONs);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 p-8">
@@ -1231,7 +1231,7 @@ const ExecutiveApproval = () => {
                 activeTab === "rejected" ? "text-white" : "text-rose-500"
               }`}
             >
-              {rejectedItems.length}
+              {rejectedDESCRIPTIONs.length}
             </div>
             <p
               className={
@@ -1397,9 +1397,9 @@ const ExecutiveApproval = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {(activeTab === "pending"
-                ? filteredPendingItems
+                ? filteredpendingItems
                 : activeTab === "approved"
-                ? filteredApprovedItems
+                ? filteredapprovedItems
                 : filteredRejectedItems
               ).map((item) => (
                 <tr
@@ -1458,7 +1458,7 @@ const ExecutiveApproval = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     <button
                       onClick={() => {
-                        //setSelectedItem(item);
+                        //setselectedItem(item);
                         handleModelOpen(item);
                         //setShowModal(true);
                       }}
@@ -1482,9 +1482,9 @@ const ExecutiveApproval = () => {
 
         {/* Empty State */}
         {(activeTab === "pending"
-          ? filteredPendingItems
+          ? filteredpendingItems
           : activeTab === "approved"
-          ? filteredApprovedItems
+          ? filteredapprovedItems
           : filteredRejectedItems
         ).length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
@@ -1540,10 +1540,10 @@ const RequestDetailsModal = ({
   // Initialize with the correct value from request
   const [selectedExecutive, setSelectedExecutive] = useState("");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedItemImages, setSelectedItemImages] = useState([]);
-  const [selectedItemName, setSelectedItemName] = useState("");
+  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState([]);
+  const [selecteditemDescription, setselecteditemDescription] = useState("");
   const [updateSuccess, setUpdateSuccess] = useState(false);
-  const [selectedItems, setSelectedItems] = useState([]);
+  const [selectedItems, setselectedItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen || !request) return null;
@@ -1568,22 +1568,22 @@ const RequestDetailsModal = ({
       console.log("Reference number:", request.refNo);
 
       // Get full details of selected items
-      const selectedItemDetails = request.items.filter((item) =>
-        selectedItems.includes(item.serialNo)
+      const selecteditemDetails = request.items.filter((item) =>
+        selectedItems.includes(item.serialNumber)
       );
 
-      console.log("Selected item details:", selectedItemDetails);
+      console.log("Selected item details:", selecteditemDetails);
 
       // Call backend to update DB
       const response = await markItemsAsReturned(request.refNo, selectedItems);
 
       console.log("Backend response:", response);
 
-      // Now send the email notification WITH ITEM DETAILS
+      // Now send the email notification WITH item DETAILS
       await sendReturnEmail(
         request,
-        "Items successfully returned by executive officer.",
-        selectedItemDetails
+        "items successfully returned by executive officer.",
+        selecteditemDetails
       );
 
       // Show success message
@@ -1597,7 +1597,7 @@ const RequestDetailsModal = ({
       console.log("Bulk return process completed successfully");
 
       // Clear selected items
-      setSelectedItems([]);
+      setselectedItems([]);
 
       // Refresh / close modal
       onClose();
@@ -1616,7 +1616,7 @@ const RequestDetailsModal = ({
   };
 
   const handleSelect = (serialNo) => {
-    setSelectedItems((prev) => {
+    setselectedItems((prev) => {
       if (prev.includes(serialNo)) {
         return prev.filter((sn) => sn !== serialNo);
       } else {
@@ -1626,12 +1626,12 @@ const RequestDetailsModal = ({
   };
 
   const handleViewImages = (item) => {
-    setSelectedItemImages(item.itemPhotos);
-    setSelectedItemName(item.itemName);
+    setSelectedDESCRIPTIONImages(item.itemPhotos);
+    setselecteditemDescription(item.itemDescription);
     setIsImageModalOpen(true);
   };
 
-  const generateItemDetailsPDF = (items, refNo) => {
+  const generateitemDetailsPDF = (items, refNo) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
@@ -1646,7 +1646,7 @@ const RequestDetailsModal = ({
     // Header
     doc.setFontSize(18);
     doc.setTextColor(0, 51, 153); // SLT blue color
-    doc.text("SLT Gate Pass - Item Details", pageWidth / 2, 20, {
+    doc.text("SLT Gate Pass - item Details", pageWidth / 2, 20, {
       align: "center",
     });
 
@@ -1665,10 +1665,10 @@ const RequestDetailsModal = ({
     doc.setDrawColor(220, 220, 220);
     doc.line(margin, 35, pageWidth - margin, 35);
 
-    // Items Table
+    // items Table
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    doc.text("Item Details", margin, 45);
+    doc.text("item Details", margin, 45);
 
     // Table header
     let yPos = 55;
@@ -1677,8 +1677,8 @@ const RequestDetailsModal = ({
     doc.setDrawColor(200, 200, 200);
 
     // Define column widths
-    const col1Width = 60; // Item Name
-    const col2Width = 40; // Serial No
+    const col1Width = 60; // item Name
+    const col2Width = 40; // Serial Number
     const col3Width = 30; // Category
     const col4Width = 20; // Quantity
     const col5Width = 30; // Status
@@ -1693,8 +1693,8 @@ const RequestDetailsModal = ({
       "F"
     );
 
-    doc.text("Item Name", margin + 3, yPos + 5.5);
-    doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+    doc.text("item Name", margin + 3, yPos + 5.5);
+    doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
     doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
     doc.text("Qty", margin + col1Width + col2Width + col3Width + 3, yPos + 5.5);
     doc.text(
@@ -1722,8 +1722,8 @@ const RequestDetailsModal = ({
           "F"
         );
 
-        doc.text("Item Name", margin + 3, yPos + 5.5);
-        doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+        doc.text("item Name", margin + 3, yPos + 5.5);
+        doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
         doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
         doc.text(
           "Qty",
@@ -1760,17 +1760,17 @@ const RequestDetailsModal = ({
       };
 
       doc.text(
-        truncateText(item?.itemName || "N/A", 25),
+        truncateText(item?.itemDescription || "N/A", 25),
         margin + 3,
         yPos + 5.5
       );
       doc.text(
-        truncateText(item?.serialNo || "N/A", 15),
+        truncateText(item?.serialNumber || "N/A", 15),
         margin + col1Width + 3,
         yPos + 5.5
       );
       doc.text(
-        truncateText(item?.itemCategory || "N/A", 12),
+        truncateText(item?.categoryDescription || "N/A", 12),
         margin + col1Width + col2Width + 3,
         yPos + 5.5
       );
@@ -1808,7 +1808,7 @@ const RequestDetailsModal = ({
     );
 
     // Save the PDF
-    doc.save(`SLT_GatePass_Items_${refNo}.pdf`);
+    doc.save(`SLT_GatePass_DESCRIPTIONs_${refNo}.pdf`);
   };
 
   return (
@@ -1901,17 +1901,17 @@ const RequestDetailsModal = ({
             </div>
           </div>
 
-          {/* Items Table */}
+          {/* items Table */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
-              <FaBoxOpen className="mr-2" /> Item Details
+              <FaBoxOpen className="mr-2" /> item Details
               <button
                 onClick={() =>
-                  generateItemDetailsPDF(request.items, request.refNo)
+                  generateitemDetailsPDF(request.items, request.refNo)
                 }
                 className="ml-auto px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center transition-colors"
               >
-                <FaFilePdf className="mr-2" /> Download Items PDF
+                <FaFilePdf className="mr-2" /> Download items PDF
               </button>
             </h3>
             <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -1919,10 +1919,9 @@ const RequestDetailsModal = ({
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Item
-                    </th>
+                      item </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Serial No
+                      Serial Number
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Category
@@ -1931,7 +1930,7 @@ const RequestDetailsModal = ({
                       Quantity
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Model
+                      Item Code
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Status
@@ -1944,11 +1943,11 @@ const RequestDetailsModal = ({
                 <tbody className="divide-y divide-gray-200">
                   {request.items.map((item, index) => (
                     <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">{item?.itemName}</td>
-                      <td className="px-6 py-4">{item?.serialNo}</td>
-                      <td className="px-6 py-4">{item?.itemCategory}</td>
+                      <td className="px-6 py-4">{item?.itemDescription}</td>
+                      <td className="px-6 py-4">{item?.serialNumber}</td>
+                      <td className="px-6 py-4">{item?.categoryDescription}</td>
                       <td className="px-6 py-4">{item?.itemQuantity}</td>
-                      <td className="px-6 py-4">{item?.itemModel}</td>
+                      <td className="px-6 py-4">{item?.itemCode}</td>
 
                       <td className="px-6 py-4">
                         <span
@@ -1972,10 +1971,10 @@ const RequestDetailsModal = ({
                           <FaEye className="mr-2" /> View Images
                         </button>
                         <ImageViewerModal
-                          images={selectedItemImages}
+                          images={selectedDESCRIPTIONImages}
                           isOpen={isImageModalOpen}
                           onClose={() => setIsImageModalOpen(false)}
-                          itemName={selectedItemName}
+                          itemDescription ={selecteditemDescription}
                         />
                       </td>
                     </tr>
@@ -1985,10 +1984,10 @@ const RequestDetailsModal = ({
             </div>
           </div>
 
-          {/* Returnable Items Section */}
+          {/* Returnable items Section */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
-              <FaUndo className="mr-2" /> Returnable Items
+              <FaUndo className="mr-2" /> Returnable items
             </h3>
 
             <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -1999,16 +1998,15 @@ const RequestDetailsModal = ({
                       Select
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Item
-                    </th>
+                      item </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Serial No
+                      Serial Number
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Quantity
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Model
+                      Item Code
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Status
@@ -2025,15 +2023,15 @@ const RequestDetailsModal = ({
                         <td className="px-6 py-4">
                           <input
                             type="checkbox"
-                            checked={selectedItems?.includes(item.serialNo)}
-                            onChange={() => handleSelect(item.serialNo)}
+                            checked={selectedItems?.includes(item.serialNumber)}
+                            onChange={() => handleSelect(item.serialNumber)}
                             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-6 py-4">{item.itemName}</td>
-                        <td className="px-6 py-4">{item.serialNo}</td>
+                        <td className="px-6 py-4">{item.itemDescription}</td>
+                        <td className="px-6 py-4">{item.serialNumber}</td>
                         <td className="px-6 py-4">{item?.itemQuantity}</td>
-                        <td className="px-6 py-4">{item?.itemModel}</td>
+                        <td className="px-6 py-4">{item?.itemCode}</td>
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                             {item.status}
@@ -2362,7 +2360,7 @@ const RequestDetailsModal = ({
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">
-                      Vehicle Model
+                      Vehicle Item Code
                     </label>
                     <p className="text-gray-800">
                       {request?.requestDetails?.transport.vehicleModel || "N/A"}
@@ -2572,7 +2570,7 @@ const RequestDetailsModal = ({
 };
 
 // In the ImageViewerModal component
-const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
+const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
   const [imageUrls, setImageUrls] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -2612,7 +2610,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
           <div className="h-80 md:h-96 overflow-hidden relative bg-black flex items-center justify-center">
             <img
               src={imageUrls[activeIndex]}
-              alt={`${itemName} ${activeIndex + 1}`}
+              alt={`${itemDescription} ${activeIndex + 1}`}
               className="max-h-full max-w-full object-contain"
             />
 
@@ -2669,7 +2667,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
           {/* Header with close button */}
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemName}</h3>
+              <h3 className="text-xl font-semibold text-white">{itemDescription}</h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
@@ -2694,7 +2692,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
             >
               <img
                 src={url}
-                alt={`${itemName} thumbnail ${index + 1}`}
+                alt={`${itemDescription} thumbnail ${index + 1}`}
                 className="w-full h-full object-cover"
               />
             </div>

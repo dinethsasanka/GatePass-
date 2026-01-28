@@ -77,11 +77,11 @@ const Dispatch = () => {
 
   const [activeTab, setActiveTab] = useState("pending");
   const [showModal, setShowModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setselectedItem] = useState(null);
   const [comment, setComment] = useState("");
-  const [pendingItems, setPendingItems] = useState([]);
-  const [approvedItems, setApprovedItems] = useState([]);
-  const [rejectedItems, setRejectedItems] = useState([]);
+  const [pendingItems, setpendingItems] = useState([]);
+  const [approvedDESCRIPTIONs, setApprovedDESCRIPTIONs] = useState([]);
+  const [rejectedDESCRIPTIONs, setRejectedDESCRIPTIONs] = useState([]);
   const [transportData, setTransportData] = useState(null);
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
@@ -216,7 +216,7 @@ const Dispatch = () => {
           })
         );
 
-        const uniqueItems = formattedData.reduce((acc, item) => {
+        const uniqueDESCRIPTIONs = formattedData.reduce((acc, item) => {
           const existing = acc.find((x) => x.refNo === item.refNo);
           if (!existing) {
             acc.push(item);
@@ -231,7 +231,7 @@ const Dispatch = () => {
           return acc;
         }, []);
 
-        setPendingItems(uniqueItems);
+        setpendingItems(uniqueDESCRIPTIONs);
       } catch (error) {
         console.error("Error fetching pending statuses:", error);
       }
@@ -242,7 +242,7 @@ const Dispatch = () => {
 
   // --- Data Fetching Effects ---
 
-  // Fetch Pending Items on mount and tab change
+  // Fetch Pending items on mount and tab change
   useEffect(() => {
     const fetchData = async () => {
       if (!user || !user.branches || activeTab !== "pending") return;
@@ -346,7 +346,7 @@ const Dispatch = () => {
           })
         );
 
-        const uniqueItems = formattedData.reduce((acc, item) => {
+        const uniqueDESCRIPTIONs = formattedData.reduce((acc, item) => {
           const existing = acc.find((x) => x.refNo === item.refNo);
           if (!existing) {
             acc.push(item);
@@ -361,7 +361,7 @@ const Dispatch = () => {
           return acc;
         }, []);
 
-        setPendingItems(uniqueItems);
+        setpendingItems(uniqueDESCRIPTIONs);
       } catch (error) {
         console.error("Error fetching pending statuses:", error);
       }
@@ -369,7 +369,7 @@ const Dispatch = () => {
     fetchData();
   }, [activeTab, user]);
 
-  // Fetch Approved Items
+  // Fetch Approved items
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -483,7 +483,7 @@ const Dispatch = () => {
         );
 
         // Remove duplicates by reference number (keep the most recent one)
-        const uniqueItems = formattedData.reduce((acc, item) => {
+        const uniqueDESCRIPTIONs = formattedData.reduce((acc, item) => {
           const existing = acc.find((x) => x.refNo === item.refNo);
           if (!existing) {
             acc.push(item);
@@ -498,7 +498,7 @@ const Dispatch = () => {
           return acc;
         }, []);
 
-        setApprovedItems(uniqueItems);
+        setApprovedDESCRIPTIONs(uniqueDESCRIPTIONs);
       } catch (error) {
         console.error("Error fetching approved statuses:", error);
       }
@@ -506,7 +506,7 @@ const Dispatch = () => {
     fetchData();
   }, [activeTab, user]);
 
-  // Fetch Rejected Items
+  // Fetch Rejected items
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -621,7 +621,7 @@ const Dispatch = () => {
         );
 
         // Remove duplicates by reference number (keep the most recent one)
-        const uniqueItems = formattedData.reduce((acc, item) => {
+        const uniqueDESCRIPTIONs = formattedData.reduce((acc, item) => {
           const existing = acc.find((x) => x.refNo === item.refNo);
           if (!existing) {
             acc.push(item);
@@ -636,7 +636,7 @@ const Dispatch = () => {
           return acc;
         }, []);
 
-        setRejectedItems(uniqueItems);
+        setRejectedDESCRIPTIONs(uniqueDESCRIPTIONs);
       } catch (error) {
         console.error("Error fetching rejected statuses:", error);
       }
@@ -683,19 +683,19 @@ const Dispatch = () => {
               <li><strong>Reference:</strong> ${referenceNumber}</li>
               <li><strong>From:</strong> ${requestData.outLocation}</li>
               <li><strong>To:</strong> ${requestData.inLocation}</li>
-              <li><strong>Items Count:</strong> ${requestData.items.length}</li>
+              <li><strong>items Count:</strong> ${requestData.items.length}</li>
               <li><strong>Approval Date:</strong> ${new Date().toLocaleString()}</li>
             </ul>
           </div>
         </div>
         
         <div style="margin-bottom: 20px;">
-          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Item Details</h3>
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">item Details</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
             <thead>
               <tr style="background-color: #f5f5f5;">
-                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Item Name</th>
-                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Serial No</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">item</th>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Serial Number</th>
                 <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Category</th>
                 <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Status</th>
               </tr>
@@ -706,13 +706,13 @@ const Dispatch = () => {
                   (item) => `
                 <tr>
                   <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                    item.itemName
+                    item.itemDescription
                   }</td>
                   <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                    item.serialNo || "-"
+                    item.serialNumber || "-"
                   }</td>
                   <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                    item.itemCategory || "-"
+                    item.categoryDescription || "-"
                   }</td>
                   <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">
                     <span style="color: ${
@@ -732,7 +732,7 @@ const Dispatch = () => {
         <div style="margin-bottom: 20px; padding: 15px; background-color: #e8f5e9; border-radius: 4px;">
           <h4 style="color: #2e7d32; margin-bottom: 10px;">🚚 Next Steps:</h4>
           <ul style="margin: 0; padding-left: 20px;">
-            <li>Items will be dispatched from <strong>${
+            <li>items will be dispatched from <strong>${
               requestData.outLocation
             }</strong></li>
             <li>Expected delivery/collection at <strong>${
@@ -812,20 +812,20 @@ const Dispatch = () => {
           </div>
           
           <div style="margin-top: 15px;">
-            <p><strong>Item Summary:</strong></p>
+            <p><strong>item Summary:</strong></p>
             <ul style="padding-left: 20px;">
-              <li>Total Items: ${requestData.items.length}</li>
+              <li>Total items: ${requestData.items.length}</li>
               <li>Date/Time: ${new Date().toLocaleString()}</li>
             </ul>
           </div>
         </div>
         
         <div style="margin-bottom: 20px;">
-          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Item Summary</h3>
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">item Summary</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
             <tr style="background-color: #f5f5f5;">
-              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Item</th>
-              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Serial No</th>
+              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">item</th>
+              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Serial Number</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Category</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #e0e0e0;">Status</th>
             </tr>
@@ -834,13 +834,13 @@ const Dispatch = () => {
                 (item) => `
               <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                  item.itemName
+                  item.itemDescription
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                  item.serialNo || "-"
+                  item.serialNumber || "-"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                  item.itemCategory || "-"
+                  item.categoryDescription || "-"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
                   item.itemReturnable ? "Returnable" : "Non-Returnable"
@@ -884,7 +884,7 @@ const Dispatch = () => {
   const sendReturnTOPetrolLeaderEmail = async (
     request,
     comment,
-    selectedItemDetails
+    selecteditemDetails
   ) => {
     try {
       // Get the executive officer details from the request
@@ -907,7 +907,7 @@ const Dispatch = () => {
         return;
       }
 
-      const emailSubject = `Action Required: Review and Return Items - ${request.refNo}`;
+      const emailSubject = `Action Required: Review and Return items - ${request.refNo}`;
 
       // Create a professional email body with HTML formatting
       const emailBody = `
@@ -915,7 +915,7 @@ const Dispatch = () => {
         
         <!-- Header -->
         <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="color: #2fd33dff; margin-bottom: 5px;">⚠️ Action Required: Review and Return Items</h2>
+          <h2 style="color: #2fd33dff; margin-bottom: 5px;">⚠️ Action Required: Review and Return items</h2>
           <p style="color: #757575; font-size: 14px;">Reference Number: <strong>${
             request.refNo
           }</strong></p>
@@ -933,7 +933,7 @@ const Dispatch = () => {
           <p style="margin-bottom: 15px;">Dear ${approver.name},</p>
           
           <p style="margin-bottom: 15px;">We would like to inform you that ${
-            selectedItemDetails.length
+            selecteditemDetails.length
           } returnable item(s) under reference number <b>${
         request.refNo
       }</b> have been returned by the Receiver.</p>
@@ -952,32 +952,32 @@ const Dispatch = () => {
           </p>
         </div>
 
-        <!-- Items Table -->
+        <!-- items Table -->
         <div style="margin-bottom: 20px;">
-          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Items to be Returned</h3>
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">items to be Returned</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;">
             <thead>
               <tr style="background-color: #f8f9fa;">
-                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Item Name</th>
-                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Serial No</th>
+                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">item</th>
+                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Serial Number</th>
                 <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Category</th>
                 <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Quantity</th>
               </tr>
             </thead>
             <tbody>
               ${
-                selectedItemDetails
+                selecteditemDetails
                   ?.map(
                     (item) => `
                 <tr>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.itemName || "N/A"
+                    item.itemDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.serialNo || "N/A"
+                    item.serialNumber || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.itemCategory || "N/A"
+                    item.categoryDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
                     item.itemQuantity || "1"
@@ -1051,13 +1051,13 @@ const Dispatch = () => {
     }
   };
 
-  const handleEmailNotification = async (request, approvedItem) => {
+  const handleEmailNotification = async (request, approvedDESCRIPTION) => {
     try {
       // Get receiver service number from multiple possible locations
       const receiverServiceNo =
         request?.receiverServiceNo ||
         request?.receiverDetails?.serviceNo ||
-        approvedItem?.receiverDetails?.serviceNo;
+        approvedDESCRIPTION?.receiverDetails?.serviceNo;
 
       const isNonSltPlace = request?.isNonSltPlace || false;
 
@@ -1065,7 +1065,7 @@ const Dispatch = () => {
         receiverServiceNo,
         isNonSltPlace,
         request: request,
-        approvedItemReceiver: approvedItem?.receiverDetails,
+        approvedDESCRIPTIONReceiver: approvedDESCRIPTION?.receiverDetails,
       });
 
       if (isNonSltPlace) {
@@ -1077,11 +1077,11 @@ const Dispatch = () => {
           const emailSent = await sendReceiverNotificationEmail(
             { name: receiverName, email: receiverEmail },
             {
-              outLocation: approvedItem.outLocation,
-              inLocation: approvedItem.inLocation,
-              items: approvedItem.items,
+              outLocation: approvedDESCRIPTION.outLocation,
+              inLocation: approvedDESCRIPTION.inLocation,
+              items: approvedDESCRIPTION.items,
             },
-            approvedItem.refNo
+            approvedDESCRIPTION.refNo
           );
 
           return {
@@ -1116,11 +1116,11 @@ const Dispatch = () => {
               const emailSent = await sendReceiverNotificationEmail(
                 receiverDetails,
                 {
-                  outLocation: approvedItem.outLocation,
-                  inLocation: approvedItem.inLocation,
-                  items: approvedItem.items,
+                  outLocation: approvedDESCRIPTION.outLocation,
+                  inLocation: approvedDESCRIPTION.inLocation,
+                  items: approvedDESCRIPTION.items,
                 },
-                approvedItem.refNo
+                approvedDESCRIPTION.refNo
               );
 
               return {
@@ -1213,7 +1213,7 @@ const Dispatch = () => {
       const updatedStatus = await approveStatus(item.refNo, comment);
       const statusData = updatedStatus;
 
-      const approvedItem = {
+      const approvedDESCRIPTION = {
         ...item,
         refNo: statusData.referenceNumber,
         inLocation: statusData.request?.inLocation,
@@ -1225,8 +1225,8 @@ const Dispatch = () => {
       };
 
       // Update UI state
-      setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
-      setApprovedItems([...approvedItems, approvedItem]);
+      setpendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
+      setApprovedDESCRIPTIONs([...approvedDESCRIPTIONs, approvedDESCRIPTION]);
 
       // Cleanup
       setShowModal(false);
@@ -1243,7 +1243,7 @@ const Dispatch = () => {
       // Handle email notification
       const emailResult = await handleEmailNotification(
         statusData.request, // Pass the entire request object
-        approvedItem
+        approvedDESCRIPTION
       );
 
       // Show appropriate messages
@@ -1278,7 +1278,7 @@ const Dispatch = () => {
       }
       const updatedStatus = await rejectStatus(item.refNo, comment);
 
-      const rejectedItem = {
+      const rejectedDESCRIPTION = {
         refNo: updatedStatus.referenceNumber,
         inLocation: updatedStatus.request?.inLocation,
         outLocation: updatedStatus.request?.outLocation,
@@ -1288,8 +1288,8 @@ const Dispatch = () => {
         requestDetails: { ...updatedStatus.request },
       };
 
-      setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
-      setRejectedItems([...rejectedItems, rejectedItem]);
+      setpendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
+      setRejectedDESCRIPTIONs([...rejectedDESCRIPTIONs, rejectedDESCRIPTION]);
 
       setShowModal(false);
       setComment("");
@@ -1304,11 +1304,11 @@ const Dispatch = () => {
           const emailSent = await sendRejectionEmailToSender(
             senderDetails,
             {
-              outLocation: rejectedItem.outLocation,
-              inLocation: rejectedItem.inLocation,
-              items: rejectedItem.items,
+              outLocation: rejectedDESCRIPTION.outLocation,
+              inLocation: rejectedDESCRIPTION.inLocation,
+              items: rejectedDESCRIPTION.items,
             },
-            rejectedItem.refNo,
+            rejectedDESCRIPTION.refNo,
             comment
           );
 
@@ -1347,19 +1347,19 @@ const Dispatch = () => {
         return;
       }
 
-      const emailSubject = `Returnable Items Update: ${request.refNo}`;
+      const emailSubject = `Returnable items Update: ${request.refNo}`;
 
       // Create items table for email
       const itemsTable =
         itemDetails.length > 0
           ? `
       <div style="margin: 20px 0;">
-        <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned Items</h3>
+        <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned items</h3>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
           <thead>
             <tr style="background-color: #f5f5f5;">
-              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Item Name</th>
-              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial No</th>
+              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">item</th>
+              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial Number</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Category</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Quantity</th>
             </tr>
@@ -1370,13 +1370,13 @@ const Dispatch = () => {
                 (item) => `
               <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                  item.itemName || "N/A"
+                  item.itemDescription || "N/A"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                  item.serialNo || "N/A"
+                  item.serialNumber || "N/A"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                  item.itemCategory || "N/A"
+                  item.categoryDescription || "N/A"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
                   item.itemQuantity || "1"
@@ -1394,7 +1394,7 @@ const Dispatch = () => {
       const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable Items Update</h2>
+          <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable items Update</h2>
           <p style="color: #757575; font-size: 14px;">Reference Number: ${
             request.refNo
           }</p>
@@ -1434,7 +1434,7 @@ const Dispatch = () => {
   };
 
   const handleModelOpen = async (item) => {
-  setSelectedItem(item);
+  setselectedItem(item);
 
   if (item.requestDetails?.transport.transporterServiceNo) {
     try {
@@ -1525,9 +1525,9 @@ const Dispatch = () => {
     });
   };
 
-  const filteredPendingItems = applyFilters(pendingItems, true);
-  const filteredApprovedItems = applyFilters(approvedItems);
-  const filteredRejectedItems = applyFilters(rejectedItems);
+  const filteredpendingItems = applyFilters(pendingItems, true);
+  const filteredApprovedDESCRIPTIONs = applyFilters(approvedDESCRIPTIONs);
+  const filteredRejectedDESCRIPTIONs = applyFilters(rejectedDESCRIPTIONs);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 p-8">
@@ -1623,7 +1623,7 @@ const Dispatch = () => {
                 activeTab === "approved" ? "text-white" : "text-emerald-500"
               }`}
             >
-              {approvedItems.length}
+              {approvedDESCRIPTIONs.length}
             </div>
             <p
               className={
@@ -1669,7 +1669,7 @@ const Dispatch = () => {
                 activeTab === "rejected" ? "text-white" : "text-rose-500"
               }`}
             >
-              {rejectedItems.length}
+              {rejectedDESCRIPTIONs.length}
             </div>
             <p
               className={
@@ -1819,10 +1819,10 @@ const Dispatch = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {(activeTab === "pending"
-                ? filteredPendingItems
+                ? filteredpendingItems
                 : activeTab === "approved"
-                ? filteredApprovedItems
-                : filteredRejectedItems
+                ? filteredApprovedDESCRIPTIONs
+                : filteredRejectedDESCRIPTIONs
               ).map((item) => (
                 <tr
                   key={item.refNo}
@@ -1876,10 +1876,10 @@ const Dispatch = () => {
 
         {/* Empty State */}
         {(activeTab === "pending"
-          ? filteredPendingItems
+          ? filteredpendingItems
           : activeTab === "approved"
-          ? filteredApprovedItems
-          : filteredRejectedItems
+          ? filteredApprovedDESCRIPTIONs
+          : filteredRejectedDESCRIPTIONs
         ).length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -1934,9 +1934,9 @@ const RequestDetailsModal = ({
   const tabOrder = ["details", "navigation"];
   const DispatchStatus = true;
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedItemImages, setSelectedItemImages] = useState([]);
-  const [selectedItemName, setSelectedItemName] = useState("");
-  const [selectedItems, setSelectedItems] = useState([]);
+  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState([]);
+  const [selecteditemDescription, setSelecteditemDescription] = useState("");
+  const [selectedItems, setselectedItems] = useState([]);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen || !request) return null;
@@ -1966,27 +1966,27 @@ const RequestDetailsModal = ({
       console.log("Reference number:", request.refNo);
 
       // Get full details of selected items
-      const selectedItemDetails = request.items.filter((item) =>
-        selectedItems.includes(item.serialNo)
+      const selecteditemDetails = request.items.filter((item) =>
+        selectedItems.includes(item.serialNumber)
       );
 
-      console.log("Selected item details:", selectedItemDetails);
+      console.log("Selected item details:", selecteditemDetails);
 
       // Call backend to update DB
       const response = await markItemsAsReturned(request.refNo, selectedItems);
 
       console.log("Backend response:", response);
 
-      // Now send the email notification WITH ITEM DETAILS
+      // Now send the email notification WITH item DETAILS
       await sendReturnEmail(
         request,
-        "Items successfully returned by out petrol leader.",
-        selectedItemDetails
+        "items successfully returned by out petrol leader.",
+        selecteditemDetails
       );
       await sendReturnTOPetrolLeaderEmail(
         request,
-        "Items successfully returned by out petrol leader.",
-        selectedItemDetails
+        "items successfully returned by out petrol leader.",
+        selecteditemDetails
       );
       // Show success message
       showToast(
@@ -1999,7 +1999,7 @@ const RequestDetailsModal = ({
       console.log("Bulk return process completed successfully");
 
       // Clear selected items
-      setSelectedItems([]);
+      setselectedItems([]);
 
       // Refresh / close modal
       onClose();
@@ -2018,7 +2018,7 @@ const RequestDetailsModal = ({
   };
 
   const handleSelect = (serialNo) => {
-    setSelectedItems((prev) => {
+    setselectedItems((prev) => {
       if (prev.includes(serialNo)) {
         return prev.filter((sn) => sn !== serialNo);
       } else {
@@ -2028,8 +2028,8 @@ const RequestDetailsModal = ({
   };
 
   const handleViewImages = (item) => {
-    setSelectedItemImages(item.itemPhotos || []); // Guard against null itemPhotos
-    setSelectedItemName(item.itemName);
+    setSelectedDESCRIPTIONImages(item.itemPhotos || []); // Guard against null itemPhotos
+    setSelecteditemDescription(item.itemDescription);
     setIsImageModalOpen(true);
   };
 
@@ -2294,7 +2294,7 @@ const RequestDetailsModal = ({
                   request?.requestDetails,
                   "vehicleNumber"
                 )}</div>
-                <div class="item"><span class="label">Vehicle Model:</span> ${safeAccess(
+                <div class="item"><span class="label">Vehicle Item Code:</span> ${safeAccess(
                   request?.requestDetails,
                   "vehicleModel"
                 )}</div>
@@ -2330,7 +2330,7 @@ const RequestDetailsModal = ({
                   request?.requestDetails,
                   "vehicleNumber"
                 )}</div>
-                <div class="item"><span class="label">Vehicle Model:</span> ${safeAccess(
+                <div class="item"><span class="label">Vehicle Item Code:</span> ${safeAccess(
                   request?.requestDetails,
                   "vehicleModel"
                 )}</div>
@@ -2424,20 +2424,20 @@ const RequestDetailsModal = ({
             </div>
   
             <div class="section">
-              <h2 class="section-title">Items</h2>
+              <h2 class="section-title">items</h2>
               <table>
                 <thead>
-                  <tr><th>Item Name</th><th>Serial No</th><th>Category</th><th>Model</th></tr>
+                  <tr><th>item</th><th>Serial Number</th><th>Category</th><th>Item Code</th></tr>
                 </thead>
                 <tbody>
                   ${request.items
                     .map(
                       (item) => `
                     <tr>
-                      <td>${item?.itemName || "-"}</td>
-                      <td>${item?.serialNo || "-"}</td>
-                      <td>${item?.itemCategory || "-"}</td>
-                      <td>${item?.itemModel || "-"}</td>
+                      <td>${item?.itemDescription || "-"}</td>
+                      <td>${item?.serialNumber || "-"}</td>
+                      <td>${item?.categoryDescription || "-"}</td>
+                      <td>${item?.itemCode || "-"}</td>
                     </tr>
                   `
                     )
@@ -2464,7 +2464,7 @@ const RequestDetailsModal = ({
     };
   };
 
-  const generateItemDetailsPDF = (items, refNo) => {
+  const generateitemDetailsPDF = (items, refNo) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
@@ -2477,7 +2477,7 @@ const RequestDetailsModal = ({
 
     doc.setFontSize(18);
     doc.setTextColor(0, 51, 153);
-    doc.text("SLT Gate Pass - Item Details", pageWidth / 2, 20, {
+    doc.text("SLT Gate Pass - item Details", pageWidth / 2, 20, {
       align: "center",
     });
 
@@ -2498,7 +2498,7 @@ const RequestDetailsModal = ({
 
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    doc.text("Item Details", margin, 45);
+    doc.text("item Details", margin, 45);
 
     let yPos = 55;
     doc.setFontSize(10);
@@ -2520,12 +2520,12 @@ const RequestDetailsModal = ({
       "F"
     );
 
-    doc.text("Item Name", margin + 3, yPos + 5.5);
-    doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+    doc.text("item", margin + 3, yPos + 5.5);
+    doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
     doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
     doc.text("Qty", margin + col1Width + col2Width + col3Width + 3, yPos + 5.5);
     doc.text(
-      "Model",
+      "Item Code",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
       yPos + 5.5
     );
@@ -2544,8 +2544,8 @@ const RequestDetailsModal = ({
           8,
           "F"
         );
-        doc.text("Item Name", margin + 3, yPos + 5.5);
-        doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+        doc.text("item", margin + 3, yPos + 5.5);
+        doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
         doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
         doc.text(
           "Qty",
@@ -2553,7 +2553,7 @@ const RequestDetailsModal = ({
           yPos + 5.5
         );
         doc.text(
-          "Model",
+          "Item Code",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
           yPos + 5.5
         );
@@ -2579,17 +2579,17 @@ const RequestDetailsModal = ({
       };
 
       doc.text(
-        truncateText(item?.itemName || "N/A", 25),
+        truncateText(item?.itemDescription || "N/A", 25),
         margin + 3,
         yPos + 5.5
       );
       doc.text(
-        truncateText(item?.serialNo || "N/A", 15),
+        truncateText(item?.serialNumber || "N/A", 15),
         margin + col1Width + 3,
         yPos + 5.5
       );
       doc.text(
-        truncateText(item?.itemCategory || "N/A", 12),
+        truncateText(item?.categoryDescription || "N/A", 12),
         margin + col1Width + col2Width + 3,
         yPos + 5.5
       );
@@ -2599,7 +2599,7 @@ const RequestDetailsModal = ({
         yPos + 5.5
       );
       doc.text(
-        truncateText(item?.itemModel || "N/A", 15),
+        truncateText(item?.itemCode || "N/A", 15),
         margin + col1Width + col2Width + col3Width + col4Width + 3,
         yPos + 5.5
       );
@@ -2624,7 +2624,7 @@ const RequestDetailsModal = ({
       { align: "center" }
     );
 
-    doc.save(`SLT_GatePass_Items_${request.refNo}.pdf`);
+    doc.save(`SLT_GatePass_DESCRIPTIONs_${request.refNo}.pdf`);
   };
 
   return (
@@ -2740,17 +2740,17 @@ const RequestDetailsModal = ({
                 </div>
               </div>
 
-              {/* Items Table */}
+              {/* items Table */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
-                  <FaBoxOpen className="mr-2" /> Item Details
+                  <FaBoxOpen className="mr-2" /> item Details
                   <button
                     onClick={() =>
-                      generateItemDetailsPDF(request.items, request.refNo)
+                      generateitemDetailsPDF(request.items, request.refNo)
                     }
                     className="ml-auto px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center transition-colors"
                   >
-                    <FaFilePdf className="mr-2" /> Download Items PDF
+                    <FaFilePdf className="mr-2" /> Download items PDF
                   </button>
                 </h3>
                 <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -2758,10 +2758,10 @@ const RequestDetailsModal = ({
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Item
+                          item
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Serial No
+                          Serial Number
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Category
@@ -2770,7 +2770,7 @@ const RequestDetailsModal = ({
                           Quantity
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Model
+                          Item Code
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Status
@@ -2783,11 +2783,11 @@ const RequestDetailsModal = ({
                     <tbody className="divide-y divide-gray-200">
                       {request.items.map((item, index) => (
                         <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">{item?.itemName}</td>
-                          <td className="px-6 py-4">{item?.serialNo}</td>
-                          <td className="px-6 py-4">{item?.itemCategory}</td>
+                          <td className="px-6 py-4">{item?.itemDescription}</td>
+                          <td className="px-6 py-4">{item?.serialNumber}</td>
+                          <td className="px-6 py-4">{item?.categoryDescription}</td>
                           <td className="px-6 py-4">{item?.itemQuantity}</td>
-                          <td className="px-6 py-4">{item?.itemModel}</td>
+                          <td className="px-6 py-4">{item?.itemCode}</td>
                           <td className="px-6 py-4">
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -2810,10 +2810,10 @@ const RequestDetailsModal = ({
                               <FaEye className="mr-2" /> View Images
                             </button>
                             <ImageViewerModal
-                              images={selectedItemImages}
+                              images={selectedDESCRIPTIONImages}
                               isOpen={isImageModalOpen}
                               onClose={() => setIsImageModalOpen(false)}
-                              itemName={selectedItemName}
+                              itemDescription={selecteditemDescription}
                             />
                           </td>
                         </tr>
@@ -2823,10 +2823,10 @@ const RequestDetailsModal = ({
                 </div>
               </div>
 
-              {/* Returnable Items Section */}
+              {/* Returnable items Section */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
-                  <FaUndo className="mr-2" /> Returnable Items
+                  <FaUndo className="mr-2" /> Returnable items
                 </h3>
 
                 <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -2837,16 +2837,16 @@ const RequestDetailsModal = ({
                           Select
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Item
+                          item
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Serial No
+                          Serial Number
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Quantity
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Model
+                          Item Code
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Status
@@ -2864,15 +2864,15 @@ const RequestDetailsModal = ({
                               <input
                                 type="checkbox"
                                 disabled={isSuperAdmin}
-                                checked={selectedItems?.includes(item.serialNo)}
-                                onChange={() => handleSelect(item.serialNo)}
+                                checked={selectedItems?.includes(item.serialNumber)}
+                                onChange={() => handleSelect(item.serialNumber)}
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                               />
                             </td>
-                            <td className="px-6 py-4">{item.itemName}</td>
-                            <td className="px-6 py-4">{item.serialNo}</td>
+                            <td className="px-6 py-4">{item.itemDescription}</td>
+                            <td className="px-6 py-4">{item.serialNumber}</td>
                             <td className="px-6 py-4">{item?.itemQuantity}</td>
-                            <td className="px-6 py-4">{item?.itemModel}</td>
+                            <td className="px-6 py-4">{item?.itemCode}</td>
                             <td className="px-6 py-4">
                               <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                                 {item.status}
@@ -3106,7 +3106,7 @@ const RequestDetailsModal = ({
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">
-                          Vehicle Model
+                          Vehicle Item Code
                         </label>
                         <p className="text-gray-800">
                           {request?.requestDetails?.transport.vehicleModel ||
@@ -3266,7 +3266,7 @@ const RequestDetailsModal = ({
                       <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li>Reference: {request.refNo}</li>
                         <li>Sender: {request.senderDetails?.name}</li>
-                        <li>Items: {request.items.length}</li>
+                        <li>items: {request.items.length}</li>
                         <li>From: {request.outLocation}</li>
                         <li>To: {request.inLocation}</li>
                       </ul>
@@ -3446,7 +3446,7 @@ const RequestDetailsModal = ({
 };
 
 // --- Image Viewer Modal ---
-const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
+const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
   const [imageUrls, setImageUrls] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -3486,7 +3486,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
           <div className="h-80 md:h-96 overflow-hidden relative bg-black flex items-center justify-center">
             <img
               src={imageUrls[activeIndex]}
-              alt={`${itemName} ${activeIndex + 1}`}
+              alt={`${itemDescription} ${activeIndex + 1}`}
               className="max-h-full max-w-full object-contain"
             />
 
@@ -3543,7 +3543,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
           {/* Header with close button */}
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemName}</h3>
+              <h3 className="text-xl font-semibold text-white">{itemDescription}</h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
@@ -3568,7 +3568,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
             >
               <img
                 src={url}
-                alt={`${itemName} thumbnail ${index + 1}`}
+                alt={`${itemDescription} thumbnail ${index + 1}`}
                 className="w-full h-full object-cover"
               />
             </div>

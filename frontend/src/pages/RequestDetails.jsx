@@ -79,7 +79,7 @@ const mapErpEmployeeToReceiver = (employee, fallbackServiceNo) => {
 // ----------------------------------------------------
 // Image Viewer Modal
 // ----------------------------------------------------
-const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
+const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
   const [imageUrls, setImageUrls] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -119,7 +119,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
             {imageUrls.length > 0 && (
               <img
                 src={imageUrls[activeIndex]}
-                alt={`${itemName} ${activeIndex + 1}`}
+                alt={`${itemDescription} ${activeIndex + 1}`}
                 className="w-full h-full object-contain"
               />
             )}
@@ -151,7 +151,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
 
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemName}</h3>
+              <h3 className="text-xl font-semibold text-white">{itemDescription}</h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
@@ -175,7 +175,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
             >
               <img
                 src={url}
-                alt={`${itemName} thumbnail ${index + 1}`}
+                alt={`${itemDescription} thumbnail ${index + 1}`}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -230,15 +230,15 @@ const RequestDetailsModal = ({
 }) => {
   const { showToast } = useToast();
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedItemImages, setSelectedItemImages] = useState([]);
-  const [selectedItemName, setSelectedItemName] = useState("");
+  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState([]);
+  const [selecteditemDescription, setSelecteditemDescription] = useState("");
   const [pdfLoading, setPdfLoading] = useState(false);
 
   if (!isOpen || !request) return null;
 
   const handleViewImages = (item) => {
-    setSelectedItemImages(item.itemPhotos || []);
-    setSelectedItemName(item.itemName || "");
+    setSelectedDESCRIPTIONImages(item.itemPhotos || []);
+    setSelecteditemDescription(item.itemDescription || "");
     setIsImageModalOpen(true);
   };
 
@@ -486,7 +486,7 @@ const RequestDetailsModal = ({
         <div class="item"><span class="label">Vehicle No:</span> ${
           transport.vehicleNumber || "N/A"
         }</div>
-        <div class="item"><span class="label">Vehicle Model:</span> ${
+        <div class="item"><span class="label">Vehicle Item Code:</span> ${
           transport.vehicleModel || "N/A"
         }</div>
       `;
@@ -507,7 +507,7 @@ const RequestDetailsModal = ({
         <div class="item"><span class="label">Vehicle No:</span> ${
           transport.vehicleNumber || "N/A"
         }</div>
-        <div class="item"><span class="label">Vehicle Model:</span> ${
+        <div class="item"><span class="label">Vehicle Item Code:</span> ${
           transport.vehicleModel || "N/A"
         }</div>
       `;
@@ -520,11 +520,11 @@ const RequestDetailsModal = ({
               .map(
                 (it) => `
             <tr>
-              <td>${it?.itemName || "-"}</td>
-              <td>${it?.serialNo || "-"}</td>
-              <td>${it?.itemCategory || "-"}</td>
+              <td>${it?.itemDescription || "-"}</td>
+              <td>${it?.serialNumber || "-"}</td>
+              <td>${it?.categoryDescription || "-"}</td>
               <td>${it?.itemQuantity || "-"}</td>
-              <td>${it?.itemModel || "-"}</td>
+              <td>${it?.itemCode || "-"}</td>
             </tr>`
               )
               .join("");
@@ -811,15 +811,15 @@ const RequestDetailsModal = ({
 
 
           <div class="section">
-            <h2 class="section-title">Items</h2>
+            <h2 class="section-title">items</h2>
             <table>
               <thead>
                 <tr>
-                  <th>Item Name</th>
-                  <th>Serial No</th>
+                  <th>item Name</th>
+                  <th>Serial Number</th>
                   <th>Category</th>
                   <th>Quantity</th>
-                  <th>Model</th>
+                  <th>Item Code</th>
                 </tr>
               </thead>
               <tbody>
@@ -853,7 +853,7 @@ const RequestDetailsModal = ({
             document.body.removeChild(printFrame);
           }
           // Fallback to jsPDF
-          generateItemPdfFallback();
+          generateDESCRIPTIONPdfFallback();
         }
       };
 
@@ -864,7 +864,7 @@ const RequestDetailsModal = ({
           document.body.removeChild(printFrame);
         }
         // Fallback to jsPDF
-        generateItemPdfFallback();
+        generateDESCRIPTIONPdfFallback();
       };
 
       // Timeout fallback
@@ -872,19 +872,19 @@ const RequestDetailsModal = ({
         if (document.body.contains(printFrame)) {
           console.warn("Print timeout, falling back to jsPDF");
           document.body.removeChild(printFrame);
-          generateItemPdfFallback();
+          generateDESCRIPTIONPdfFallback();
         }
       }, 5000);
 
     } catch (error) {
       console.error("Print report failed:", error);
       // Fallback to jsPDF
-      generateItemPdfFallback();
+      generateDESCRIPTIONPdfFallback();
     }
   };
 
   // Alternative PDF generation using jsPDF as fallback
-  const generateItemPdfFallback = () => {
+  const generateDESCRIPTIONPdfFallback = () => {
     try {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
@@ -973,13 +973,13 @@ const RequestDetailsModal = ({
 
       yPos += 10;
 
-      // Items Section
+      // items Section
       doc.setFontSize(14);
       doc.setTextColor(0, 0, 0);
-      doc.text("Items", margin, yPos);
+      doc.text("items", margin, yPos);
       yPos += 10;
 
-      // Items table headers
+      // items table headers
       doc.setFontSize(9);
       doc.setFillColor(240, 240, 240);
       const tableStartY = yPos;
@@ -990,19 +990,19 @@ const RequestDetailsModal = ({
       doc.rect(margin, yPos, colWidths.reduce((a, b) => a + b, 0), 8, "F");
 
       // Header text
-      doc.text("Item Name", xPos + 2, yPos + 5.5);
+      doc.text("item Name", xPos + 2, yPos + 5.5);
       xPos += colWidths[0];
-      doc.text("Serial No", xPos + 2, yPos + 5.5);
+      doc.text("Serial Number", xPos + 2, yPos + 5.5);
       xPos += colWidths[1];
       doc.text("Category", xPos + 2, yPos + 5.5);
       xPos += colWidths[2];
       doc.text("Qty", xPos + 2, yPos + 5.5);
       xPos += colWidths[3];
-      doc.text("Model", xPos + 2, yPos + 5.5);
+      doc.text("Item Code", xPos + 2, yPos + 5.5);
 
       yPos += 8;
 
-      // Items data
+      // items data
       request.items?.forEach((item, index) => {
         if (yPos > 270) {
           doc.addPage();
@@ -1016,15 +1016,15 @@ const RequestDetailsModal = ({
         }
 
         xPos = margin;
-        doc.text(item?.itemName || "N/A", xPos + 2, yPos + 5.5);
+        doc.text(item?.itemDescription || "N/A", xPos + 2, yPos + 5.5);
         xPos += colWidths[0];
-        doc.text(item?.serialNo || "N/A", xPos + 2, yPos + 5.5);
+        doc.text(item?.serialNumber || "N/A", xPos + 2, yPos + 5.5);
         xPos += colWidths[1];
-        doc.text(item?.itemCategory || "N/A", xPos + 2, yPos + 5.5);
+        doc.text(item?.categoryDescription || "N/A", xPos + 2, yPos + 5.5);
         xPos += colWidths[2];
         doc.text(item?.itemQuantity?.toString() || "1", xPos + 2, yPos + 5.5);
         xPos += colWidths[3];
-        doc.text(item?.itemModel || "N/A", xPos + 2, yPos + 5.5);
+        doc.text(item?.itemCode || "N/A", xPos + 2, yPos + 5.5);
 
         yPos += 8;
       });
@@ -1050,7 +1050,7 @@ const RequestDetailsModal = ({
   };
 
   // (Optional) keep this helper if you want separate item-only PDFs
-  const generateItemDetailsPDF = (itemsForPdf, refNo) => {
+  const generateDESCRIPTIONDetailsPDF = (itemsForPdf, refNo) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
@@ -1063,7 +1063,7 @@ const RequestDetailsModal = ({
 
     doc.setFontSize(18);
     doc.setTextColor(0, 51, 153);
-    doc.text("SLT Gate Pass - Item Details", pageWidth / 2, 20, {
+    doc.text("SLT Gate Pass - item Details", pageWidth / 2, 20, {
       align: "center",
     });
 
@@ -1084,7 +1084,7 @@ const RequestDetailsModal = ({
 
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    doc.text("Item Details", margin, 45);
+    doc.text("item Details", margin, 45);
 
     let yPos = 55;
     doc.setFontSize(10);
@@ -1106,12 +1106,12 @@ const RequestDetailsModal = ({
       "F"
     );
 
-    doc.text("Item Name", margin + 3, yPos + 5.5);
-    doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+    doc.text("item Name", margin + 3, yPos + 5.5);
+    doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
     doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
     doc.text("Qty", margin + col1Width + col2Width + col3Width + 3, yPos + 5.5);
     doc.text(
-      "Model",
+      "Item Code",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
       yPos + 5.5
     );
@@ -1132,8 +1132,8 @@ const RequestDetailsModal = ({
           "F"
         );
 
-        doc.text("Item Name", margin + 3, yPos + 5.5);
-        doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+        doc.text("item Name", margin + 3, yPos + 5.5);
+        doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
         doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
         doc.text(
           "Qty",
@@ -1141,7 +1141,7 @@ const RequestDetailsModal = ({
           yPos + 5.5
         );
         doc.text(
-          "Model",
+          "Item Code",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
           yPos + 5.5
         );
@@ -1168,17 +1168,17 @@ const RequestDetailsModal = ({
       };
 
       doc.text(
-        truncateText(item?.itemName || "N/A", 25),
+        truncateText(item?.itemDescription || "N/A", 25),
         margin + 3,
         yPos + 5.5
       );
       doc.text(
-        truncateText(item?.serialNo || "N/A", 15),
+        truncateText(item?.serialNumber || "N/A", 15),
         margin + col1Width + 3,
         yPos + 5.5
       );
       doc.text(
-        truncateText(item?.itemCategory || "N/A", 12),
+        truncateText(item?.categoryDescription || "N/A", 12),
         margin + col1Width + col2Width + 3,
         yPos + 5.5
       );
@@ -1188,7 +1188,7 @@ const RequestDetailsModal = ({
         yPos + 5.5
       );
       doc.text(
-        item?.itemModel || "N/A",
+        item?.itemCode || "N/A",
         margin + col1Width + col2Width + col3Width + col4Width + 3,
         yPos + 5.5
       );
@@ -1213,7 +1213,7 @@ const RequestDetailsModal = ({
       { align: "center" }
     );
 
-    doc.save(`SLT_GatePass_Items_${refNo}.pdf`);
+    doc.save(`SLT_GatePass_DESCRIPTIONs_${refNo}.pdf`);
   };
 
   return (
@@ -1296,20 +1296,19 @@ const RequestDetailsModal = ({
             </div>
           </div>
 
-          {/* Items Table */}
+          {/* items Table */}
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
-              <FaBoxOpen className="mr-2" /> Item Details
+              <FaBoxOpen className="mr-2" /> item Details
             </h3>
             <div className="overflow-x-auto rounded-xl border border-gray-200">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Item
-                    </th>
+                      item </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Serial No
+                      Serial Number
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Category
@@ -1318,7 +1317,7 @@ const RequestDetailsModal = ({
                       Quantity
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Model
+                      Item Code
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Status
@@ -1331,11 +1330,11 @@ const RequestDetailsModal = ({
                 <tbody className="divide-y divide-gray-200">
                   {request.items.map((item, index) => (
                     <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">{item?.itemName}</td>
-                      <td className="px-6 py-4">{item?.serialNo}</td>
-                      <td className="px-6 py-4">{item?.itemCategory}</td>
+                      <td className="px-6 py-4">{item?.itemDescription}</td>
+                      <td className="px-6 py-4">{item?.serialNumber}</td>
+                      <td className="px-6 py-4">{item?.categoryDescription}</td>
                       <td className="px-6 py-4">{item?.itemQuantity}</td>
-                      <td className="px-6 py-4">{item?.itemModel}</td>
+                      <td className="px-6 py-4">{item?.itemCode}</td>
                       <td className="px-6 py-4">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1366,10 +1365,10 @@ const RequestDetailsModal = ({
             </div>
 
             <ImageViewerModal
-              images={selectedItemImages}
+              images={selectedDESCRIPTIONImages}
               isOpen={isImageModalOpen}
               onClose={() => setIsImageModalOpen(false)}
-              itemName={selectedItemName}
+              itemDescription ={selecteditemDescription}
             />
           </div>
 
@@ -1589,7 +1588,7 @@ const RequestDetailsModal = ({
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">
-                      Vehicle Model
+                      Vehicle Item Code
                     </label>
                     <p className="text-gray-800">
                       {request?.transport.vehicleModel || "N/A"}
@@ -1707,7 +1706,7 @@ const RequestDetailsModal = ({
           <div className="text-sm text-gray-500">
             <span className="mr-2">Tip:</span>
             Only <span className="font-medium">returnable</span> items allow
-            editing of Serial No &amp; Model (in the future).
+            editing of Serial Number &amp; Item Code (in the future).
           </div>
           <button
             onClick={onClose}
@@ -2091,7 +2090,7 @@ const RequestDetails = () => {
         </div>
       </div>
 
-      <!-- You can continue with Items table, loading details, etc., similar to Verify.jsx -->
+      <!-- You can continue with items table, loading details, etc., similar to Verify.jsx -->
 
     </body>
     </html>

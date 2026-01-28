@@ -210,17 +210,17 @@ export const markItemsAsReturned = async (
   }
 };
 
-// Update returnable item (model and serial number)
+// Update returnable item (itemCode and serial number)
 export const updateReturnableItem = async (
   referenceNumber,
   originalSerialNo,
-  itemModel,
+  itemCode,
   serialNo
 ) => {
   try {
     const response = await axios.put(
       `${API_BASE_URL}/receive/${referenceNumber}/returnable-item`,
-      { originalSerialNo, itemModel, serialNo },
+      { originalSerialNo, itemCode, serialNo },
       {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,

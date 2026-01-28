@@ -10,6 +10,7 @@ import {
   Plus,
   FileImage,
   Info,
+  Search,
 } from "lucide-react";
 import {
   searchEmployeeByServiceNo,
@@ -24,6 +25,7 @@ import axiosInstance from "../services/axiosConfig.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { emailSent } from "../services/emailService.js";
 import { FileSpreadsheet } from "lucide-react";
+import { useItemCategories, useItemBySerialNumber } from "../hooks/useIntranetData.js";
 
 const NewRequest = () => {
   const [user, setUser] = useState(null);
@@ -44,18 +46,26 @@ const NewRequest = () => {
   const [inLocations, setInLocations] = useState([]);
   const [outLocations, setOutLocations] = useState([]);
   const [erpLocations, setErpLocations] = useState([]);
-  const [categories, setCategories] = useState([]);
   const { showToast } = useToast();
+  
+  // Use intranet API for categories
+  const { categories: intranetCategories, loading: categoriesLoading } = useItemCategories();
+  
   const [currentItem, setCurrentItem] = useState({
-    itemName: "",
-    serialNo: "",
-    category: "",
-    returnable: "No",
+    serialNumber: "",
+    itemCode: "",
+    itemDescription: "",
+    itemCategory: "",
+    categoryDescription: "",
     qty: 1,
-    model: "",
+    returnable: "No",
     images: [],
     returnDate: "",
   });
+  
+  // For serial number lookup
+  const [serialNumberInput, setSerialNumberInput] = useState("");
+  const [isSearchingItem, setIsSearchingItem] = useState(false);
 
   const [userStats, setUserStats] = useState({
     totalItems: 0,
@@ -269,19 +279,12 @@ const NewRequest = () => {
     }
   }, [receiverServiceNo]);
 
-  useEffect(() => {
-    getCategories()
-      .then((categories) => {
-        setCategories(categories);
-      })
-      .catch((error) => console.error("Error:", error));
-  }, []);
+  // Categories are now fetched via useItemCategories hook
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     if (currentItem.images.length + files.length > 5) {
       showToast("Maximum 5 photos allowed per item", "warning");
-
       return;
     }
     setCurrentItem({
@@ -289,59 +292,114 @@ const NewRequest = () => {
       images: [...currentItem.images, ...files],
     });
   };
+
+  // Search for item by serial number
+  const handleSearchSerialNumber = async () => {
+    if (!serialNumberInput.trim()) {
+      showToast("Please enter a serial number", "warning");
+      return;
+    }
+
+    setIsSearchingItem(true);
+    try {
+      const { getItemBySerialNumber } = await import("../services/intranetService.js");
+      const itemData = await getItemBySerialNumber(serialNumberInput.trim());
+      
+      // Populate form with API data
+      setCurrentItem({
+        serialNumber: itemData.serialNumber,
+        itemCode: itemData.itemCode,
+        itemDescription: itemData.itemDescription,
+        itemCategory: itemData.itemCategory,
+        categoryDescription: itemData.categoryDescription,
+        qty: 1,
+        returnable: "No",
+        images: [],
+        returnDate: "",
+      });
+      
+      showToast("Item found and loaded", "success");
+    } catch (error) {
+      console.error("Error fetching item:", error);
+      if (error.response?.status === 404) {
+        showToast("Item not found. You can add it manually.", "info");
+        // Clear the form for manual entry
+        setCurrentItem({
+          serialNumber: serialNumberInput.trim(),
+          itemCode: "",
+          itemDescription: "",
+          itemCategory: "",
+          categoryDescription: "",
+          qty: 1,
+          returnable: "No",
+          images: [],
+          returnDate: "",
+        });
+      } else {
+        showToast("Failed to search item. Please try again.", "error");
+      }
+    } finally {
+      setIsSearchingItem(false);
+    }
+  };
   const handleItemSubmit = () => {
-    if (!currentItem.itemName || !currentItem.category) {
-      alert("Please fill in all required fields");
+    // Validate required fields
+    if (!currentItem.serialNumber || !currentItem.itemDescription || !currentItem.categoryDescription) {
+      showToast("Please fill in all required fields (Serial Number, Description, Category)", "warning");
       return;
     }
 
     // Validate return date if returnable is Yes
     if (currentItem.returnable === "Yes" && !currentItem.returnDate) {
-      alert("Please select a return date for returnable items");
+      showToast("Please select a return date for returnable items", "warning");
       return;
     }
 
-    // Create item object with all fields including returnable status
+    // Create item object with new structure
     const itemToSave = {
       ...currentItem,
       returnable: currentItem.returnable || "No",
-      returnDate:
-        currentItem.returnable === "Yes" ? currentItem.returnDate : null,
+      returnDate: currentItem.returnable === "Yes" ? currentItem.returnDate : null,
     };
+    
     if (currentItem.id) {
-      setItems(
-        items.map((item) => (item.id === currentItem.id ? itemToSave : item)),
-      );
+      setItems(items.map((item) => (item.id === currentItem.id ? itemToSave : item)));
+      showToast("Item updated successfully", "success");
     } else {
       setItems([...items, { ...itemToSave, id: Date.now().toString() }]);
+      showToast("Item added successfully", "success");
     }
 
-    // Reset the currentItem
+    // Reset the form
     setCurrentItem({
-      itemName: "",
-      serialNo: "",
-      category: "",
+      serialNumber: "",
+      itemCode: "",
+      itemDescription: "",
+      itemCategory: "",
+      categoryDescription: "",
       qty: 1,
-      model: "",
       returnable: "No",
       returnDate: "",
       images: [],
     });
+    setSerialNumberInput("");
     setShowItemForm(false);
   };
 
   const handleCancelEdit = () => {
     // Reset the currentItem
     setCurrentItem({
-      itemName: "",
-      serialNo: "",
-      category: "",
-      returnable: "No",
+      serialNumber: "",
+      itemCode: "",
+      itemDescription: "",
+      itemCategory: "",
+      categoryDescription: "",
       qty: 1,
-      model: "",
+      returnable: "No",
       returnDate: "",
       images: [],
     });
+    setSerialNumberInput("");
     setShowItemForm(false);
   };
   const removeItem = (id) => {
@@ -493,13 +551,13 @@ const NewRequest = () => {
                 (item) => `
               <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                  item.itemName
+                  item.itemDescription
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                  item.serialNo
+                  item.serialNumber
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
-                  item.category
+                  item.categoryDescription
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #e0e0e0;">${
                   item.returnable === "Yes" ? "Returnable" : "Non-Returnable"
@@ -731,11 +789,12 @@ const NewRequest = () => {
       }
 
       const itemsWithFileNames = items.map((item) => ({
-        itemName: item.itemName,
-        serialNo: item.serialNo,
-        itemCategory: item.category,
+        serialNumber: item.serialNumber,
+        itemCode: item.itemCode || "",
+        itemDescription: item.itemDescription,
+        itemCategory: item.itemCategory,
+        categoryDescription: item.categoryDescription,
         itemReturnable: item.returnable === "Yes",
-        itemModel: item.model || "",
         itemQuantity: parseInt(item.qty) || 1,
         returnDate: item.returnDate || null,
         originalFileNames: item.images.map((img) => img.name),
@@ -886,9 +945,9 @@ const NewRequest = () => {
 
       // Check if CSV has required headers
       const requiredHeaders = [
-        "itemName",
-        "serialNo",
-        "category",
+        "serialNumber",
+        "itemDescription",
+        "categoryDescription",
         "returnable",
         "qty",
       ];
@@ -898,7 +957,7 @@ const NewRequest = () => {
 
       if (!hasRequiredHeaders) {
         showToast(
-          "CSV file must include itemName, serialNo, category, returnable, and qty columns",
+          "CSV file must include serialNumber, itemDescription, categoryDescription, returnable, and qty columns",
           "error",
         );
         return;
@@ -919,7 +978,7 @@ const NewRequest = () => {
         });
 
         // Validate item data
-        if (!item.itemName || !item.serialNo || !item.category) continue;
+        if (!item.serialNumber || !item.itemDescription || !item.categoryDescription) continue;
 
         // Convert returnable to Yes/No format
         if (item.returnable) {
@@ -935,7 +994,7 @@ const NewRequest = () => {
         // Convert qty to number
         item.qty = parseInt(item.qty) || 1;
 
-        item.model = item.model || "";
+        item.itemCode = item.itemCode || "";
 
         // Add empty images array
         item.images = [];
@@ -962,12 +1021,13 @@ const NewRequest = () => {
   // Add this function to download a sample CSV template
   const downloadCSVTemplate = () => {
     const headers = [
-      "itemName",
-      "serialNo",
-      "category",
+      "serialNumber",
+      "itemCode",
+      "itemDescription",
+      "itemCategory",
+      "categoryDescription",
       "returnable",
       "qty",
-      "model",
     ];
     const sampleData = [
       ["Laptop", "SN12345", "Electronics", "No", "1", "Dell XPS 13"],
@@ -1097,8 +1157,16 @@ const NewRequest = () => {
                 </select>
                 {execRestriction.restricted && (
                   <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                    {execRestriction.reason === "HOLIDAY" &&
-                      "Only Senior Executives (Grade A.1–A.3) are allowed on public holidays."}
+                    {execRestriction.reason === "HOLIDAY" && (
+                      <>
+                        Only Senior Executives (Grade A.1–A.3) are allowed on public holidays.
+                        {execRestriction.holidayName && (
+                          <span className="block mt-1 font-semibold">
+                            Today: {execRestriction.holidayName}
+                          </span>
+                        )}
+                      </>
+                    )}
 
                     {execRestriction.reason === "WEEKEND" &&
                       "Only Senior Executives (Grade A.1–A.3) are allowed on during weekends."}
@@ -1437,7 +1505,7 @@ const NewRequest = () => {
                   </h3>
                   <p className="text-blue-600 mb-4">
                     You can import multiple items at once using a CSV file. The
-                    CSV should have columns for itemName, serialNo, category,
+                    CSV should have columns for serialNumber, itemDescription, categoryDescription,
                     returnable, and qty.
                   </p>
                   <div className="flex gap-4">
@@ -1463,19 +1531,52 @@ const NewRequest = () => {
 
               {showItemForm && (
                 <div className="mb-6 bg-gray-50 rounded-xl p-6">
+                  {/* Serial Number Search */}
+                  <div className="mb-6 pb-6 border-b border-gray-300">
+                    <label className="block text-sm font-medium text-gray-600 mb-2">
+                      Search by Serial Number
+                    </label>
+                    <div className="flex gap-4">
+                      <input
+                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        type="text"
+                        value={serialNumberInput}
+                        onChange={(e) => setSerialNumberInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSearchSerialNumber();
+                          }
+                        }}
+                        placeholder="Enter serial number to search"
+                      />
+                      <button
+                        onClick={handleSearchSerialNumber}
+                        disabled={!serialNumberInput.trim() || isSearchingItem}
+                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      >
+                        <Search className="h-5 w-5" />
+                        {isSearchingItem ? "Searching..." : "Search"}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Search for an item by serial number, or fill in the details manually below
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-2">
-                        Serial No
+                        Serial Number <span className="text-red-500">*</span>
                       </label>
                       <input
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
                         type="text"
-                        value={currentItem.serialNo}
+                        value={currentItem.serialNumber}
                         onChange={(e) =>
                           setCurrentItem({
                             ...currentItem,
-                            serialNo: e.target.value,
+                            serialNumber: e.target.value,
                           })
                         }
                         placeholder="Enter serial number"
@@ -1483,66 +1584,73 @@ const NewRequest = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-2">
-                        Item Name
+                        Item Code
                       </label>
                       <input
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
                         type="text"
-                        value={currentItem.itemName}
+                        value={currentItem.itemCode}
                         onChange={(e) =>
                           setCurrentItem({
                             ...currentItem,
-                            itemName: e.target.value,
+                            itemCode: e.target.value,
                           })
                         }
-                        placeholder="Enter item name"
+                        placeholder="Item code"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-600 mb-2">
+                        Item Description <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        rows="2"
+                        value={currentItem.itemDescription}
+                        onChange={(e) =>
+                          setCurrentItem({
+                            ...currentItem,
+                            itemDescription: e.target.value,
+                          })
+                        }
+                        placeholder="Enter item description"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-2">
-                        Category
+                        Category <span className="text-red-500">*</span>
                       </label>
                       <select
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        value={currentItem.category}
-                        onChange={(e) =>
+                        value={currentItem.categoryDescription}
+                        onChange={(e) => {
+                          const selectedCategory = e.target.value;
+                          // Extract item category code from the description (e.g., "ACN.ACP" from "Air Conditioner.AC Plant")
+                          const categoryParts = selectedCategory.split(".");
                           setCurrentItem({
                             ...currentItem,
-                            category: e.target.value,
-                          })
-                        }
+                            categoryDescription: selectedCategory,
+                            itemCategory: categoryParts.join("."),
+                          });
+                        }}
                       >
                         <option value="">Select category</option>
-                        {categories
-                          .slice()
-                          .sort((a, b) => a.name.localeCompare(b.name))
-                          .map((category) => (
-                            <option key={category._id} value={category.name}>
-                              {category.name}
-                            </option>
-                          ))}
+                        {categoriesLoading ? (
+                          <option disabled>Loading categories...</option>
+                        ) : (
+                          intranetCategories
+                            .sort((a, b) => a.localeCompare(b))
+                            .map((category, idx) => (
+                              <option key={idx} value={category}>
+                                {category}
+                              </option>
+                            ))
+                        )}
                       </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-2">
-                        Model
-                      </label>
-                      <input
-                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        type="text"
-                        value={currentItem.model}
-                        onChange={(e) =>
-                          setCurrentItem({
-                            ...currentItem,
-                            model: e.target.value,
-                          })
-                        }
-                        placeholder="Enter model name"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-2">
-                        Item Quantity
+                        Item Quantity <span className="text-red-500">*</span>
                       </label>
                       <input
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
@@ -1554,8 +1662,8 @@ const NewRequest = () => {
                             qty: e.target.value,
                           })
                         }
-                        placeholder="Enter item quantity"
-                        min="0"
+                        placeholder="Enter quantity"
+                        min="1"
                       />
                     </div>
                     {/* <div>
@@ -1687,19 +1795,19 @@ const NewRequest = () => {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Item
+                          Description
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Serial No
+                          Serial Number
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Item Code
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Category
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Quantity
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Model
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
@@ -1718,20 +1826,20 @@ const NewRequest = () => {
                           key={item.id}
                           className="hover:bg-gray-50 transition-colors"
                         >
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {item.itemName}
+                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                            {item.itemDescription}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {item.serialNo}
+                            {item.serialNumber}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {item.category}
+                            {item.itemCode || "-"}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {item.categoryDescription}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                             {item.qty}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                            {item.model}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span
@@ -1747,14 +1855,6 @@ const NewRequest = () => {
                                 : "Non-Returnable"}
                             </span>
                           </td>
-                          {/* <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                            ${item.returnable === 'Yes' 
-                              ? 'bg-emerald-100 text-emerald-800' 
-                              : 'bg-rose-100 text-rose-800'}`}>
-                            {item.returnable === 'Yes' ? 'Returnable' : 'Non-Returnable'}
-                          </span>
-                        </td> */}
                           <td className="px-6 py-4 whitespace-nowrap">
                             {item.images?.length > 0 ? (
                               <div className="flex items-center gap-2">

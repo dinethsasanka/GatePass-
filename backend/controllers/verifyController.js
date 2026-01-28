@@ -840,11 +840,12 @@ exports.addReturnableItemToRequest = async (req, res) => {
 
     // Create new returnable item data
     const newItem = {
-      itemName: itemData.itemName,
-      serialNo: itemData.serialNo,
+      serialNumber: itemData.serialNumber,
+      itemCode: itemData.itemCode || "",
+      itemDescription: itemData.itemDescription,
       itemCategory: itemData.itemCategory,
+      categoryDescription: itemData.categoryDescription,
       itemQuantity: itemData.itemQuantity || 1,
-      itemModel: itemData.itemModel || "",
       returnDate: itemData.returnDate || null,
       status: "returnable",
       returned: false,

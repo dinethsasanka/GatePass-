@@ -71,10 +71,11 @@ const createRequest = async (req, res) => {
     const returnableItems = processedItems
       .filter((item) => item.itemReturnable === true)
       .map((item) => ({
-        itemName: item.itemName,
-        serialNo: item.serialNo,
+        serialNumber: item.serialNumber,
+        itemCode: item.itemCode,
+        itemDescription: item.itemDescription,
         itemCategory: item.itemCategory,
-        itemModel: item.itemModel,
+        categoryDescription: item.categoryDescription,
         itemQuantity: item.itemQuantity,
         returnDate: item.returnDate || null,
         returned: false,
@@ -240,12 +241,13 @@ const processCSVItems = async (csvItems, files) => {
         item.itemReturnable === "yes";
 
       const processedItem = {
-        itemName: item.itemName,
-        serialNo: item.serialNo,
+        serialNumber: item.serialNumber,
+        itemCode: item.itemCode || "",
+        itemDescription: item.itemDescription,
         itemCategory: item.itemCategory,
+        categoryDescription: item.categoryDescription,
         itemReturnable: isReturnable,
         itemQuantity: parseInt(item.itemQuantity || item.qty) || 1,
-        itemModel: item.itemModel || "",
         returnDate: item.returnDate || null,
         // ⭐ itemPhotos is now correctly an array of { url, path } objects
         itemPhotos: itemPhotos,
@@ -253,7 +255,7 @@ const processCSVItems = async (csvItems, files) => {
       };
 
       console.log(`✅ Processed item ${index + 1}:`, {
-        name: processedItem.itemName,
+        description: processedItem.itemDescription,
         photos: processedItem.itemPhotos.length,
       });
 

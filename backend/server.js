@@ -58,6 +58,7 @@ const emailRoutes = require("./routes/emailRoutes");
 const superAdminRoutes = require("./routes/superAdminRoutes");
 const adminRequestRoutes = require("./routes/adminRequestRoutes");
 const erpRoutes = require("./routes/erpRoutes");
+const intranetRoutes = require("./routes/intranetRoutes");
 
 // 8) Mount routes (only ONCE each)
 app.use("/api/auth", authRoutes);
@@ -79,6 +80,7 @@ app.use("/api/receive", receiveRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/admin", adminRequestRoutes);
 app.use("/api/erp", erpRoutes);
+app.use("/api/intranet", intranetRoutes);
 
 // 9) Health check (optional)
 app.get("/api/health", (_req, res) => res.json({ ok: true }));

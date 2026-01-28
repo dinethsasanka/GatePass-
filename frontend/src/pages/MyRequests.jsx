@@ -72,7 +72,7 @@ const StatusPill = ({ statusCode }) => {
 };
 
 // In the ImageViewerModal component
-const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
+const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
   const [imageUrls, setImageUrls] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -117,7 +117,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
             ) : imageUrls.length > 0 ? (
               <img
                 src={imageUrls[activeIndex]}
-                alt={`${itemName} ${activeIndex + 1}`}
+                alt={`${itemDescription} ${activeIndex + 1}`}
                 className="w-full h-full object-contain"
                 onError={(e) => {
                   console.error(
@@ -190,7 +190,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
           {/* Header with close button */}
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemName}</h3>
+              <h3 className="text-xl font-semibold text-white">{itemDescription}</h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
@@ -216,7 +216,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
               >
                 <img
                   src={url}
-                  alt={`${itemName} thumbnail ${index + 1}`}
+                  alt={`${itemDescription} thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     e.target.src = "https://via.placeholder.com/64?text=Error";
@@ -242,7 +242,7 @@ const RequestDetailsModal = ({
   const [selectedExecutive, setSelectedExecutive] = useState("");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [selectedItemImages, setSelectedItemImages] = useState([]);
-  const [selectedItemName, setSelectedItemName] = useState("");
+  const [selectedItemDescription, setSelectedItemDescription] = useState("");
   const [executiveOfficers, setExecutiveOfficers] = useState([]);
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [selectedItems, setSelectedItems] = useState([]);
@@ -351,7 +351,7 @@ const RequestDetailsModal = ({
 
   const handleViewImages = (item) => {
     setSelectedItemImages(item.itemPhotos || []);
-    setSelectedItemName(item.itemName || "");
+    setSelectedItemDescription(item.itemDescription || "");
     setIsImageModalOpen(true);
   };
 
@@ -365,8 +365,8 @@ const RequestDetailsModal = ({
         )
         .map((it) => ({
           _id: it._id, // <-- match DB item
-          serialNumber: it.serialNo || "", // <-- map UI field to backend key
-          model: it.itemModel || "",
+          serialNumber: it.serialNumber || "",
+          itemCode: it.itemCode || "",
         }));
 
       // If nothing to save, succeed silently
@@ -436,31 +436,25 @@ const RequestDetailsModal = ({
     doc.setDrawColor(200, 200, 200);
 
     // Define column widths
-    const col1Width = 60; // Item Name
-    const col2Width = 40; // Serial No
-    const col3Width = 30; // Category
-    const col4Width = 20; // Quantity
-    const col5Width = 30; // Model
+    const col1Width = 70; // Description
+    const col2Width = 40; // Serial Number
+    const col3Width = 30; // Item Code
+    const col4Width = 40; // Category
 
     // Draw table header
     doc.setFillColor(240, 240, 240);
     doc.rect(
       margin,
       yPos,
-      col1Width + col2Width + col3Width + col4Width + col5Width,
+      col1Width + col2Width + col3Width + col4Width,
       8,
       "F",
     );
 
-    doc.text("Item Name", margin + 3, yPos + 5.5);
-    doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
-    doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
-    doc.text("Qty", margin + col1Width + col2Width + col3Width + 3, yPos + 5.5);
-    doc.text(
-      "Model",
-      margin + col1Width + col2Width + col3Width + col4Width + 3,
-      yPos + 5.5,
-    );
+    doc.text("Description", margin + 3, yPos + 5.5);
+    doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
+    doc.text("Item Code", margin + col1Width + col2Width + 3, yPos + 5.5);
+    doc.text("Category", margin + col1Width + col2Width + col3Width + 3, yPos + 5.5);
 
     yPos += 8;
 
@@ -476,22 +470,17 @@ const RequestDetailsModal = ({
         doc.rect(
           margin,
           yPos,
-          col1Width + col2Width + col3Width + col4Width + col5Width,
+          col1Width + col2Width + col3Width + col4Width,
           8,
           "F",
         );
 
-        doc.text("Item Name", margin + 3, yPos + 5.5);
-        doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
-        doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
+        doc.text("Description", margin + 3, yPos + 5.5);
+        doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
+        doc.text("Item Code", margin + col1Width + col2Width + 3, yPos + 5.5);
         doc.text(
-          "Qty",
+          "Category",
           margin + col1Width + col2Width + col3Width + 3,
-          yPos + 5.5,
-        );
-        doc.text(
-          "Model",
-          margin + col1Width + col2Width + col3Width + col4Width + 3,
           yPos + 5.5,
         );
 
@@ -504,7 +493,7 @@ const RequestDetailsModal = ({
         doc.rect(
           margin,
           yPos,
-          col1Width + col2Width + col3Width + col4Width + col5Width,
+          col1Width + col2Width + col3Width + col4Width,
           8,
           "F",
         );
@@ -519,28 +508,23 @@ const RequestDetailsModal = ({
       };
 
       doc.text(
-        truncateText(item?.itemName || "N/A", 25),
+        truncateText(item?.itemDescription || "N/A", 30),
         margin + 3,
         yPos + 5.5,
       );
       doc.text(
-        truncateText(item?.serialNo || "N/A", 15),
+        truncateText(item?.serialNumber || "N/A", 15),
         margin + col1Width + 3,
         yPos + 5.5,
       );
       doc.text(
-        truncateText(item?.itemCategory || "N/A", 12),
+        truncateText(item?.itemCode || "-", 12),
         margin + col1Width + col2Width + 3,
         yPos + 5.5,
       );
       doc.text(
-        item?.itemQuantity?.toString() || "1",
+        truncateText(item?.categoryDescription || "N/A", 18),
         margin + col1Width + col2Width + col3Width + 3,
-        yPos + 5.5,
-      );
-      doc.text(
-        truncateText(item?.itemModel || "N/A", 15),
-        margin + col1Width + col2Width + col3Width + col4Width + 3,
         yPos + 5.5,
       );
 
@@ -655,19 +639,19 @@ const RequestDetailsModal = ({
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Item
+                      Description
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Serial No
+                      Serial Number
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Item Code
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Category
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Quantity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Model
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Status
@@ -680,11 +664,11 @@ const RequestDetailsModal = ({
                 <tbody className="divide-y divide-gray-200">
                   {request.items.map((item, index) => (
                     <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">{item?.itemName}</td>
-                      <td className="px-6 py-4">{item?.serialNo}</td>
-                      <td className="px-6 py-4">{item?.itemCategory}</td>
+                      <td className="px-6 py-4">{item?.itemDescription}</td>
+                      <td className="px-6 py-4">{item?.serialNumber}</td>
+                      <td className="px-6 py-4">{item?.itemCode || "-"}</td>
+                      <td className="px-6 py-4">{item?.categoryDescription}</td>
                       <td className="px-6 py-4">{item?.itemQuantity}</td>
-                      <td className="px-6 py-4">{item?.itemModel}</td>
                       <td className="px-6 py-4">
                         <span
                           className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -711,7 +695,7 @@ const RequestDetailsModal = ({
                           images={selectedItemImages}
                           isOpen={isImageModalOpen}
                           onClose={() => setIsImageModalOpen(false)}
-                          itemName={selectedItemName}
+                          itemDescription={selectedItemDescription}
                         />
                       </td>
                     </tr>
@@ -735,16 +719,16 @@ const RequestDetailsModal = ({
                       Select
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Item
+                      Description
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Serial No
+                      Serial Number
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Item Code
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Quantity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Model
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Status
@@ -759,15 +743,15 @@ const RequestDetailsModal = ({
                         <td className="px-6 py-4">
                           <input
                             type="checkbox"
-                            checked={selectedItems?.includes(item.serialNo)}
-                            onChange={() => handleSelect(item.serialNo)}
+                            checked={selectedItems?.includes(item.serialNumber)}
+                            onChange={() => handleSelect(item.serialNumber)}
                             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
                         </td>
-                        <td className="px-6 py-4">{item.itemName}</td>
-                        <td className="px-6 py-4">{item.serialNo}</td>
+                        <td className="px-6 py-4">{item.itemDescription}</td>
+                        <td className="px-6 py-4">{item.serialNumber}</td>
+                        <td className="px-6 py-4">{item?.itemCode || "-"}</td>
                         <td className="px-6 py-4">{item?.itemQuantity}</td>
-                        <td className="px-6 py-4">{item?.itemModel}</td>
                         <td className="px-6 py-4">
                           <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                             {item.status}
