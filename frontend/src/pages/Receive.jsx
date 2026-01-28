@@ -124,7 +124,8 @@ const fetchReceiverDetails = async (serviceNo) => {
 
 const fetchOfficerData = async (status) => {
   const execServiceNo =
-    status?.executiveOfficerServiceNo || status?.request?.executiveOfficerServiceNo;
+    status?.executiveOfficerServiceNo ||
+    status?.request?.executiveOfficerServiceNo;
   const verifyServiceNo =
     status?.verifyOfficerServiceNumber ||
     status?.verifyOfficerServiceNo ||
@@ -137,7 +138,7 @@ const fetchOfficerData = async (status) => {
     try {
       executiveOfficerData = await getCachedUser(
         execServiceNo,
-        searchUserByServiceNo
+        searchUserByServiceNo,
       );
     } catch {}
   }
@@ -146,7 +147,7 @@ const fetchOfficerData = async (status) => {
     try {
       verifyOfficerData = await getCachedUser(
         verifyServiceNo,
-        searchUserByServiceNo
+        searchUserByServiceNo,
       );
     } catch {}
   }
@@ -233,7 +234,7 @@ const Receive = () => {
         // Backend now enriches with user data, so we just format for display
         const formatted = withRequest.map((status) => {
           const req = status.request || {};
-          
+
           // Use server-provided enriched data (fallback to manual lookup if needed)
           const senderDetails = status.senderDetails || {
             serviceNo: req.employeeServiceNo,
@@ -244,7 +245,8 @@ const Receive = () => {
             contactNo: "N/A",
           };
 
-          const receiverDetails = status.receiverDetails || 
+          const receiverDetails =
+            status.receiverDetails ||
             ensureReceiverDetails(null, req.receiverServiceNo, req);
 
           return {
@@ -318,7 +320,7 @@ const Receive = () => {
           // Backend now enriches with user data, so we just format for display
           const formatted = withRequest.map((status) => {
             const req = status.request || {};
-            
+
             const senderDetails = status.senderDetails || {
               serviceNo: req.employeeServiceNo,
               name: "N/A",
@@ -328,7 +330,8 @@ const Receive = () => {
               contactNo: "N/A",
             };
 
-            const receiverDetails = status.receiverDetails || 
+            const receiverDetails =
+              status.receiverDetails ||
               ensureReceiverDetails(null, req.receiverServiceNo, req);
 
             return {
@@ -394,7 +397,8 @@ const Receive = () => {
               contactNo: "N/A",
             };
 
-            const receiverDetails = status.receiverDetails || 
+            const receiverDetails =
+              status.receiverDetails ||
               ensureReceiverDetails(null, req.receiverServiceNo, req);
 
             return {
@@ -445,7 +449,7 @@ const Receive = () => {
         const rejectedData = await getRejectedStatuses(
           isSuper ? undefined : userDetails?.serviceNo,
         );
-        
+
         const rejectedFormatted = (rejectedData || [])
           .filter((s) => s && s.request)
           .map((status) => {
@@ -460,7 +464,8 @@ const Receive = () => {
               contactNo: "N/A",
             };
 
-            const receiverDetails = status.receiverDetails || 
+            const receiverDetails =
+              status.receiverDetails ||
               ensureReceiverDetails(null, req.receiverServiceNo, req);
 
             return {
@@ -490,7 +495,7 @@ const Receive = () => {
               rejectedByServiceNo: status.rejectedByServiceNo,
             };
           });
-        
+
         setRejectedItems(rejectedFormatted);
       } catch (err) {
         console.error("Receiver data load error:", err);

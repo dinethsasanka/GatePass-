@@ -27,8 +27,7 @@ import {
 } from "react-icons/fa";
 import { jsPDF } from "jspdf";
 import logoUrl from "../assets/SLTMobitel_Logo.png";
-import { markItemsAsReturned} from "../services/myRequestService.js";
-
+import { markItemsAsReturned } from "../services/myRequestService.js";
 
 const StatusPill = ({ statusCode }) => {
   const getStatusLabel = (code) => {
@@ -79,21 +78,21 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-  if (images && images.length > 0) {
-    setLoading(true);
+    if (images && images.length > 0) {
+      setLoading(true);
 
-    const urls = images
-      .slice(0, 5)
-      .map(img => getImageUrlSync(img))
-      .filter(Boolean);
+      const urls = images
+        .slice(0, 5)
+        .map((img) => getImageUrlSync(img))
+        .filter(Boolean);
 
-    setImageUrls(urls);
-    setLoading(false);
-  } else {
-    setImageUrls([]);
-    setLoading(false);
-  }
-}, [images]);
+      setImageUrls(urls);
+      setLoading(false);
+    } else {
+      setImageUrls([]);
+      setLoading(false);
+    }
+  }, [images]);
 
   if (!isOpen) return null;
 
@@ -121,8 +120,12 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
                 alt={`${itemName} ${activeIndex + 1}`}
                 className="w-full h-full object-contain"
                 onError={(e) => {
-                  console.error('Image failed to load:', imageUrls[activeIndex]);
-                  e.target.src = 'https://via.placeholder.com/400x300?text=Image+Not+Found';
+                  console.error(
+                    "Image failed to load:",
+                    imageUrls[activeIndex],
+                  );
+                  e.target.src =
+                    "https://via.placeholder.com/400x300?text=Image+Not+Found";
                 }}
               />
             ) : (
@@ -216,7 +219,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
                   alt={`${itemName} thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    e.target.src = 'https://via.placeholder.com/64?text=Error';
+                    e.target.src = "https://via.placeholder.com/64?text=Error";
                   }}
                 />
               </div>
@@ -254,7 +257,7 @@ const RequestDetailsModal = ({
   useEffect(() => {
     if (request && executiveOfficers.length > 0) {
       const matchingOfficer = executiveOfficers.find(
-        (officer) => officer.serviceNo === request.executiveOfficerServiceNo
+        (officer) => officer.serviceNo === request.executiveOfficerServiceNo,
       );
       if (matchingOfficer) {
         setSelectedExecutive(matchingOfficer.serviceNo);
@@ -282,7 +285,7 @@ const RequestDetailsModal = ({
     setSelectedExecutive(newExecutive);
     try {
       const selectedOfficer = executiveOfficers.find(
-        (officer) => officer.serviceNo === newExecutive
+        (officer) => officer.serviceNo === newExecutive,
       );
       await updateExecutiveOfficer(request._id, selectedOfficer.serviceNo);
       setUpdateSuccess(true);
@@ -301,7 +304,7 @@ const RequestDetailsModal = ({
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to mark ${selectedItems.length} item(s) as returned?`
+      `Are you sure you want to mark ${selectedItems.length} item(s) as returned?`,
     );
 
     if (!confirmed) return;
@@ -311,13 +314,13 @@ const RequestDetailsModal = ({
     try {
       const response = await markItemsAsReturned(
         request.referenceNumber,
-        selectedItems
+        selectedItems,
       );
 
       alert(
         `Successfully marked ${
           response.updatedCount || selectedItems.length
-        } item(s) as returned`
+        } item(s) as returned`,
       );
 
       // Clear selection
@@ -358,7 +361,7 @@ const RequestDetailsModal = ({
       // Only send returnable rows, keep payload minimal for backend
       const payload = editedItems
         .filter(
-          (it) => it?.itemReturnable === true || it?.isReturnable === true
+          (it) => it?.itemReturnable === true || it?.isReturnable === true,
         )
         .map((it) => ({
           _id: it._id, // <-- match DB item
@@ -379,7 +382,7 @@ const RequestDetailsModal = ({
     } catch (err) {
       console.error("Failed to update returnable items:", err);
       setSaveItemsError(
-        err?.response?.data?.message || "Failed to update returnable items"
+        err?.response?.data?.message || "Failed to update returnable items",
       );
       setTimeout(() => setSaveItemsError(""), 3500);
     }
@@ -446,7 +449,7 @@ const RequestDetailsModal = ({
       yPos,
       col1Width + col2Width + col3Width + col4Width + col5Width,
       8,
-      "F"
+      "F",
     );
 
     doc.text("Item Name", margin + 3, yPos + 5.5);
@@ -456,7 +459,7 @@ const RequestDetailsModal = ({
     doc.text(
       "Model",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
-      yPos + 5.5
+      yPos + 5.5,
     );
 
     yPos += 8;
@@ -475,7 +478,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
 
         doc.text("Item Name", margin + 3, yPos + 5.5);
@@ -484,12 +487,12 @@ const RequestDetailsModal = ({
         doc.text(
           "Qty",
           margin + col1Width + col2Width + col3Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
         doc.text(
           "Model",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
 
         yPos += 8;
@@ -503,7 +506,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
       }
 
@@ -518,27 +521,27 @@ const RequestDetailsModal = ({
       doc.text(
         truncateText(item?.itemName || "N/A", 25),
         margin + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.serialNo || "N/A", 15),
         margin + col1Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.itemCategory || "N/A", 12),
         margin + col1Width + col2Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemQuantity?.toString() || "1",
         margin + col1Width + col2Width + col3Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.itemModel || "N/A", 15),
         margin + col1Width + col2Width + col3Width + col4Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
 
       // Draw horizontal line after each row
@@ -546,7 +549,7 @@ const RequestDetailsModal = ({
         margin,
         yPos + 8,
         margin + col1Width + col2Width + col3Width + col4Width + col5Width,
-        yPos + 8
+        yPos + 8,
       );
 
       yPos += 8;
@@ -560,7 +563,7 @@ const RequestDetailsModal = ({
       "This is an electronically generated document and does not require signature.",
       pageWidth / 2,
       footerYPos,
-      { align: "center" }
+      { align: "center" },
     );
 
     // Save the PDF
@@ -828,14 +831,26 @@ const RequestDetailsModal = ({
                   </label>
                   <p className="text-gray-800">
                     {executiveOfficers.find(
-                      (officer) => officer.serviceNo === request?.executiveOfficerServiceNo
-                    )?.name || "N/A"} 
+                      (officer) =>
+                        officer.serviceNo ===
+                        request?.executiveOfficerServiceNo,
+                    )?.name || "N/A"}
                     {executiveOfficers.find(
-                      (officer) => officer.serviceNo === request?.executiveOfficerServiceNo
+                      (officer) =>
+                        officer.serviceNo ===
+                        request?.executiveOfficerServiceNo,
                     )?.designation && (
-                      <span className="text-gray-600"> - {executiveOfficers.find(
-                        (officer) => officer.serviceNo === request?.executiveOfficerServiceNo
-                      )?.designation}</span>
+                      <span className="text-gray-600">
+                        {" "}
+                        -{" "}
+                        {
+                          executiveOfficers.find(
+                            (officer) =>
+                              officer.serviceNo ===
+                              request?.executiveOfficerServiceNo,
+                          )?.designation
+                        }
+                      </span>
                     )}
                   </p>
                 </div>
@@ -1203,8 +1218,8 @@ const GatePassRequests = () => {
                     prevRequests.map((r) =>
                       r.referenceNumber === request.referenceNumber
                         ? { ...r, receiver: receiverData }
-                        : r
-                    )
+                        : r,
+                    ),
                   );
                 })
                 .catch((error) => {
@@ -1216,8 +1231,8 @@ const GatePassRequests = () => {
                 prevRequests.map((r) =>
                   r.referenceNumber === request.referenceNumber
                     ? { ...r, receiver: null }
-                    : r
-                )
+                    : r,
+                ),
               );
             }
           });
@@ -1261,7 +1276,7 @@ const GatePassRequests = () => {
       // For SLT destinations, fetch from database
       try {
         const receiverData = await searchReceiverByServiceNo(
-          request.receiverServiceNo
+          request.receiverServiceNo,
         );
         setReceiver(receiverData);
       } catch (error) {
@@ -1272,41 +1287,41 @@ const GatePassRequests = () => {
       setReceiver(request.receiver || null);
     }
 
-      if (request?.transport?.transporterServiceNo) {
-    try {
-      const transportResponse = await searchEmployeeByServiceNo(
-        request.transport.transporterServiceNo
-      );
-      
-      console.log("Transport response:", transportResponse); // Debug log
-      
-      // Extract the employee data from the nested response
-      const employee = transportResponse?.data?.data?.[0];
-      
-      if (employee) {
-        setTransportData({
-          name: `${employee.employeeTitle || ""} ${employee.employeeFirstName || ""} ${employee.employeeSurname || ""}`.trim(),
-          serviceNo: employee.employeeNo || request.transport.transporterServiceNo,
-          designation: employee.designation || "-",
-          section: employee.empSection || "-",
-          group: employee.empGroup || "-",
-          contactNo: employee.mobileNo || "-"
-        });
-      } else {
-        // If no employee data found, set to null
+    if (request?.transport?.transporterServiceNo) {
+      try {
+        const transportResponse = await searchEmployeeByServiceNo(
+          request.transport.transporterServiceNo,
+        );
+
+        console.log("Transport response:", transportResponse); // Debug log
+
+        // Extract the employee data from the nested response
+        const employee = transportResponse?.data?.data?.[0];
+
+        if (employee) {
+          setTransportData({
+            name: `${employee.employeeTitle || ""} ${employee.employeeFirstName || ""} ${employee.employeeSurname || ""}`.trim(),
+            serviceNo:
+              employee.employeeNo || request.transport.transporterServiceNo,
+            designation: employee.designation || "-",
+            section: employee.empSection || "-",
+            group: employee.empGroup || "-",
+            contactNo: employee.mobileNo || "-",
+          });
+        } else {
+          // If no employee data found, set to null
+          setTransportData(null);
+        }
+      } catch (error) {
+        console.error("Error fetching transporter details:", error);
         setTransportData(null);
       }
-    } catch (error) {
-      console.error("Error fetching transporter details:", error);
+    } else {
       setTransportData(null);
     }
-  } else {
-    setTransportData(null);
-  }
 
-  setIsModalOpen(true);
-}
-  
+    setIsModalOpen(true);
+  };
 
   const handleCancelRequest = async (referenceNumber) => {
     if (window.confirm("Are you sure you want to cancel this request?")) {

@@ -51,47 +51,54 @@ async function enrichStatusesWithUserData(statuses) {
 
   // Collect all unique service numbers
   const serviceNumbers = new Set();
-  
-  statuses.forEach(status => {
+
+  statuses.forEach((status) => {
     const req = status.request || {};
-    
+
     // Sender
-    if (req.employeeServiceNo) serviceNumbers.add(String(req.employeeServiceNo));
-    
+    if (req.employeeServiceNo)
+      serviceNumbers.add(String(req.employeeServiceNo));
+
     // Receiver
-    if (req.receiverServiceNo) serviceNumbers.add(String(req.receiverServiceNo));
-    
+    if (req.receiverServiceNo)
+      serviceNumbers.add(String(req.receiverServiceNo));
+
     // Loading staff
-    if (req.loading?.staffServiceNo) serviceNumbers.add(String(req.loading.staffServiceNo));
-    
+    if (req.loading?.staffServiceNo)
+      serviceNumbers.add(String(req.loading.staffServiceNo));
+
     // Unloading staff
-    if (req.unLoading?.staffServiceNo) serviceNumbers.add(String(req.unLoading.staffServiceNo));
-    
+    if (req.unLoading?.staffServiceNo)
+      serviceNumbers.add(String(req.unLoading.staffServiceNo));
+
     // Receive officer
-    if (status.recieveOfficerServiceNumber) serviceNumbers.add(String(status.recieveOfficerServiceNumber));
-    
+    if (status.recieveOfficerServiceNumber)
+      serviceNumbers.add(String(status.recieveOfficerServiceNumber));
+
     // Executive officer
-    if (req.executiveOfficerServiceNo) serviceNumbers.add(String(req.executiveOfficerServiceNo));
-    
+    if (req.executiveOfficerServiceNo)
+      serviceNumbers.add(String(req.executiveOfficerServiceNo));
+
     // Verify officer
-    if (req.verifyOfficerServiceNo) serviceNumbers.add(String(req.verifyOfficerServiceNo));
+    if (req.verifyOfficerServiceNo)
+      serviceNumbers.add(String(req.verifyOfficerServiceNo));
   });
 
   // Batch fetch all users at once
   const userMap = {};
   if (serviceNumbers.size > 0) {
     const users = await User.find({
-      serviceNo: { $in: Array.from(serviceNumbers) }
+      serviceNo: { $in: Array.from(serviceNumbers) },
     }).lean();
-    
-    users.forEach(user => {
+
+    users.forEach((user) => {
       userMap[String(user.serviceNo)] = user;
     });
   }
 
   // For any missing users, try to get from Azure cache
   const missingServiceNumbers = Array.from(serviceNumbers).filter(
-    sn => !userMap[sn]
+    (sn) => !userMap[sn],
   );
 
   if (missingServiceNumbers.length > 0) {
@@ -107,93 +114,115 @@ async function enrichStatusesWithUserData(statuses) {
               designation: azureData.jobTitle || "N/A",
               section: azureData.department || "N/A",
               group: azureData.officeLocation || "N/A",
-              contactNo: azureData.mobilePhone || azureData.businessPhones?.[0] || "N/A"
+              contactNo:
+                azureData.mobilePhone || azureData.businessPhones?.[0] || "N/A",
             };
           }
         } catch (err) {
           // Silently fail for individual Azure lookups
         }
-      })
+      }),
     );
   }
 
   // Enrich each status with user data
-  return statuses.map(status => {
+  return statuses.map((status) => {
     const req = status.request || {};
     const enriched = { ...status };
 
     // Add user data as nested objects with fallback to request data
-    enriched.senderDetails = userMap[String(req.employeeServiceNo)] || 
-      (req.employeeServiceNo ? {
-        serviceNo: req.employeeServiceNo,
-        name: "N/A",
-        section: "N/A",
-        group: "N/A",
-        designation: "N/A",
-        contactNo: "N/A"
-      } : null);
+    enriched.senderDetails =
+      userMap[String(req.employeeServiceNo)] ||
+      (req.employeeServiceNo
+        ? {
+            serviceNo: req.employeeServiceNo,
+            name: "N/A",
+            section: "N/A",
+            group: "N/A",
+            designation: "N/A",
+            contactNo: "N/A",
+          }
+        : null);
 
     // For receiver, use request fields if user not found
-    enriched.receiverDetails = userMap[String(req.receiverServiceNo)] || 
-      (req.receiverServiceNo || req.receiverName ? {
-        serviceNo: req.receiverServiceNo || "N/A",
-        name: req.receiverName || "N/A",
-        section: "N/A",
-        group: "N/A",
-        designation: "N/A",
-        contactNo: req.receiverContact || "N/A"
-      } : null);
+    enriched.receiverDetails =
+      userMap[String(req.receiverServiceNo)] ||
+      (req.receiverServiceNo || req.receiverName
+        ? {
+            serviceNo: req.receiverServiceNo || "N/A",
+            name: req.receiverName || "N/A",
+            section: "N/A",
+            group: "N/A",
+            designation: "N/A",
+            contactNo: req.receiverContact || "N/A",
+          }
+        : null);
 
-    enriched.loadingStaffDetails = userMap[String(req.loading?.staffServiceNo)] || 
-      (req.loading?.staffServiceNo ? {
-        serviceNo: req.loading.staffServiceNo,
-        name: "N/A",
-        section: "N/A",
-        group: "N/A",
-        designation: "N/A",
-        contactNo: "N/A"
-      } : null);
+    enriched.loadingStaffDetails =
+      userMap[String(req.loading?.staffServiceNo)] ||
+      (req.loading?.staffServiceNo
+        ? {
+            serviceNo: req.loading.staffServiceNo,
+            name: "N/A",
+            section: "N/A",
+            group: "N/A",
+            designation: "N/A",
+            contactNo: "N/A",
+          }
+        : null);
 
-    enriched.unloadingStaffDetails = userMap[String(req.unLoading?.staffServiceNo)] || 
-                                     userMap[String(status.recieveOfficerServiceNumber)] || 
-      (req.unLoading?.staffServiceNo ? {
-        serviceNo: req.unLoading.staffServiceNo,
-        name: "N/A",
-        section: "N/A",
-        group: "N/A",
-        designation: "N/A",
-        contactNo: "N/A"
-      } : null);
+    enriched.unloadingStaffDetails =
+      userMap[String(req.unLoading?.staffServiceNo)] ||
+      userMap[String(status.recieveOfficerServiceNumber)] ||
+      (req.unLoading?.staffServiceNo
+        ? {
+            serviceNo: req.unLoading.staffServiceNo,
+            name: "N/A",
+            section: "N/A",
+            group: "N/A",
+            designation: "N/A",
+            contactNo: "N/A",
+          }
+        : null);
 
-    enriched.receiveOfficerDetails = userMap[String(status.recieveOfficerServiceNumber)] || 
-      (status.recieveOfficerServiceNumber ? {
-        serviceNo: status.recieveOfficerServiceNumber,
-        name: "N/A",
-        section: "N/A",
-        group: "N/A",
-        designation: "N/A",
-        contactNo: "N/A"
-      } : null);
+    enriched.receiveOfficerDetails =
+      userMap[String(status.recieveOfficerServiceNumber)] ||
+      (status.recieveOfficerServiceNumber
+        ? {
+            serviceNo: status.recieveOfficerServiceNumber,
+            name: "N/A",
+            section: "N/A",
+            group: "N/A",
+            designation: "N/A",
+            contactNo: "N/A",
+          }
+        : null);
 
-    enriched.executiveOfficerDetails = userMap[String(req.executiveOfficerServiceNo)] || 
-      (req.executiveOfficerServiceNo ? {
-        serviceNo: req.executiveOfficerServiceNo,
-        name: "N/A",
-        section: "N/A",
-        group: "N/A",
-        designation: "N/A",
-        contactNo: "N/A"
-      } : null);
+    enriched.executiveOfficerDetails =
+      userMap[String(req.executiveOfficerServiceNo)] ||
+      (req.executiveOfficerServiceNo
+        ? {
+            serviceNo: req.executiveOfficerServiceNo,
+            name: "N/A",
+            section: "N/A",
+            group: "N/A",
+            designation: "N/A",
+            contactNo: "N/A",
+          }
+        : null);
 
-    enriched.verifyOfficerDetails = userMap[String(req.verifyOfficerServiceNo)] || 
-      (req.verifyOfficerServiceNo ? {
-        serviceNo: req.verifyOfficerServiceNo,
-        name: "N/A",
-        section: "N/A",
-        group: "N/A",
-        designation: "N/A",
-        contactNo: "N/A"
-      } : null);
+    enriched.verifyOfficerDetails =
+      userMap[String(req.verifyOfficerServiceNo)] ||
+      (req.verifyOfficerServiceNo
+        ? {
+            serviceNo: req.verifyOfficerServiceNo,
+            name: "N/A",
+            section: "N/A",
+            group: "N/A",
+            designation: "N/A",
+            contactNo: "N/A",
+          }
+        : null);
 
     return enriched;
   });
