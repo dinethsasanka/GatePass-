@@ -37,7 +37,7 @@ export const getApprovedStatuses = async (serviceNo) => {
   try {
     return await getWithParams(
       `/receive/approved`,
-      serviceNo ? { serviceNo } : undefined
+      serviceNo ? { serviceNo } : undefined,
     );
   } catch (error) {
     throw new Error("Failed to fetch approved statuses");
@@ -49,7 +49,7 @@ export const getRejectedStatuses = async (serviceNo) => {
   try {
     return await getWithParams(
       `/receive/rejected`,
-      serviceNo ? { serviceNo } : undefined
+      serviceNo ? { serviceNo } : undefined,
     );
   } catch (error) {
     throw new Error("Failed to fetch rejected statuses");
@@ -62,18 +62,18 @@ export const approveStatus = async (
   comment,
   unloadingDetails,
   userServiceNumber,
-  returnableItems
+  returnableItems,
 ) => {
   try {
     const response = await axiosInstance.put(
       `/receive/${referenceNumber}/approve`,
-      { comment, unloadingDetails, userServiceNumber, returnableItems }
+      { comment, unloadingDetails, userServiceNumber, returnableItems },
     );
     return response.data;
   } catch (error) {
     console.error("Error approving status:", error);
     throw new Error(
-      error.response?.data?.message || "Failed to approve status"
+      error.response?.data?.message || "Failed to approve status",
     );
   }
 };
@@ -83,7 +83,7 @@ export const rejectStatus = async (referenceNumber, comment) => {
   try {
     const response = await axiosInstance.put(
       `/receive/${referenceNumber}/reject`,
-      { comment }
+      { comment },
     );
     return response.data;
   } catch (error) {
@@ -103,7 +103,7 @@ export const searchUserByServiceNo = async (serviceNo) => {
     console.warn(
       "searchUserByServiceNo failed:",
       serviceNo,
-      error.response?.status || error.message
+      error.response?.status || error.message,
     );
     return null;
   }
@@ -173,7 +173,7 @@ export const searchUserByServiceNo = async (serviceNo) => {
 export const markItemsAsReturned = async (
   referenceNumber,
   serialNumbers,
-  remarks = null
+  remarks = null,
 ) => {
   try {
     // Build payload
@@ -183,7 +183,7 @@ export const markItemsAsReturned = async (
     }
 
     console.log(
-      `Calling API: ${API_BASE_URL}/receive/${referenceNumber}/mark-returned`
+      `Calling API: ${API_BASE_URL}/receive/${referenceNumber}/mark-returned`,
     );
     console.log("Payload:", payload);
 
@@ -195,7 +195,7 @@ export const markItemsAsReturned = async (
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     console.log("API Response:", response.data);
@@ -205,7 +205,7 @@ export const markItemsAsReturned = async (
     console.error("Error details:", error.response?.data);
     throw new Error(
       error.response?.data?.message ||
-        "Failed to mark items as returned. Please try again."
+        "Failed to mark items as returned. Please try again.",
     );
   }
 };
@@ -215,7 +215,7 @@ export const updateReturnableItem = async (
   referenceNumber,
   originalSerialNo,
   itemCode,
-  serialNo
+  serialNo,
 ) => {
   try {
     const response = await axios.put(
@@ -226,19 +226,21 @@ export const updateReturnableItem = async (
           Authorization: `Bearer ${localStorage.getItem("token")}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
     return response.data;
   } catch (error) {
     console.error("Error updating returnable item:", error);
     throw new Error(
-      error.response?.data?.message || "Failed to update returnable item"
+      error.response?.data?.message || "Failed to update returnable item",
     );
   }
 };
 
 export const addReturnableItemToRequest = async (referenceNumber, itemData) => {
-  const response = await axios.post(`${API_BASE_URL}/receive/${referenceNumber}/items`, itemData);
+  const response = await axios.post(
+    `${API_BASE_URL}/receive/${referenceNumber}/items`,
+    itemData,
+  );
   return response.data;
 };
-

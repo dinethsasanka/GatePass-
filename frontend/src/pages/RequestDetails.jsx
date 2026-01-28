@@ -151,7 +151,9 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
 
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemDescription}</h3>
+              <h3 className="text-xl font-semibold text-white">
+                {itemDescription}
+              </h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
@@ -230,7 +232,9 @@ const RequestDetailsModal = ({
 }) => {
   const { showToast } = useToast();
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState([]);
+  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState(
+    [],
+  );
   const [selecteditemDescription, setSelecteditemDescription] = useState("");
   const [pdfLoading, setPdfLoading] = useState(false);
 
@@ -261,7 +265,7 @@ const RequestDetailsModal = ({
       console.log("ROWS BY REF", rowsByRef);
       console.log(
         "ROW STAGES + ACTORS",
-        rowsByRef.map((r) => ({ stage: r.stage, actors: r.actors }))
+        rowsByRef.map((r) => ({ stage: r.stage, actors: r.actors })),
       );
       console.log("STATUS DETAILS", statusDetails);
 
@@ -423,7 +427,10 @@ const RequestDetailsModal = ({
       showToast("PDF generated successfully!", "success");
     } catch (err) {
       console.error("Failed to generate admin PDF:", err);
-      showToast("Failed to generate PDF: " + (err.message || "Unknown error"), "error");
+      showToast(
+        "Failed to generate PDF: " + (err.message || "Unknown error"),
+        "error",
+      );
     } finally {
       setPdfLoading(false);
     }
@@ -465,7 +472,8 @@ const RequestDetailsModal = ({
       printFrame.style.height = "1px";
       document.body.appendChild(printFrame);
 
-      const doc = printFrame.contentDocument || printFrame.contentWindow.document;
+      const doc =
+        printFrame.contentDocument || printFrame.contentWindow.document;
 
       // Build small sections as strings to keep template clean
       let transportExtra = "";
@@ -525,7 +533,7 @@ const RequestDetailsModal = ({
               <td>${it?.categoryDescription || "-"}</td>
               <td>${it?.itemQuantity || "-"}</td>
               <td>${it?.itemCode || "-"}</td>
-            </tr>`
+            </tr>`,
               )
               .join("");
 
@@ -875,7 +883,6 @@ const RequestDetailsModal = ({
           generateDESCRIPTIONPdfFallback();
         }
       }, 5000);
-
     } catch (error) {
       console.error("Print report failed:", error);
       // Fallback to jsPDF
@@ -987,7 +994,13 @@ const RequestDetailsModal = ({
       let xPos = margin;
 
       // Draw header background
-      doc.rect(margin, yPos, colWidths.reduce((a, b) => a + b, 0), 8, "F");
+      doc.rect(
+        margin,
+        yPos,
+        colWidths.reduce((a, b) => a + b, 0),
+        8,
+        "F",
+      );
 
       // Header text
       doc.text("item Name", xPos + 2, yPos + 5.5);
@@ -1012,7 +1025,13 @@ const RequestDetailsModal = ({
         // Alternate row background
         if (index % 2 === 1) {
           doc.setFillColor(248, 248, 248);
-          doc.rect(margin, yPos, colWidths.reduce((a, b) => a + b, 0), 8, "F");
+          doc.rect(
+            margin,
+            yPos,
+            colWidths.reduce((a, b) => a + b, 0),
+            8,
+            "F",
+          );
         }
 
         xPos = margin;
@@ -1037,7 +1056,7 @@ const RequestDetailsModal = ({
         "This is an electronically generated document.",
         pageWidth / 2,
         footerYPos,
-        { align: "center" }
+        { align: "center" },
       );
 
       // Save the PDF
@@ -1103,7 +1122,7 @@ const RequestDetailsModal = ({
       yPos,
       col1Width + col2Width + col3Width + col4Width + col5Width,
       8,
-      "F"
+      "F",
     );
 
     doc.text("item Name", margin + 3, yPos + 5.5);
@@ -1113,7 +1132,7 @@ const RequestDetailsModal = ({
     doc.text(
       "Item Code",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
-      yPos + 5.5
+      yPos + 5.5,
     );
 
     yPos += 8;
@@ -1129,7 +1148,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
 
         doc.text("item Name", margin + 3, yPos + 5.5);
@@ -1138,12 +1157,12 @@ const RequestDetailsModal = ({
         doc.text(
           "Qty",
           margin + col1Width + col2Width + col3Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
         doc.text(
           "Item Code",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
 
         yPos += 8;
@@ -1156,7 +1175,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
       }
 
@@ -1170,34 +1189,34 @@ const RequestDetailsModal = ({
       doc.text(
         truncateText(item?.itemDescription || "N/A", 25),
         margin + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.serialNumber || "N/A", 15),
         margin + col1Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.categoryDescription || "N/A", 12),
         margin + col1Width + col2Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemQuantity?.toString() || "1",
         margin + col1Width + col2Width + col3Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemCode || "N/A",
         margin + col1Width + col2Width + col3Width + col4Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
 
       doc.line(
         margin,
         yPos + 8,
         margin + col1Width + col2Width + col3Width + col4Width + col5Width,
-        yPos + 8
+        yPos + 8,
       );
 
       yPos += 8;
@@ -1210,7 +1229,7 @@ const RequestDetailsModal = ({
       "This is an electronically generated document and does not require signature.",
       pageWidth / 2,
       footerYPos,
-      { align: "center" }
+      { align: "center" },
     );
 
     doc.save(`SLT_GatePass_DESCRIPTIONs_${refNo}.pdf`);
@@ -1306,7 +1325,8 @@ const RequestDetailsModal = ({
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      item </th>
+                      item{" "}
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Serial Number
                     </th>
@@ -1368,7 +1388,7 @@ const RequestDetailsModal = ({
               images={selectedDESCRIPTIONImages}
               isOpen={isImageModalOpen}
               onClose={() => setIsImageModalOpen(false)}
-              itemDescription ={selecteditemDescription}
+              itemDescription={selecteditemDescription}
             />
           </div>
 
@@ -1755,7 +1775,8 @@ const RequestDetails = () => {
     const resolveRequestSource = () => {
       if (fullRequestData) {
         if (Array.isArray(fullRequestData)) return fullRequestData[0];
-        if (fullRequestData.requestDetails) return fullRequestData.requestDetails;
+        if (fullRequestData.requestDetails)
+          return fullRequestData.requestDetails;
         return fullRequestData;
       }
       return selectedRequest;
@@ -1795,7 +1816,7 @@ const RequestDetails = () => {
           null;
         const receiverData = mapErpEmployeeToReceiver(
           employee,
-          receiverServiceNo
+          receiverServiceNo,
         );
         if (isActive) setReceiver(receiverData);
       } catch (error) {
@@ -1857,10 +1878,10 @@ const RequestDetails = () => {
       } else {
         const existing = map.get(ref);
         const newTime = new Date(
-          row.updatedAt || row.request?.updatedAt || 0
+          row.updatedAt || row.request?.updatedAt || 0,
         ).getTime();
         const oldTime = new Date(
-          existing.updatedAt || existing.request?.updatedAt || 0
+          existing.updatedAt || existing.request?.updatedAt || 0,
         ).getTime();
 
         if (newTime > oldTime) {
@@ -1896,13 +1917,13 @@ const RequestDetails = () => {
 
     if (searchRef.trim()) {
       list.sort(
-        (a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage)
+        (a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage),
       );
     } else {
       list.sort(
         (a, b) =>
           new Date(b.updatedAt || b.request?.updatedAt || 0) -
-          new Date(a.updatedAt || a.request?.updatedAt || 0)
+          new Date(a.updatedAt || a.request?.updatedAt || 0),
       );
     }
 
@@ -2120,7 +2141,7 @@ const RequestDetails = () => {
       console.log("ROWS BY REF", rowsByRef);
       console.log(
         "ROW STAGES + ACTORS",
-        rowsByRef.map((r) => ({ stage: r.stage, actors: r.actors }))
+        rowsByRef.map((r) => ({ stage: r.stage, actors: r.actors })),
       );
 
       const statusDetails = data.statusDetails || {};
@@ -2141,7 +2162,7 @@ const RequestDetails = () => {
       if (baseRequest.employeeServiceNo) {
         try {
           senderDetails = await searchSenderByServiceNo(
-            baseRequest.employeeServiceNo
+            baseRequest.employeeServiceNo,
           );
         } catch (e) {
           senderDetails = null;
@@ -2301,7 +2322,7 @@ const RequestDetails = () => {
     if (baseRequest.employeeServiceNo) {
       try {
         const senderData = await searchReceiverByServiceNo(
-          baseRequest.employeeServiceNo
+          baseRequest.employeeServiceNo,
         );
         setUser(senderData);
       } catch (error) {
@@ -2319,7 +2340,7 @@ const RequestDetails = () => {
     if (baseRequest?.transport?.transporterServiceNo) {
       try {
         const transport = await searchReceiverByServiceNo(
-          baseRequest.transport.transporterServiceNo
+          baseRequest.transport.transporterServiceNo,
         );
         setTransportData(transport);
       } catch (error) {
@@ -2578,7 +2599,7 @@ const RequestDetails = () => {
                       {formatDateTime(
                         row.updatedAt ||
                           row.request?.updatedAt ||
-                          row.request?.createdAt
+                          row.request?.createdAt,
                       )}
                     </div>
                   </td>

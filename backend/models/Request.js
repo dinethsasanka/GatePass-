@@ -148,7 +148,7 @@ const RequestSchema = new mongoose.Schema(
     show: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Request = mongoose.model("Request", RequestSchema);

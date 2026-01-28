@@ -160,7 +160,7 @@ const ExecutiveApproval = () => {
                 try {
                   senderDetails = await getCachedUser(
                     senderServiceNo,
-                    searchUserByServiceNo
+                    searchUserByServiceNo,
                   );
                 } catch {}
               }
@@ -184,7 +184,10 @@ const ExecutiveApproval = () => {
                 !isNonSltIdentifier(receiverServiceNo)
               ) {
                 try {
-                  receiverDetails = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                  receiverDetails = await getCachedUserAllowRefresh(
+                    receiverServiceNo,
+                    fetchReceiverDetails,
+                  );
                 } catch (error) {
                   // Silently handle missing users
                 }
@@ -212,14 +215,14 @@ const ExecutiveApproval = () => {
                 inLocation: status.request?.inLocation,
                 outLocation: status.request?.outLocation,
                 createdAt: new Date(
-                  status.request?.createdAt || status.createdAt
+                  status.request?.createdAt || status.createdAt,
                 ).toLocaleString(),
                 items: status.request?.items || [],
                 comment: status.executiveOfficerComment || "",
                 request: status.request,
                 requestDetails: { ...status.request },
               };
-            })
+            }),
           );
           setpendingItems(formattedData);
         } catch (error) {
@@ -228,7 +231,7 @@ const ExecutiveApproval = () => {
       }
     },
     [user, activeTab],
-    { status: 1 } // Only refetch for pending status updates
+    { status: 1 }, // Only refetch for pending status updates
   );
 
   useEffect(() => {
@@ -266,7 +269,7 @@ const ExecutiveApproval = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 // User not found - will use fallback
@@ -295,7 +298,10 @@ const ExecutiveApproval = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                receiverDetails = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                receiverDetails = await getCachedUserAllowRefresh(
+                  receiverServiceNo,
+                  fetchReceiverDetails,
+                );
               } catch (error) {
                 // Silently handle missing users - this is expected for test data
               }
@@ -321,14 +327,14 @@ const ExecutiveApproval = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.executiveOfficerComment || "",
               request: status.request,
               requestDetails: { ...status.request },
             };
-          })
+          }),
         );
 
         setpendingItems(formattedData);
@@ -373,7 +379,7 @@ const ExecutiveApproval = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 // Silently handle missing users
@@ -402,7 +408,10 @@ const ExecutiveApproval = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                const userData = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                const userData = await getCachedUserAllowRefresh(
+                  receiverServiceNo,
+                  fetchReceiverDetails,
+                );
                 if (userData) {
                   receiverDetails = userData;
                   // console.log("Receiver Details", receiverDetails);
@@ -432,14 +441,14 @@ const ExecutiveApproval = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.executiveOfficerComment,
               request: status.request,
               requestDetails: { ...status.request },
             };
-          })
+          }),
         );
         setapprovedItems(formattedData);
       } catch (error) {
@@ -482,7 +491,7 @@ const ExecutiveApproval = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 // Silently handle missing users
@@ -511,7 +520,10 @@ const ExecutiveApproval = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                const userData = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                const userData = await getCachedUserAllowRefresh(
+                  receiverServiceNo,
+                  fetchReceiverDetails,
+                );
                 if (userData) {
                   receiverDetails = userData;
                   // console.log("Receiver Details", receiverDetails);
@@ -541,7 +553,7 @@ const ExecutiveApproval = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.executiveOfficerComment,
@@ -553,7 +565,7 @@ const ExecutiveApproval = () => {
               rejectedAt: status.rejectedAt,
               rejectionLevel: status.rejectionLevel,
             };
-          })
+          }),
         );
 
         setRejectedDESCRIPTIONs(formattedData);
@@ -597,7 +609,7 @@ const ExecutiveApproval = () => {
         inLocation: updatedStatus.request?.inLocation,
         outLocation: updatedStatus.request?.outLocation,
         createdAt: new Date(
-          updatedStatus.request?.createdAt || updatedStatus.createdAt
+          updatedStatus.request?.createdAt || updatedStatus.createdAt,
         ).toLocaleString(),
         items: updatedStatus.request?.items || [],
         comment: updatedStatus.executiveOfficerComment,
@@ -616,7 +628,7 @@ const ExecutiveApproval = () => {
       setComment("");
       showToast(
         "Request approved successfully and notified petrol leader",
-        "success"
+        "success",
       );
     } catch (error) {
       console.error("Error approving status:", error.message);
@@ -665,7 +677,7 @@ const ExecutiveApproval = () => {
                     item.itemQuantity || "1"
                   }</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -689,8 +701,8 @@ const ExecutiveApproval = () => {
             <p>We would like to inform you that ${
               itemDetails.length
             } returnable item(s) under reference number <b>${
-        request.refNo
-      }</b> have been returned by the Receiver.</p>
+              request.refNo
+            }</b> have been returned by the Receiver.</p>
             <p>You can view it under your <i>Completed</i> or relevant section.</p>
           </div>
   
@@ -766,7 +778,7 @@ const ExecutiveApproval = () => {
             <tr>
               <td style="padding: 8px 0; color: #757575;">Requested Date:</td>
               <td style="padding: 8px 0;">${new Date(
-                request.createdAt
+                request.createdAt,
               ).toLocaleDateString()}</td>
             </tr>
           </table>
@@ -890,7 +902,7 @@ const ExecutiveApproval = () => {
                     item.itemQuantity || "1"
                   }</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -922,7 +934,7 @@ const ExecutiveApproval = () => {
 
       console.log(
         "Approval notification sent to petrol leader:",
-        petrolLeaderEmail
+        petrolLeaderEmail,
       );
     } catch (error) {
       console.error("Failed to send approval email to petrol leader:", error);
@@ -983,7 +995,7 @@ const ExecutiveApproval = () => {
         inLocation: updatedStatus.request?.inLocation,
         outLocation: updatedStatus.request?.outLocation,
         createdAt: new Date(
-          updatedStatus.request?.createdAt || updatedStatus.createdAt
+          updatedStatus.request?.createdAt || updatedStatus.createdAt,
         ).toLocaleString(),
         items: updatedStatus.request?.items || [],
         comment: updatedStatus.executiveOfficerComment,
@@ -1003,42 +1015,44 @@ const ExecutiveApproval = () => {
   };
 
   const handleModelOpen = async (item) => {
-  setselectedItem(item);
+    setselectedItem(item);
 
-  if (item.requestDetails?.transport.transporterServiceNo) {
-    try {
-      const transportResponse = await searchEmployeeByServiceNo(
-        item.requestDetails.transport.transporterServiceNo
-      );
-      
-      console.log("Transport response:", transportResponse); // Debug log
-      
-      // Extract the employee data from the nested response
-      const employee = transportResponse?.data?.data?.[0];
-      
-      if (employee) {
-        setTransportData({
-          name: `${employee.employeeTitle || ""} ${employee.employeeFirstName || ""} ${employee.employeeSurname || ""}`.trim(),
-          serviceNo: employee.employeeNo || item.requestDetails.transport.transporterServiceNo,
-          designation: employee.designation || "-",
-          section: employee.empSection || "-",
-          group: employee.empGroup || "-",
-          contactNo: employee.mobileNo || "-"
-        });
-      } else {
-        console.log("No employee data found");
+    if (item.requestDetails?.transport.transporterServiceNo) {
+      try {
+        const transportResponse = await searchEmployeeByServiceNo(
+          item.requestDetails.transport.transporterServiceNo,
+        );
+
+        console.log("Transport response:", transportResponse); // Debug log
+
+        // Extract the employee data from the nested response
+        const employee = transportResponse?.data?.data?.[0];
+
+        if (employee) {
+          setTransportData({
+            name: `${employee.employeeTitle || ""} ${employee.employeeFirstName || ""} ${employee.employeeSurname || ""}`.trim(),
+            serviceNo:
+              employee.employeeNo ||
+              item.requestDetails.transport.transporterServiceNo,
+            designation: employee.designation || "-",
+            section: employee.empSection || "-",
+            group: employee.empGroup || "-",
+            contactNo: employee.mobileNo || "-",
+          });
+        } else {
+          console.log("No employee data found");
+          setTransportData(null);
+        }
+      } catch (error) {
+        console.error("Error fetching transporter details:", error);
         setTransportData(null);
       }
-    } catch (error) {
-      console.error("Error fetching transporter details:", error);
-      setTransportData(null);
+    } else {
+      setTransportData(item.requestDetails?.transport || null);
     }
-  } else {
-    setTransportData(item.requestDetails?.transport || null);
-  }
 
-  setShowModal(true);
-};
+    setShowModal(true);
+  };
 
   // Enhanced filtering function
   const applyFilters = (items) => {
@@ -1399,8 +1413,8 @@ const ExecutiveApproval = () => {
               {(activeTab === "pending"
                 ? filteredpendingItems
                 : activeTab === "approved"
-                ? filteredapprovedItems
-                : filteredRejectedItems
+                  ? filteredapprovedItems
+                  : filteredRejectedItems
               ).map((item) => (
                 <tr
                   key={item.refNo}
@@ -1467,8 +1481,8 @@ const ExecutiveApproval = () => {
                                                   activeTab === "pending"
                                                     ? "bg-amber-100 hover:bg-amber-200 text-amber-800"
                                                     : activeTab === "approved"
-                                                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                                                    : "bg-rose-100 text-rose-800 hover:bg-rose-200"
+                                                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                                                      : "bg-rose-100 text-rose-800 hover:bg-rose-200"
                                                 }`}
                     >
                       <FaEye className="mr-2" /> View Details
@@ -1484,8 +1498,8 @@ const ExecutiveApproval = () => {
         {(activeTab === "pending"
           ? filteredpendingItems
           : activeTab === "approved"
-          ? filteredapprovedItems
-          : filteredRejectedItems
+            ? filteredapprovedItems
+            : filteredRejectedItems
         ).length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -1540,7 +1554,9 @@ const RequestDetailsModal = ({
   // Initialize with the correct value from request
   const [selectedExecutive, setSelectedExecutive] = useState("");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState([]);
+  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState(
+    [],
+  );
   const [selecteditemDescription, setselecteditemDescription] = useState("");
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [selectedItems, setselectedItems] = useState([]);
@@ -1555,7 +1571,7 @@ const RequestDetailsModal = ({
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
+      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`,
     );
 
     if (!confirmed) return;
@@ -1569,7 +1585,7 @@ const RequestDetailsModal = ({
 
       // Get full details of selected items
       const selecteditemDetails = request.items.filter((item) =>
-        selectedItems.includes(item.serialNumber)
+        selectedItems.includes(item.serialNumber),
       );
 
       console.log("Selected item details:", selecteditemDetails);
@@ -1583,7 +1599,7 @@ const RequestDetailsModal = ({
       await sendReturnEmail(
         request,
         "items successfully returned by executive officer.",
-        selecteditemDetails
+        selecteditemDetails,
       );
 
       // Show success message
@@ -1591,7 +1607,7 @@ const RequestDetailsModal = ({
         `Successfully marked ${
           response.updatedCount || selectedItems.length
         } item(s) as returned.`,
-        "success"
+        "success",
       );
 
       console.log("Bulk return process completed successfully");
@@ -1608,7 +1624,7 @@ const RequestDetailsModal = ({
 
       showToast(
         error.message || "Failed to update items. Please try again.",
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -1690,7 +1706,7 @@ const RequestDetailsModal = ({
       yPos,
       col1Width + col2Width + col3Width + col4Width + col5Width,
       8,
-      "F"
+      "F",
     );
 
     doc.text("item Name", margin + 3, yPos + 5.5);
@@ -1700,7 +1716,7 @@ const RequestDetailsModal = ({
     doc.text(
       "Status",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
-      yPos + 5.5
+      yPos + 5.5,
     );
 
     yPos += 8;
@@ -1719,7 +1735,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
 
         doc.text("item Name", margin + 3, yPos + 5.5);
@@ -1728,12 +1744,12 @@ const RequestDetailsModal = ({
         doc.text(
           "Qty",
           margin + col1Width + col2Width + col3Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
         doc.text(
           "Status",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
 
         yPos += 8;
@@ -1747,7 +1763,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
       }
 
@@ -1762,27 +1778,27 @@ const RequestDetailsModal = ({
       doc.text(
         truncateText(item?.itemDescription || "N/A", 25),
         margin + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.serialNumber || "N/A", 15),
         margin + col1Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.categoryDescription || "N/A", 12),
         margin + col1Width + col2Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemQuantity?.toString() || "1",
         margin + col1Width + col2Width + col3Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemReturnable ? "Returnable" : "Non-Returnable",
         margin + col1Width + col2Width + col3Width + col4Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
 
       // Draw horizontal line after each row
@@ -1790,7 +1806,7 @@ const RequestDetailsModal = ({
         margin,
         yPos + 8,
         margin + col1Width + col2Width + col3Width + col4Width + col5Width,
-        yPos + 8
+        yPos + 8,
       );
 
       yPos += 8;
@@ -1804,7 +1820,7 @@ const RequestDetailsModal = ({
       "This is an electronically generated document and does not require signature.",
       pageWidth / 2,
       footerYPos,
-      { align: "center" }
+      { align: "center" },
     );
 
     // Save the PDF
@@ -1821,8 +1837,8 @@ const RequestDetailsModal = ({
             activeTab === "pending"
               ? "bg-gradient-to-r from-amber-600 to-orange-300"
               : activeTab === "approved"
-              ? "bg-gradient-to-br from-emerald-600 to-green-600"
-              : "bg-gradient-to-br from-rose-600 to-red-400"
+                ? "bg-gradient-to-br from-emerald-600 to-green-600"
+                : "bg-gradient-to-br from-rose-600 to-red-400"
           }`}
         >
           <div className="flex justify-between items-center">
@@ -1919,7 +1935,8 @@ const RequestDetailsModal = ({
                 <thead>
                   <tr className="bg-gray-50">
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      item </th>
+                      item{" "}
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Serial Number
                     </th>
@@ -1974,7 +1991,7 @@ const RequestDetailsModal = ({
                           images={selectedDESCRIPTIONImages}
                           isOpen={isImageModalOpen}
                           onClose={() => setIsImageModalOpen(false)}
-                          itemDescription ={selecteditemDescription}
+                          itemDescription={selecteditemDescription}
                         />
                       </td>
                     </tr>
@@ -1998,7 +2015,8 @@ const RequestDetailsModal = ({
                       Select
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      item </th>
+                      item{" "}
+                    </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                       Serial Number
                     </th>
@@ -2016,7 +2034,7 @@ const RequestDetailsModal = ({
                 <tbody className="divide-y divide-gray-200">
                   {request?.items
                     ?.filter(
-                      (item) => item.status === "return to Executive Officer"
+                      (item) => item.status === "return to Executive Officer",
                     )
                     .map((item, index) => (
                       <tr key={index} className="hover:bg-gray-50">
@@ -2502,7 +2520,6 @@ const RequestDetailsModal = ({
                   </label>
                   <textarea
                     value={comment}
-                    
                     onChange={(e) => setComment(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     rows="1"
@@ -2667,7 +2684,9 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
           {/* Header with close button */}
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemDescription}</h3>
+              <h3 className="text-xl font-semibold text-white">
+                {itemDescription}
+              </h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
@@ -2704,6 +2723,3 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
 };
 
 export default ExecutiveApproval;
-
-
-

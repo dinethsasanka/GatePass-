@@ -11,7 +11,7 @@ import {
 import {
   getImageUrlSync,
   searchReceiverByServiceNo,
-  searchEmployeeByServiceNo
+  searchEmployeeByServiceNo,
 } from "../services/RequestService.js";
 import { jsPDF } from "jspdf";
 import { useToast } from "../components/ToastProvider.jsx";
@@ -127,7 +127,7 @@ const Dispatch = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -140,7 +140,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  fetchReceiverFromErp
+                  fetchReceiverFromErp,
                 );
               } catch (e) {}
             } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
@@ -158,7 +158,7 @@ const Dispatch = () => {
               try {
                 loadUserData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -167,7 +167,7 @@ const Dispatch = () => {
               try {
                 exerctiveOfficerData = await getCachedUser(
                   status.executiveOfficerServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -187,7 +187,7 @@ const Dispatch = () => {
               try {
                 verifyOfficerData = await getCachedUser(
                   vo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -213,7 +213,7 @@ const Dispatch = () => {
               executiveOfficerData: exerctiveOfficerData,
               verifyOfficerData: verifyOfficerData,
             };
-          })
+          }),
         );
 
         const uniqueDESCRIPTIONs = formattedData.reduce((acc, item) => {
@@ -237,7 +237,7 @@ const Dispatch = () => {
       }
     },
     [activeTab, user],
-    { status: 4 } // Dispatch/Petrol Leader pending requests
+    { status: 4 }, // Dispatch/Petrol Leader pending requests
   );
 
   // --- Data Fetching Effects ---
@@ -268,7 +268,7 @@ const Dispatch = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -281,7 +281,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  fetchReceiverFromErp
+                  fetchReceiverFromErp,
                 );
               } catch (e) {}
             } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
@@ -299,7 +299,7 @@ const Dispatch = () => {
               try {
                 loadUserData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -308,7 +308,7 @@ const Dispatch = () => {
               try {
                 exerctiveOfficerData = await getCachedUser(
                   status.executiveOfficerServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -321,7 +321,7 @@ const Dispatch = () => {
               try {
                 verifyOfficerData = await getCachedUser(
                   vo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -343,7 +343,7 @@ const Dispatch = () => {
               executiveOfficerData: exerctiveOfficerData,
               verifyOfficerData: verifyOfficerData,
             };
-          })
+          }),
         );
 
         const uniqueDESCRIPTIONs = formattedData.reduce((acc, item) => {
@@ -400,7 +400,7 @@ const Dispatch = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {
                 // Silently handle missing users
@@ -415,7 +415,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  fetchReceiverFromErp
+                  fetchReceiverFromErp,
                 );
               } catch (e) {
                 // Silently handle missing users
@@ -435,7 +435,7 @@ const Dispatch = () => {
               try {
                 loadUserData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -444,7 +444,7 @@ const Dispatch = () => {
               try {
                 exerctiveOfficerData = await getCachedUser(
                   status.executiveOfficerServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -457,7 +457,7 @@ const Dispatch = () => {
               try {
                 verifyOfficerData = await getCachedUser(
                   vo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -479,7 +479,7 @@ const Dispatch = () => {
               executiveOfficerData: exerctiveOfficerData,
               verifyOfficerData: verifyOfficerData,
             };
-          })
+          }),
         );
 
         // Remove duplicates by reference number (keep the most recent one)
@@ -537,7 +537,7 @@ const Dispatch = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {
                 // Silently handle missing users
@@ -552,7 +552,7 @@ const Dispatch = () => {
               try {
                 receiverDetails = await getCachedUser(
                   receiverServiceNo,
-                  fetchReceiverFromErp
+                  fetchReceiverFromErp,
                 );
               } catch (e) {
                 // Silently handle missing users
@@ -572,7 +572,7 @@ const Dispatch = () => {
               try {
                 loadUserData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -581,7 +581,7 @@ const Dispatch = () => {
               try {
                 exerctiveOfficerData = await getCachedUser(
                   status.executiveOfficerServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -594,7 +594,7 @@ const Dispatch = () => {
               try {
                 verifyOfficerData = await getCachedUser(
                   vo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (e) {}
             }
@@ -617,7 +617,7 @@ const Dispatch = () => {
               verifyOfficerData: verifyOfficerData,
               isNonSlt: status.request?.isNonSltPlace || false,
             };
-          })
+          }),
         );
 
         // Remove duplicates by reference number (keep the most recent one)
@@ -650,13 +650,13 @@ const Dispatch = () => {
   const sendReceiverNotificationEmail = async (
     receiverData,
     requestData,
-    referenceNumber
+    referenceNumber,
   ) => {
     try {
       if (!receiverData?.email) {
         console.warn(
           "Receiver email not available for notification:",
-          receiverData
+          receiverData,
         );
         showToast("Receiver email not available for notification.", "warning");
         return false; // Return false instead of void
@@ -722,7 +722,7 @@ const Dispatch = () => {
                     </span>
                   </td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -779,7 +779,7 @@ const Dispatch = () => {
     senderData,
     requestData,
     referenceNumber,
-    rejectionComment
+    rejectionComment,
   ) => {
     try {
       if (!senderData?.email) {
@@ -799,10 +799,10 @@ const Dispatch = () => {
         <div style="margin-bottom: 20px; padding: 15px; background-color: #fef2f2; border-radius: 4px; border-left: 4px solid #ef4444;">
           <p>Dear ${senderData.name},</p>
           <p>We regret to inform you that your gate pass request (Ref: ${referenceNumber}) from ${
-        requestData.outLocation
-      } to ${
-        requestData.inLocation
-      } has been <strong>rejected</strong> by the Dispatch Officer.</p>
+            requestData.outLocation
+          } to ${
+            requestData.inLocation
+          } has been <strong>rejected</strong> by the Dispatch Officer.</p>
           
           <div style="margin-top: 15px;">
             <p><strong>Rejection Reason:</strong></p>
@@ -846,7 +846,7 @@ const Dispatch = () => {
                   item.itemReturnable ? "Returnable" : "Non-Returnable"
                 }</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </table>
@@ -884,7 +884,7 @@ const Dispatch = () => {
   const sendReturnTOPetrolLeaderEmail = async (
     request,
     comment,
-    selecteditemDetails
+    selecteditemDetails,
   ) => {
     try {
       // Get the executive officer details from the request
@@ -935,8 +935,8 @@ const Dispatch = () => {
           <p style="margin-bottom: 15px;">We would like to inform you that ${
             selecteditemDetails.length
           } returnable item(s) under reference number <b>${
-        request.refNo
-      }</b> have been returned by the Receiver.</p>
+            request.refNo
+          }</b> have been returned by the Receiver.</p>
           
           <p style="margin-bottom: 15px;"><strong>Please review these items and arrange for their return as soon as possible.</strong></p>
           
@@ -983,7 +983,7 @@ const Dispatch = () => {
                     item.itemQuantity || "1"
                   }</td>
                 </tr>
-              `
+              `,
                   )
                   .join("") ||
                 '<tr><td colspan="4" style="padding: 8px; text-align: center;">No items selected</td></tr>'
@@ -1081,7 +1081,7 @@ const Dispatch = () => {
               inLocation: approvedDESCRIPTION.inLocation,
               items: approvedDESCRIPTION.items,
             },
-            approvedDESCRIPTION.refNo
+            approvedDESCRIPTION.refNo,
           );
 
           return {
@@ -1105,9 +1105,8 @@ const Dispatch = () => {
       } else if (receiverServiceNo) {
         // SLT receiver
         try {
-          const receiverDetails = await searchReceiverByServiceNo(
-            receiverServiceNo
-          );
+          const receiverDetails =
+            await searchReceiverByServiceNo(receiverServiceNo);
 
           if (receiverDetails) {
             const receiverName = receiverDetails.name || "SLT Employee";
@@ -1120,7 +1119,7 @@ const Dispatch = () => {
                   inLocation: approvedDESCRIPTION.inLocation,
                   items: approvedDESCRIPTION.items,
                 },
-                approvedDESCRIPTION.refNo
+                approvedDESCRIPTION.refNo,
               );
 
               return {
@@ -1243,7 +1242,7 @@ const Dispatch = () => {
       // Handle email notification
       const emailResult = await handleEmailNotification(
         statusData.request, // Pass the entire request object
-        approvedDESCRIPTION
+        approvedDESCRIPTION,
       );
 
       // Show appropriate messages
@@ -1309,25 +1308,25 @@ const Dispatch = () => {
               items: rejectedDESCRIPTION.items,
             },
             rejectedDESCRIPTION.refNo,
-            comment
+            comment,
           );
 
           if (emailSent) {
             showToast(
               "Rejection email sent to sender successfully.",
-              "success"
+              "success",
             );
           } else {
             showToast(
               "Rejected but failed to send email notification.",
-              "warning"
+              "warning",
             );
           }
         } else {
           console.warn("Sender details or email not available:", senderDetails);
           showToast(
             "Rejected but sender email address not available.",
-            "warning"
+            "warning",
           );
         }
       } catch (emailError) {
@@ -1382,7 +1381,7 @@ const Dispatch = () => {
                   item.itemQuantity || "1"
                 }</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -1406,8 +1405,8 @@ const Dispatch = () => {
           <p>We would like to inform you that ${
             itemDetails.length
           } returnable item(s) under reference number <b>${
-        request.refNo
-      }</b> have been returned by the Receiver.</p>
+            request.refNo
+          }</b> have been returned by the Receiver.</p>
           <p>You can view it under your <i>Completed</i> or relevant section.</p>
         </div>
 
@@ -1434,42 +1433,44 @@ const Dispatch = () => {
   };
 
   const handleModelOpen = async (item) => {
-  setselectedItem(item);
+    setselectedItem(item);
 
-  if (item.requestDetails?.transport.transporterServiceNo) {
-    try {
-      const transportResponse = await searchEmployeeByServiceNo(
-        item.requestDetails.transport.transporterServiceNo
-      );
-      
-      console.log("Transport response:", transportResponse); // Debug log
-      
-      // Extract the employee data from the nested response
-      const employee = transportResponse?.data?.data?.[0];
-      
-      if (employee) {
-        setTransportData({
-          name: `${employee.employeeTitle || ""} ${employee.employeeFirstName || ""} ${employee.employeeSurname || ""}`.trim(),
-          serviceNo: employee.employeeNo || item.requestDetails.transport.transporterServiceNo,
-          designation: employee.designation || "-",
-          section: employee.empSection || "-",
-          group: employee.empGroup || "-",
-          contactNo: employee.mobileNo || "-"
-        });
-      } else {
-        console.log("No employee data found");
+    if (item.requestDetails?.transport.transporterServiceNo) {
+      try {
+        const transportResponse = await searchEmployeeByServiceNo(
+          item.requestDetails.transport.transporterServiceNo,
+        );
+
+        console.log("Transport response:", transportResponse); // Debug log
+
+        // Extract the employee data from the nested response
+        const employee = transportResponse?.data?.data?.[0];
+
+        if (employee) {
+          setTransportData({
+            name: `${employee.employeeTitle || ""} ${employee.employeeFirstName || ""} ${employee.employeeSurname || ""}`.trim(),
+            serviceNo:
+              employee.employeeNo ||
+              item.requestDetails.transport.transporterServiceNo,
+            designation: employee.designation || "-",
+            section: employee.empSection || "-",
+            group: employee.empGroup || "-",
+            contactNo: employee.mobileNo || "-",
+          });
+        } else {
+          console.log("No employee data found");
+          setTransportData(null);
+        }
+      } catch (error) {
+        console.error("Error fetching transporter details:", error);
         setTransportData(null);
       }
-    } catch (error) {
-      console.error("Error fetching transporter details:", error);
-      setTransportData(null);
+    } else {
+      setTransportData(item.requestDetails?.transport || null);
     }
-  } else {
-    setTransportData(item.requestDetails?.transport || null);
-  }
 
-  setShowModal(true);
-};
+    setShowModal(true);
+  };
 
   // --- Enhanced Filtering ---
   // Hide Non-SLT requests in pending table for Petrol Leader 2 (PL2) users
@@ -1821,8 +1822,8 @@ const Dispatch = () => {
               {(activeTab === "pending"
                 ? filteredpendingItems
                 : activeTab === "approved"
-                ? filteredApprovedDESCRIPTIONs
-                : filteredRejectedDESCRIPTIONs
+                  ? filteredApprovedDESCRIPTIONs
+                  : filteredRejectedDESCRIPTIONs
               ).map((item) => (
                 <tr
                   key={item.refNo}
@@ -1861,8 +1862,8 @@ const Dispatch = () => {
                                                   activeTab === "pending"
                                                     ? "bg-amber-100 hover:bg-amber-200 text-amber-800"
                                                     : activeTab === "approved"
-                                                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                                                    : "bg-rose-100 text-rose-800 hover:bg-rose-200"
+                                                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                                                      : "bg-rose-100 text-rose-800 hover:bg-rose-200"
                                                 }`}
                     >
                       <FaEye className="mr-2" /> View Details
@@ -1878,8 +1879,8 @@ const Dispatch = () => {
         {(activeTab === "pending"
           ? filteredpendingItems
           : activeTab === "approved"
-          ? filteredApprovedDESCRIPTIONs
-          : filteredRejectedDESCRIPTIONs
+            ? filteredApprovedDESCRIPTIONs
+            : filteredRejectedDESCRIPTIONs
         ).length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -1934,7 +1935,9 @@ const RequestDetailsModal = ({
   const tabOrder = ["details", "navigation"];
   const DispatchStatus = true;
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState([]);
+  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState(
+    [],
+  );
   const [selecteditemDescription, setSelecteditemDescription] = useState("");
   const [selectedItems, setselectedItems] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1953,7 +1956,7 @@ const RequestDetailsModal = ({
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
+      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`,
     );
 
     if (!confirmed) return;
@@ -1967,7 +1970,7 @@ const RequestDetailsModal = ({
 
       // Get full details of selected items
       const selecteditemDetails = request.items.filter((item) =>
-        selectedItems.includes(item.serialNumber)
+        selectedItems.includes(item.serialNumber),
       );
 
       console.log("Selected item details:", selecteditemDetails);
@@ -1981,19 +1984,19 @@ const RequestDetailsModal = ({
       await sendReturnEmail(
         request,
         "items successfully returned by out petrol leader.",
-        selecteditemDetails
+        selecteditemDetails,
       );
       await sendReturnTOPetrolLeaderEmail(
         request,
         "items successfully returned by out petrol leader.",
-        selecteditemDetails
+        selecteditemDetails,
       );
       // Show success message
       showToast(
         `Successfully marked ${
           response.updatedCount || selectedItems.length
         } item(s) as returned.`,
-        "success"
+        "success",
       );
 
       console.log("Bulk return process completed successfully");
@@ -2010,7 +2013,7 @@ const RequestDetailsModal = ({
 
       showToast(
         error.message || "Failed to update items. Please try again.",
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -2081,31 +2084,31 @@ const RequestDetailsModal = ({
               <div class="grid">
                 <div class="item"><span class="label">Name:</span> ${safeAccess(
                   request,
-                  "executiveOfficerData.name"
+                  "executiveOfficerData.name",
                 )}</div>
                 <div class="item"><span class="label">Service No:</span> ${safeAccess(
                   request,
-                  "executiveOfficerData.serviceNo"
+                  "executiveOfficerData.serviceNo",
                 )}</div>
                 <div class="item"><span class="label">Section:</span> ${safeAccess(
                   request,
-                  "executiveOfficerData.section"
+                  "executiveOfficerData.section",
                 )}</div>
                 <div class="item"><span class="label">Group:</span> ${safeAccess(
                   request,
-                  "executiveOfficerData.group"
+                  "executiveOfficerData.group",
                 )}</div>
                 <div class="item"><span class="label">Designation:</span> ${safeAccess(
                   request,
-                  "executiveOfficerData.designation"
+                  "executiveOfficerData.designation",
                 )}</div>
                 <div class="item"><span class="label">Contact:</span> ${safeAccess(
                   request,
-                  "executiveOfficerData.contactNo"
+                  "executiveOfficerData.contactNo",
                 )}</div>
                 <div class="itemComm"><span class="label">Exerctive Officer Comment:</span> ${safeAccess(
                   request.statusDetails,
-                  "executiveOfficerComment"
+                  "executiveOfficerComment",
                 )}</div>
               </div>
             </div>
@@ -2119,31 +2122,31 @@ const RequestDetailsModal = ({
               <div class="grid">
                 <div class="item"><span class="label">Name:</span> ${safeAccess(
                   request,
-                  "verifyOfficerData.name"
+                  "verifyOfficerData.name",
                 )}</div>
                 <div class="item"><span class="label">Service No:</span> ${safeAccess(
                   request,
-                  "verifyOfficerData.serviceNo"
+                  "verifyOfficerData.serviceNo",
                 )}</div>
                 <div class="item"><span class="label">Section:</span> ${safeAccess(
                   request,
-                  "verifyOfficerData.section"
+                  "verifyOfficerData.section",
                 )}</div>
                 <div class="item"><span class="label">Group:</span> ${safeAccess(
                   request,
-                  "verifyOfficerData.group"
+                  "verifyOfficerData.group",
                 )}</div>
                 <div class="item"><span class="label">Designation:</span> ${safeAccess(
                   request,
-                  "verifyOfficerData.designation"
+                  "verifyOfficerData.designation",
                 )}</div>
                 <div class="item"><span class="label">Contact:</span> ${safeAccess(
                   request,
-                  "verifyOfficerData.contactNo"
+                  "verifyOfficerData.contactNo",
                 )}</div>
                 <div class="item"><span class="label">Verify Officer Comment:</span> ${safeAccess(
                   request.statusDetails,
-                  "verifyOfficerComment"
+                  "verifyOfficerComment",
                 )}</div>
               </div>
             </div>
@@ -2188,27 +2191,27 @@ const RequestDetailsModal = ({
               <div class="grid">
                 <div class="item"><span class="label">Name:</span> ${safeAccess(
                   request,
-                  "senderDetails.name"
+                  "senderDetails.name",
                 )}</div>
                 <div class="item"><span class="label">Service No:</span> ${safeAccess(
                   request,
-                  "senderDetails.serviceNo"
+                  "senderDetails.serviceNo",
                 )}</div>
                 <div class="item"><span class="label">Section:</span> ${safeAccess(
                   request,
-                  "senderDetails.section"
+                  "senderDetails.section",
                 )}</div>
                 <div class="item"><span class="label">Group:</span> ${safeAccess(
                   request,
-                  "senderDetails.group"
+                  "senderDetails.group",
                 )}</div>
                 <div class="item"><span class="label">Designation:</span> ${safeAccess(
                   request,
-                  "senderDetails.designation"
+                  "senderDetails.designation",
                 )}</div>
                 <div class="item"><span class="label">Contact:</span> ${safeAccess(
                   request,
-                  "senderDetails.contactNo"
+                  "senderDetails.contactNo",
                 )}</div>
               </div>
             </div>
@@ -2218,27 +2221,27 @@ const RequestDetailsModal = ({
               <div class="grid">
                 <div class="item"><span class="label">Name:</span> ${safeAccess(
                   request,
-                  "receiverDetails.name"
+                  "receiverDetails.name",
                 )}</div>
                 <div class="item"><span class="label">Service No:</span> ${safeAccess(
                   request,
-                  "receiverDetails.serviceNo"
+                  "receiverDetails.serviceNo",
                 )}</div>
                 <div class="item"><span class="label">Section:</span> ${safeAccess(
                   request,
-                  "receiverDetails.section"
+                  "receiverDetails.section",
                 )}</div>
                 <div class="item"><span class="label">Group:</span> ${safeAccess(
                   request,
-                  "receiverDetails.group"
+                  "receiverDetails.group",
                 )}</div>
                 <div class="item"><span class="label">Designation:</span> ${safeAccess(
                   request,
-                  "receiverDetails.designation"
+                  "receiverDetails.designation",
                 )}</div>
                 <div class="item"><span class="label">Contact:</span> ${safeAccess(
                   request,
-                  "receiverDetails.contactNo"
+                  "receiverDetails.contactNo",
                 )}</div>
               </div>
             </div>
@@ -2260,16 +2263,16 @@ const RequestDetailsModal = ({
               <div class="grid">
                 <div class="item"><span class="label">Method:</span> ${safeAccess(
                   request,
-                  "requestDetails.transport.transportMethod"
+                  "requestDetails.transport.transportMethod",
                 )}</div>
                 <div class="item"><span class="label">Type:</span> ${safeAccess(
                   request,
-                  "requestDetails.transport.transporterType"
+                  "requestDetails.transport.transporterType",
                 )}</div>
                 ${
                   safeAccess(
                     request?.requestDetails?.transport,
-                    "transporterType"
+                    "transporterType",
                   ) === "SLT"
                     ? `
                 <div class="item"><span class="label">Transporter:</span> ${
@@ -2287,16 +2290,16 @@ const RequestDetailsModal = ({
                 ${
                   safeAccess(
                     request?.requestDetails?.transport,
-                    "transportMethod"
+                    "transportMethod",
                   ) === "Vehicle"
                     ? `
                 <div class="item"><span class="label">Vehicle No:</span> ${safeAccess(
                   request?.requestDetails,
-                  "vehicleNumber"
+                  "vehicleNumber",
                 )}</div>
                 <div class="item"><span class="label">Vehicle Item Code:</span> ${safeAccess(
                   request?.requestDetails,
-                  "vehicleModel"
+                  "vehicleModel",
                 )}</div>
                 `
                     : ""
@@ -2305,34 +2308,34 @@ const RequestDetailsModal = ({
                     : `
                 <div class="item"><span class="label">Transporter:</span> ${safeAccess(
                   request?.requestDetails?.transport,
-                  "nonSLTTransporterName"
+                  "nonSLTTransporterName",
                 )}</div>
                 <div class="item"><span class="label">NIC:</span> ${safeAccess(
                   request?.requestDetails?.transport,
-                  "nonSLTTransporterNIC"
+                  "nonSLTTransporterNIC",
                 )}</div>
                 <div class="item"><span class="label">Contact:</span> ${safeAccess(
                   request?.requestDetails?.transport,
-                  "nonSLTTransporterPhone"
+                  "nonSLTTransporterPhone",
                 )}</div>
                 <div class="item"><span class="label">Email:</span> ${safeAccess(
                   request?.requestDetails?.transport,
-                  "nonSLTTransporterEmail"
+                  "nonSLTTransporterEmail",
                 )}</div>
                 
                 ${
                   safeAccess(
                     request?.requestDetails?.transport,
-                    "transportMethod"
+                    "transportMethod",
                   ) === "Vehicle"
                     ? `
                 <div class="item"><span class="label">Vehicle No:</span> ${safeAccess(
                   request?.requestDetails,
-                  "vehicleNumber"
+                  "vehicleNumber",
                 )}</div>
                 <div class="item"><span class="label">Vehicle Item Code:</span> ${safeAccess(
                   request?.requestDetails,
-                  "vehicleModel"
+                  "vehicleModel",
                 )}</div>
                 `
                     : ""
@@ -2351,21 +2354,21 @@ const RequestDetailsModal = ({
               <div class="grid">
                 <div class="item"><span class="label">Loading Location:</span> ${safeAccess(
                   request?.requestDetails?.loading,
-                  "loadingLocation"
+                  "loadingLocation",
                 )}</div>
                 <div class="item"><span class="label">Loading Time:</span> ${
                   safeAccess(request?.requestDetails?.loading, "loadingTime")
                     ? new Date(
                         safeAccess(
                           request?.requestDetails?.loading,
-                          "loadingTime"
-                        )
+                          "loadingTime",
+                        ),
                       ).toLocaleString()
                     : "N/A"
                 }</div>
                 <div class="item"><span class="label">Staff Type:</span> ${safeAccess(
                   request?.requestDetails?.loading,
-                  "staffType"
+                  "staffType",
                 )}</div>
                 
                 ${
@@ -2374,49 +2377,49 @@ const RequestDetailsModal = ({
                     ? `
                   <div class="item"><span class="label">Staff Service No:</span> ${safeAccess(
                     request?.requestDetails?.loading,
-                    "staffServiceNo"
+                    "staffServiceNo",
                   )}</div>
                   <div class="item"><span class="label">Name:</span> ${safeAccess(
                     request,
-                    "loadUserData.name"
+                    "loadUserData.name",
                   )}</div>
                   <div class="item"><span class="label">Section:</span> ${safeAccess(
                     request,
-                    "loadUserData.section"
+                    "loadUserData.section",
                   )}</div>
                   <div class="item"><span class="label">Group:</span> ${safeAccess(
                     request,
-                    "loadUserData.group"
+                    "loadUserData.group",
                   )}</div>
                   <div class="item"><span class="label">Designation:</span> ${safeAccess(
                     request,
-                    "loadUserData.designation"
+                    "loadUserData.designation",
                   )}</div>
                   <div class="item"><span class="label">Contact:</span> ${safeAccess(
                     request,
-                    "loadUserData.contactNo"
+                    "loadUserData.contactNo",
                   )}</div>
                 `
                     : `
                   <div class="item"><span class="label">Staff Name:</span> ${safeAccess(
                     request?.requestDetails?.loading,
-                    "nonSLTStaffName"
+                    "nonSLTStaffName",
                   )}</div>
                   <div class="item"><span class="label">Company:</span> ${safeAccess(
                     request?.requestDetails?.loading,
-                    "nonSLTStaffCompany"
+                    "nonSLTStaffCompany",
                   )}</div>
                   <div class="item"><span class="label">NIC:</span> ${safeAccess(
                     request?.requestDetails?.loading,
-                    "nonSLTStaffNIC"
+                    "nonSLTStaffNIC",
                   )}</div>
                   <div class="item"><span class="label">Contact:</span> ${safeAccess(
                     request?.requestDetails?.loading,
-                    "nonSLTStaffContact"
+                    "nonSLTStaffContact",
                   )}</div>
                   <div class="item"><span class="label">Email:</span> ${safeAccess(
                     request?.requestDetails?.loading,
-                    "nonSLTStaffEmail"
+                    "nonSLTStaffEmail",
                   )}</div>
                 `
                 }
@@ -2439,7 +2442,7 @@ const RequestDetailsModal = ({
                       <td>${item?.categoryDescription || "-"}</td>
                       <td>${item?.itemCode || "-"}</td>
                     </tr>
-                  `
+                  `,
                     )
                     .join("")}
                 </tbody>
@@ -2517,7 +2520,7 @@ const RequestDetailsModal = ({
       yPos,
       col1Width + col2Width + col3Width + col4Width + col5Width,
       8,
-      "F"
+      "F",
     );
 
     doc.text("item", margin + 3, yPos + 5.5);
@@ -2527,7 +2530,7 @@ const RequestDetailsModal = ({
     doc.text(
       "Item Code",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
-      yPos + 5.5
+      yPos + 5.5,
     );
 
     yPos += 8;
@@ -2542,7 +2545,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
         doc.text("item", margin + 3, yPos + 5.5);
         doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
@@ -2550,12 +2553,12 @@ const RequestDetailsModal = ({
         doc.text(
           "Qty",
           margin + col1Width + col2Width + col3Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
         doc.text(
           "Item Code",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
         yPos += 8;
       }
@@ -2567,7 +2570,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
       }
 
@@ -2581,34 +2584,34 @@ const RequestDetailsModal = ({
       doc.text(
         truncateText(item?.itemDescription || "N/A", 25),
         margin + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.serialNumber || "N/A", 15),
         margin + col1Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.categoryDescription || "N/A", 12),
         margin + col1Width + col2Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemQuantity?.toString() || "1",
         margin + col1Width + col2Width + col3Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.itemCode || "N/A", 15),
         margin + col1Width + col2Width + col3Width + col4Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
 
       doc.line(
         margin,
         yPos + 8,
         margin + col1Width + col2Width + col3Width + col4Width + col5Width,
-        yPos + 8
+        yPos + 8,
       );
 
       yPos += 8;
@@ -2621,7 +2624,7 @@ const RequestDetailsModal = ({
       "This is an electronically generated document and does not require signature.",
       pageWidth / 2,
       footerYPos,
-      { align: "center" }
+      { align: "center" },
     );
 
     doc.save(`SLT_GatePass_DESCRIPTIONs_${request.refNo}.pdf`);
@@ -2636,8 +2639,8 @@ const RequestDetailsModal = ({
             activeTab === "pending"
               ? "bg-gradient-to-r from-amber-600 to-orange-300"
               : activeTab === "approved"
-              ? "bg-gradient-to-br from-emerald-600 to-green-600"
-              : "bg-gradient-to-br from-rose-600 to-red-400"
+                ? "bg-gradient-to-br from-emerald-600 to-green-600"
+                : "bg-gradient-to-br from-rose-600 to-red-400"
           }`}
         >
           <div className="flex justify-between items-center">
@@ -2785,7 +2788,9 @@ const RequestDetailsModal = ({
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="px-6 py-4">{item?.itemDescription}</td>
                           <td className="px-6 py-4">{item?.serialNumber}</td>
-                          <td className="px-6 py-4">{item?.categoryDescription}</td>
+                          <td className="px-6 py-4">
+                            {item?.categoryDescription}
+                          </td>
                           <td className="px-6 py-4">{item?.itemQuantity}</td>
                           <td className="px-6 py-4">{item?.itemCode}</td>
                           <td className="px-6 py-4">
@@ -2856,7 +2861,7 @@ const RequestDetailsModal = ({
                     <tbody className="divide-y divide-gray-200">
                       {request?.items
                         ?.filter(
-                          (item) => item.status === "return to Petrol Leader"
+                          (item) => item.status === "return to Petrol Leader",
                         )
                         .map((item, index) => (
                           <tr key={index} className="hover:bg-gray-50">
@@ -2864,12 +2869,16 @@ const RequestDetailsModal = ({
                               <input
                                 type="checkbox"
                                 disabled={isSuperAdmin}
-                                checked={selectedItems?.includes(item.serialNumber)}
+                                checked={selectedItems?.includes(
+                                  item.serialNumber,
+                                )}
                                 onChange={() => handleSelect(item.serialNumber)}
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                               />
                             </td>
-                            <td className="px-6 py-4">{item.itemDescription}</td>
+                            <td className="px-6 py-4">
+                              {item.itemDescription}
+                            </td>
                             <td className="px-6 py-4">{item.serialNumber}</td>
                             <td className="px-6 py-4">{item?.itemQuantity}</td>
                             <td className="px-6 py-4">{item?.itemCode}</td>
@@ -3543,7 +3552,9 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
           {/* Header with close button */}
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemDescription}</h3>
+              <h3 className="text-xl font-semibold text-white">
+                {itemDescription}
+              </h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"

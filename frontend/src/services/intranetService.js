@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
 
 /**
  * Get all item categories
@@ -29,11 +30,14 @@ export const getItemCategories = async () => {
 export const getItemBySerialNumber = async (serialNumber) => {
   try {
     const token = localStorage.getItem("token");
-    const response = await axios.get(`${API_BASE_URL}/intranet/items/${serialNumber}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
+    const response = await axios.get(
+      `${API_BASE_URL}/intranet/items/${serialNumber}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       },
-    });
+    );
     return response.data;
   } catch (error) {
     console.error(`Error fetching item ${serialNumber}:`, error);
@@ -84,7 +88,7 @@ export const syncHolidays = async (year) => {
         params: {
           year: currentYear,
         },
-      }
+      },
     );
     return response.data;
   } catch (error) {

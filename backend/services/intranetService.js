@@ -18,20 +18,29 @@ const intranetAxios = axios.create({
  */
 const getItemCategories = async () => {
   try {
-    console.log("Fetching item categories from:", INTRANET_BASE_URL + "/items/categories");
+    console.log(
+      "Fetching item categories from:",
+      INTRANET_BASE_URL + "/items/categories",
+    );
     const response = await intranetAxios.get("/items/categories");
-    
+
     // Handle the response format: { status, data, message }
-    if (response.data && response.data.status === 'success' && Array.isArray(response.data.data)) {
+    if (
+      response.data &&
+      response.data.status === "success" &&
+      Array.isArray(response.data.data)
+    ) {
       return response.data.data; // Return the array of category strings
     }
-    
+
     // Fallback if format is different
     return response.data;
   } catch (error) {
     console.error("Error fetching item categories:", error.message);
-    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-      throw new Error("Intranet API is not reachable. Please check network connectivity.");
+    if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
+      throw new Error(
+        "Intranet API is not reachable. Please check network connectivity.",
+      );
     }
     throw new Error(`Failed to fetch item categories: ${error.message}`);
   }
@@ -44,20 +53,25 @@ const getItemCategories = async () => {
  */
 const getItemBySerialNumber = async (serialNumber) => {
   try {
-    console.log(`Fetching item ${serialNumber} from:`, INTRANET_BASE_URL + `/items/${serialNumber}`);
+    console.log(
+      `Fetching item ${serialNumber} from:`,
+      INTRANET_BASE_URL + `/items/${serialNumber}`,
+    );
     const response = await intranetAxios.get(`/items/${serialNumber}`);
-    
+
     // Handle the response format: { status, data, message }
-    if (response.data && response.data.status === 'success') {
+    if (response.data && response.data.status === "success") {
       return response.data.data; // Return the item object
     }
-    
+
     // Fallback if format is different
     return response.data;
   } catch (error) {
     console.error(`Error fetching item ${serialNumber}:`, error.message);
-    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-      throw new Error("Intranet API is not reachable. Please check network connectivity.");
+    if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
+      throw new Error(
+        "Intranet API is not reachable. Please check network connectivity.",
+      );
     }
     if (error.response?.status === 404) {
       throw new Error(`Item with serial number ${serialNumber} not found`);
@@ -73,28 +87,37 @@ const getItemBySerialNumber = async (serialNumber) => {
  */
 const getHolidays = async (year = new Date().getFullYear()) => {
   try {
-    console.log(`Fetching holidays for year ${year} from:`, INTRANET_BASE_URL + `/holidays?year=${year}`);
+    console.log(
+      `Fetching holidays for year ${year} from:`,
+      INTRANET_BASE_URL + `/holidays?year=${year}`,
+    );
     const response = await intranetAxios.get(`/holidays`, {
-      params: { year }
+      params: { year },
     });
-    
+
     // Handle the response format: { status, data, message }
-    if (response.data && response.data.status === 'success' && Array.isArray(response.data.data)) {
+    if (
+      response.data &&
+      response.data.status === "success" &&
+      Array.isArray(response.data.data)
+    ) {
       // Transform the data to match our Holiday model format
-      return response.data.data.map(holiday => ({
-        dateISO: new Date(holiday.holidayDate).toISOString().split('T')[0], // Convert to YYYY-MM-DD
+      return response.data.data.map((holiday) => ({
+        dateISO: new Date(holiday.holidayDate).toISOString().split("T")[0], // Convert to YYYY-MM-DD
         name: holiday.holidayName,
         calendarName: holiday.calendarName,
-        originalDate: holiday.holidayDate
+        originalDate: holiday.holidayDate,
       }));
     }
-    
+
     // Fallback if format is different
     return response.data;
   } catch (error) {
     console.error(`Error fetching holidays for ${year}:`, error.message);
-    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-      throw new Error("Intranet API is not reachable. Please check network connectivity.");
+    if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
+      throw new Error(
+        "Intranet API is not reachable. Please check network connectivity.",
+      );
     }
     throw new Error(`Failed to fetch holidays: ${error.message}`);
   }

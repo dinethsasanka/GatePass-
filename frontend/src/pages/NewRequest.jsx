@@ -25,7 +25,10 @@ import axiosInstance from "../services/axiosConfig.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { emailSent } from "../services/emailService.js";
 import { FileSpreadsheet } from "lucide-react";
-import { useItemCategories, useItemBySerialNumber } from "../hooks/useIntranetData.js";
+import {
+  useItemCategories,
+  useItemBySerialNumber,
+} from "../hooks/useIntranetData.js";
 
 const NewRequest = () => {
   const [user, setUser] = useState(null);
@@ -47,10 +50,11 @@ const NewRequest = () => {
   const [outLocations, setOutLocations] = useState([]);
   const [erpLocations, setErpLocations] = useState([]);
   const { showToast } = useToast();
-  
+
   // Use intranet API for categories
-  const { categories: intranetCategories, loading: categoriesLoading } = useItemCategories();
-  
+  const { categories: intranetCategories, loading: categoriesLoading } =
+    useItemCategories();
+
   const [currentItem, setCurrentItem] = useState({
     serialNumber: "",
     itemCode: "",
@@ -62,7 +66,7 @@ const NewRequest = () => {
     images: [],
     returnDate: "",
   });
-  
+
   // For serial number lookup
   const [serialNumberInput, setSerialNumberInput] = useState("");
   const [isSearchingItem, setIsSearchingItem] = useState(false);
@@ -302,9 +306,10 @@ const NewRequest = () => {
 
     setIsSearchingItem(true);
     try {
-      const { getItemBySerialNumber } = await import("../services/intranetService.js");
+      const { getItemBySerialNumber } =
+        await import("../services/intranetService.js");
       const itemData = await getItemBySerialNumber(serialNumberInput.trim());
-      
+
       // Populate form with API data
       setCurrentItem({
         serialNumber: itemData.serialNumber,
@@ -317,7 +322,7 @@ const NewRequest = () => {
         images: [],
         returnDate: "",
       });
-      
+
       showToast("Item found and loaded", "success");
     } catch (error) {
       console.error("Error fetching item:", error);
@@ -344,8 +349,15 @@ const NewRequest = () => {
   };
   const handleItemSubmit = () => {
     // Validate required fields
-    if (!currentItem.serialNumber || !currentItem.itemDescription || !currentItem.categoryDescription) {
-      showToast("Please fill in all required fields (Serial Number, Description, Category)", "warning");
+    if (
+      !currentItem.serialNumber ||
+      !currentItem.itemDescription ||
+      !currentItem.categoryDescription
+    ) {
+      showToast(
+        "Please fill in all required fields (Serial Number, Description, Category)",
+        "warning",
+      );
       return;
     }
 
@@ -359,11 +371,14 @@ const NewRequest = () => {
     const itemToSave = {
       ...currentItem,
       returnable: currentItem.returnable || "No",
-      returnDate: currentItem.returnable === "Yes" ? currentItem.returnDate : null,
+      returnDate:
+        currentItem.returnable === "Yes" ? currentItem.returnDate : null,
     };
-    
+
     if (currentItem.id) {
-      setItems(items.map((item) => (item.id === currentItem.id ? itemToSave : item)));
+      setItems(
+        items.map((item) => (item.id === currentItem.id ? itemToSave : item)),
+      );
       showToast("Item updated successfully", "success");
     } else {
       setItems([...items, { ...itemToSave, id: Date.now().toString() }]);
@@ -978,7 +993,12 @@ const NewRequest = () => {
         });
 
         // Validate item data
-        if (!item.serialNumber || !item.itemDescription || !item.categoryDescription) continue;
+        if (
+          !item.serialNumber ||
+          !item.itemDescription ||
+          !item.categoryDescription
+        )
+          continue;
 
         // Convert returnable to Yes/No format
         if (item.returnable) {
@@ -1159,7 +1179,8 @@ const NewRequest = () => {
                   <p className="mt-2 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
                     {execRestriction.reason === "HOLIDAY" && (
                       <>
-                        Only Senior Executives (Grade A.1–A.3) are allowed on public holidays.
+                        Only Senior Executives (Grade A.1–A.3) are allowed on
+                        public holidays.
                         {execRestriction.holidayName && (
                           <span className="block mt-1 font-semibold">
                             Today: {execRestriction.holidayName}
@@ -1237,19 +1258,19 @@ const NewRequest = () => {
                 {destinationType === "slt" ? (
                   <>
                     <div className="flex gap-4">
-                                           <input
-  type="text"
-  value={receiverServiceNo}
-  onChange={(e) => setReceiverServiceNo(e.target.value)}
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSearchReceiver(); // SAME as Search button
-    }
-  }}
-  placeholder="Enter receiver's service number"
-  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-/>
+                      <input
+                        type="text"
+                        value={receiverServiceNo}
+                        onChange={(e) => setReceiverServiceNo(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleSearchReceiver(); // SAME as Search button
+                          }
+                        }}
+                        placeholder="Enter receiver's service number"
+                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
                       <button
                         onClick={handleSearchReceiver}
                         disabled={!receiverServiceNo.trim()}
@@ -1505,8 +1526,8 @@ const NewRequest = () => {
                   </h3>
                   <p className="text-blue-600 mb-4">
                     You can import multiple items at once using a CSV file. The
-                    CSV should have columns for serialNumber, itemDescription, categoryDescription,
-                    returnable, and qty.
+                    CSV should have columns for serialNumber, itemDescription,
+                    categoryDescription, returnable, and qty.
                   </p>
                   <div className="flex gap-4">
                     <button
@@ -1560,7 +1581,8 @@ const NewRequest = () => {
                       </button>
                     </div>
                     <p className="mt-2 text-xs text-gray-500">
-                      Search for an item by serial number, or fill in the details manually below
+                      Search for an item by serial number, or fill in the
+                      details manually below
                     </p>
                   </div>
 
@@ -1991,19 +2013,21 @@ const NewRequest = () => {
                   {transporterType === "SLT" && (
                     <div className="space-y-4 mt-4">
                       <div className="flex gap-4">
-                                               <input
-  type="text"
-  value={transporterServiceNo}
-  onChange={(e) => setTransporterServiceNo(e.target.value)}
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      handleSearchTransporter();
-    }
-  }}
-  placeholder="Enter transporter's service number"
-  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg"
-/>
+                        <input
+                          type="text"
+                          value={transporterServiceNo}
+                          onChange={(e) =>
+                            setTransporterServiceNo(e.target.value)
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleSearchTransporter();
+                            }
+                          }}
+                          placeholder="Enter transporter's service number"
+                          className="flex-1 px-4 py-2 border border-gray-200 rounded-lg"
+                        />
                         <button
                           onClick={handleSearchTransporter}
                           disabled={!transporterServiceNo.trim()}

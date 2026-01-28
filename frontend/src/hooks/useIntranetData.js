@@ -21,7 +21,11 @@ export const useItemCategories = () => {
       const data = await getItemCategories();
       setCategories(data);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Failed to fetch categories");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to fetch categories",
+      );
       // Set empty array on error to prevent breaking UI
       setCategories([]);
     } finally {
@@ -50,7 +54,7 @@ export const useItemBySerialNumber = (serialNumber, shouldFetch = false) => {
 
   const fetchItem = async (sn) => {
     const numberToFetch = sn || serialNumber;
-    
+
     if (!numberToFetch) {
       setItem(null);
       setFound(null);
@@ -64,7 +68,9 @@ export const useItemBySerialNumber = (serialNumber, shouldFetch = false) => {
       setItem(data);
       setFound(true);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Failed to fetch item");
+      setError(
+        err.response?.data?.message || err.message || "Failed to fetch item",
+      );
       setItem(null);
       setFound(false);
     } finally {
@@ -98,7 +104,11 @@ export const useHolidays = (year) => {
       const data = await getHolidays(year);
       setHolidays(data);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || "Failed to fetch holidays");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to fetch holidays",
+      );
       // Set empty array on error to prevent breaking UI
       setHolidays([]);
     } finally {

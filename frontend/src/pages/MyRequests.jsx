@@ -190,7 +190,9 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
           {/* Header with close button */}
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemDescription}</h3>
+              <h3 className="text-xl font-semibold text-white">
+                {itemDescription}
+              </h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
@@ -454,7 +456,11 @@ const RequestDetailsModal = ({
     doc.text("Description", margin + 3, yPos + 5.5);
     doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
     doc.text("Item Code", margin + col1Width + col2Width + 3, yPos + 5.5);
-    doc.text("Category", margin + col1Width + col2Width + col3Width + 3, yPos + 5.5);
+    doc.text(
+      "Category",
+      margin + col1Width + col2Width + col3Width + 3,
+      yPos + 5.5,
+    );
 
     yPos += 8;
 

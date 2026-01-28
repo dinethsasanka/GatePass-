@@ -120,7 +120,8 @@ const fetchReceiverDetails = async (serviceNo) => {
 
 const fetchOfficerData = async (status) => {
   const execServiceNo =
-    status?.executiveOfficerServiceNo || status?.request?.executiveOfficerServiceNo;
+    status?.executiveOfficerServiceNo ||
+    status?.request?.executiveOfficerServiceNo;
   const verifyServiceNo =
     status?.verifyOfficerServiceNumber ||
     status?.verifyOfficerServiceNo ||
@@ -133,7 +134,7 @@ const fetchOfficerData = async (status) => {
     try {
       executiveOfficerData = await getCachedUser(
         execServiceNo,
-        searchUserByServiceNo
+        searchUserByServiceNo,
       );
     } catch {}
   }
@@ -142,7 +143,7 @@ const fetchOfficerData = async (status) => {
     try {
       verifyOfficerData = await getCachedUser(
         verifyServiceNo,
-        searchUserByServiceNo
+        searchUserByServiceNo,
       );
     } catch {}
   }
@@ -224,13 +225,13 @@ const Verify = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 console.error(
                   "[Verify] Failed to fetch sender:",
                   senderServiceNo,
-                  error.message
+                  error.message,
                 );
               }
             }
@@ -278,7 +279,7 @@ const Verify = () => {
               try {
                 const userData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
                 loadUserData = userData;
               } catch (error) {
@@ -298,7 +299,7 @@ const Verify = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.comment,
@@ -309,13 +310,13 @@ const Verify = () => {
               executiveOfficerData,
               verifyOfficerData,
             };
-          })
+          }),
         );
 
         setPendingDESCRIPTIONs(
           pendingData.sort(
-            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-          )
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+          ),
         );
       } catch (error) {
         console.error("Error fetching pending statuses:", error);
@@ -325,7 +326,7 @@ const Verify = () => {
       }
     },
     [activeTab],
-    { status: 2 } // Verifier pending requests
+    { status: 2 }, // Verifier pending requests
   );
 
   useEffect(() => {
@@ -376,13 +377,13 @@ const Verify = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 console.error(
                   "[Verify] Failed to fetch sender:",
                   senderServiceNo,
-                  error.message
+                  error.message,
                 );
               }
             }
@@ -430,7 +431,7 @@ const Verify = () => {
               try {
                 const userData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
                 loadUserData = userData;
               } catch (error) {
@@ -449,7 +450,7 @@ const Verify = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.comment,
@@ -460,13 +461,13 @@ const Verify = () => {
               executiveOfficerData,
               verifyOfficerData,
             };
-          })
+          }),
         );
 
         setPendingDESCRIPTIONs(
           pendingData.sort(
-            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-          )
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+          ),
         );
       } catch (error) {
         console.error("Error fetching pending statuses:", error);
@@ -521,7 +522,7 @@ const Verify = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 // Silently handle missing users
@@ -547,7 +548,10 @@ const Verify = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                receiverDetails = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                receiverDetails = await getCachedUserAllowRefresh(
+                  receiverServiceNo,
+                  fetchReceiverDetails,
+                );
               } catch (error) {
                 // Silently handle missing users
               }
@@ -573,7 +577,7 @@ const Verify = () => {
               try {
                 const userData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
                 loadUserData = userData;
               } catch (error) {
@@ -593,7 +597,7 @@ const Verify = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.verifyOfficerComment,
@@ -604,13 +608,13 @@ const Verify = () => {
               executiveOfficerData,
               verifyOfficerData,
             };
-          })
+          }),
         );
 
         setApprovedDESCRIPTIONs(
           approvedData.sort(
-            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-          )
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+          ),
         );
       } catch (error) {
         console.error("Error fetching approved statuses:", error);
@@ -661,7 +665,7 @@ const Verify = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 // Silently handle missing users
@@ -690,7 +694,10 @@ const Verify = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                const userData = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                const userData = await getCachedUserAllowRefresh(
+                  receiverServiceNo,
+                  fetchReceiverDetails,
+                );
                 if (userData) {
                   receiverDetails = userData;
                 }
@@ -721,7 +728,7 @@ const Verify = () => {
               try {
                 const userData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
                 loadUserData = userData;
               } catch (error) {
@@ -741,7 +748,7 @@ const Verify = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.verifyOfficerComment,
@@ -757,13 +764,13 @@ const Verify = () => {
               rejectedAt: status.rejectedAt,
               rejectionLevel: status.rejectionLevel,
             };
-          })
+          }),
         );
 
         setRejectedDESCRIPTIONs(
           rejectedData.sort(
-            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-          )
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+          ),
         );
       } catch (error) {
         console.error("Error fetching rejected statuses:", error);
@@ -797,7 +804,7 @@ const Verify = () => {
   const sendApprovalEmailToPetrolLeader = async (
     petrolLeaderEmail,
     request,
-    comment
+    comment,
   ) => {
     try {
       if (!petrolLeaderEmail) {
@@ -889,7 +896,7 @@ const Verify = () => {
                     item.itemQuantity || "1"
                   }</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -1011,7 +1018,7 @@ const Verify = () => {
                     item.itemQuantity || "1"
                   }</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -1127,7 +1134,7 @@ const Verify = () => {
                   item.itemQuantity || "1"
                 }</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -1151,8 +1158,8 @@ const Verify = () => {
           <p>We would like to inform you that ${
             itemDetails.length
           } returnable item(s) under reference number <b>${
-        request.refNo
-      }</b> have been returned by the Receiver.</p>
+            request.refNo
+          }</b> have been returned by the Receiver.</p>
           <p>You can view it under your <i>Completed</i> or relevant section.</p>
         </div>
 
@@ -1181,7 +1188,7 @@ const Verify = () => {
   const sendReturnTOExecutiveEmail = async (
     request,
     comment,
-    selectedDESCRIPTIONDetails
+    selectedDESCRIPTIONDetails,
   ) => {
     try {
       // Get the executive officer details from the request
@@ -1278,7 +1285,7 @@ const Verify = () => {
                     item.itemQuantity || "1"
                   }</td>
                 </tr>
-              `
+              `,
                   )
                   .join("") ||
                 '<tr><td colspan="4" style="padding: 8px; text-align: center;">No items selected</td></tr>'
@@ -1338,7 +1345,7 @@ const Verify = () => {
       console.log("Executive officer notification email sent successfully");
       showToast(
         "Return notification email sent to executive officer",
-        "success"
+        "success",
       );
 
       return result;
@@ -1371,7 +1378,7 @@ const Verify = () => {
           await sendApprovalEmailToPetrolLeader(
             fallbackEmail,
             request,
-            comment
+            comment,
           );
           emailCount++;
           successRecipients.push(`Petrol Leader: ${fallbackEmail}`);
@@ -1381,7 +1388,7 @@ const Verify = () => {
         } catch (fallbackError) {
           console.error(
             `❌ Fallback email failed for ${fallbackEmail}:`,
-            fallbackError
+            fallbackError,
           );
           // Continue to next fallback
         }
@@ -1402,12 +1409,12 @@ const Verify = () => {
           emailCount++;
           successRecipients.push(`Receiver: ${request.receiverDetails.email}`);
           console.log(
-            `Email sent successfully to receiver: ${request.receiverDetails.email}`
+            `Email sent successfully to receiver: ${request.receiverDetails.email}`,
           );
         } catch (emailError) {
           console.error(
             `❌ Failed to send email to receiver ${request.receiverDetails.email}:`,
-            emailError
+            emailError,
           );
           errors.push(`Receiver email failed: ${emailError.message}`);
         }
@@ -1426,27 +1433,27 @@ const Verify = () => {
         if (errors.length > 0) {
           showToast(
             `Approval sent! Notifications delivered to ${emailCount} recipient(s), but ${errors.join(
-              ", "
+              ", ",
             )}`,
-            "warning"
+            "warning",
           );
         } else {
           showToast(
             `✅ Approval successful! Notifications sent to ${emailCount} recipient(s)`,
-            "success"
+            "success",
           );
         }
       } else {
         showToast(
           "✅ Request approved, but no email notifications could be sent",
-          "warning"
+          "warning",
         );
       }
     } catch (error) {
       console.error("❌ Critical error in sendApprovalEmails:", error);
       showToast(
         "✅ Request approved, but email notifications failed. Please contact support.",
-        "error"
+        "error",
       );
       throw error;
     }
@@ -1465,7 +1472,7 @@ const Verify = () => {
         if (!searchedEmployee) {
           showToast(
             "Please search and select an SLT employee for loading",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -1475,7 +1482,7 @@ const Verify = () => {
         if (!nonSltStaffDetails.name || !nonSltStaffDetails.nic) {
           showToast(
             "Please fill in all required non-SLT staff details",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -1485,7 +1492,7 @@ const Verify = () => {
           item.refNo,
           comment,
           loadingDetails,
-          userDetails.serviceNo
+          userDetails.serviceNo,
         );
 
         // Send emails to both petrol leaders and receiver
@@ -1498,7 +1505,7 @@ const Verify = () => {
           inLocation: updatedStatus.request?.inLocation,
           outLocation: updatedStatus.request?.outLocation,
           createdAt: new Date(
-            updatedStatus.request?.createdAt || updatedStatus.createdAt
+            updatedStatus.request?.createdAt || updatedStatus.createdAt,
           ).toLocaleString(),
           items: updatedStatus.request?.items || [],
           comment: updatedStatus.verifyOfficerComment,
@@ -1513,11 +1520,11 @@ const Verify = () => {
         item.refNo,
         comment,
         loadingDetails,
-        userDetails.serviceNo
+        userDetails.serviceNo,
       );
 
       console.log(
-        "✅ Request approved in database, now sending notifications..."
+        "✅ Request approved in database, now sending notifications...",
       );
 
       // Send emails - don't wait for result to block the approval (non-blocking)
@@ -1542,7 +1549,9 @@ const Verify = () => {
       };
 
       // Update UI state immediately (don't wait for emails)
-      setPendingDESCRIPTIONs(pendingDESCRIPTIONs.filter((i) => i.refNo !== item.refNo));
+      setPendingDESCRIPTIONs(
+        pendingDESCRIPTIONs.filter((i) => i.refNo !== item.refNo),
+      );
       setApprovedDESCRIPTIONs([...approvedDESCRIPTIONs, approvedDESCRIPTION]);
 
       // Reset modal and comment
@@ -1611,13 +1620,16 @@ const Verify = () => {
                 <tr>
                   <td style="padding: 8px 0; color: #757575;">items:</td>
                   <td style="padding: 8px 0;">${request.items
-                    .map((item) => `${item.itemDescription} (${item.serialNumber})`)
+                    .map(
+                      (item) =>
+                        `${item.itemDescription} (${item.serialNumber})`,
+                    )
                     .join(", ")}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; color: #757575;">Requested Date:</td>
                   <td style="padding: 8px 0;">${new Date(
-                    request.createdAt
+                    request.createdAt,
                   ).toLocaleDateString()}</td>
                 </tr>
               </table>
@@ -1651,7 +1663,7 @@ const Verify = () => {
 
   const sendRejectionEmailApprover = async (request, comment) => {
     const approver = await searchReceiverByServiceNo(
-      request.requestDetails.executiveOfficerServiceNo
+      request.requestDetails.executiveOfficerServiceNo,
     );
 
     try {
@@ -1696,13 +1708,16 @@ const Verify = () => {
                 <tr>
                   <td style="padding: 8px 0; color: #757575;">items:</td>
                   <td style="padding: 8px 0;">${request.items
-                    .map((item) => `${item.itemDescription} (${item.serialNumber})`)
+                    .map(
+                      (item) =>
+                        `${item.itemDescription} (${item.serialNumber})`,
+                    )
                     .join(", ")}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; color: #757575;">Requested Date:</td>
                   <td style="padding: 8px 0;">${new Date(
-                    request.createdAt
+                    request.createdAt,
                   ).toLocaleDateString()}</td>
                 </tr>
               </table>
@@ -1756,7 +1771,7 @@ const Verify = () => {
         inLocation: updatedStatus.request?.inLocation,
         outLocation: updatedStatus.request?.outLocation,
         createdAt: new Date(
-          updatedStatus.request?.createdAt || updatedStatus.createdAt
+          updatedStatus.request?.createdAt || updatedStatus.createdAt,
         ).toLocaleString(),
         items: updatedStatus.request?.items || [],
         comment: updatedStatus.verifyOfficerComment,
@@ -1764,7 +1779,9 @@ const Verify = () => {
       };
 
       // Update UI state
-      setPendingDESCRIPTIONs(pendingDESCRIPTIONs.filter((i) => i.refNo !== item.refNo));
+      setPendingDESCRIPTIONs(
+        pendingDESCRIPTIONs.filter((i) => i.refNo !== item.refNo),
+      );
       setRejectedDESCRIPTIONs([...rejectedDESCRIPTIONs, rejectedDESCRIPTION]);
 
       // Reset modal and comment
@@ -1781,7 +1798,7 @@ const Verify = () => {
     if (item.requestDetails?.transport.transporterServiceNo) {
       try {
         const transportResponse = await searchEmployeeByServiceNo(
-          item.requestDetails.transport.transporterServiceNo
+          item.requestDetails.transport.transporterServiceNo,
         );
 
         console.log("Transport response:", transportResponse); // Debug log
@@ -2184,8 +2201,8 @@ const Verify = () => {
               {(activeTab === "pending"
                 ? filteredPendingDESCRIPTIONs
                 : activeTab === "approved"
-                ? filteredApprovedDESCRIPTIONs
-                : filteredRejectedDESCRIPTIONs
+                  ? filteredApprovedDESCRIPTIONs
+                  : filteredRejectedDESCRIPTIONs
               ).map((item) => (
                 <tr
                   key={item.refNo}
@@ -2250,8 +2267,8 @@ const Verify = () => {
                                                   activeTab === "pending"
                                                     ? "bg-amber-100 hover:bg-amber-200 text-amber-800"
                                                     : activeTab === "approved"
-                                                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                                                    : "bg-rose-100 text-rose-800 hover:bg-rose-200"
+                                                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                                                      : "bg-rose-100 text-rose-800 hover:bg-rose-200"
                                                 }`}
                     >
                       <FaEye className="mr-2" /> View Details
@@ -2267,8 +2284,8 @@ const Verify = () => {
         {(activeTab === "pending"
           ? filteredPendingDESCRIPTIONs
           : activeTab === "approved"
-          ? filteredApprovedDESCRIPTIONs
-          : filteredRejectedDESCRIPTIONs
+            ? filteredApprovedDESCRIPTIONs
+            : filteredRejectedDESCRIPTIONs
         ).length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -2340,7 +2357,9 @@ const RequestDetailsModal = ({
   // Initialize with the correct value from request
   const [selectedExecutive, setSelectedExecutive] = useState("");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState([]);
+  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState(
+    [],
+  );
   const [selecteditemDescription, setSelecteditemDescription] = useState("");
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [selectedDESCRIPTIONs, setSelectedDESCRIPTIONs] = useState([]);
@@ -2373,7 +2392,7 @@ const RequestDetailsModal = ({
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to mark ${selectedDESCRIPTIONs.length} item(s) as 'return'?`
+      `Are you sure you want to mark ${selectedDESCRIPTIONs.length} item(s) as 'return'?`,
     );
 
     if (!confirmed) return;
@@ -2387,13 +2406,16 @@ const RequestDetailsModal = ({
 
       // Get full details of selected items
       const selectedDESCRIPTIONDetails = request.items.filter((item) =>
-        selectedDESCRIPTIONs.includes(item.serialNumber)
+        selectedDESCRIPTIONs.includes(item.serialNumber),
       );
 
       console.log("Selected item details:", selectedDESCRIPTIONDetails);
 
       // Call backend to update DB
-      const response = await markItemsAsReturned(request.refNo, selectedDESCRIPTIONs);
+      const response = await markItemsAsReturned(
+        request.refNo,
+        selectedDESCRIPTIONs,
+      );
 
       console.log("Backend response:", response);
 
@@ -2401,19 +2423,19 @@ const RequestDetailsModal = ({
       await sendReturnEmail(
         request,
         "items successfully returned by petrol leader.",
-        selectedDESCRIPTIONDetails
+        selectedDESCRIPTIONDetails,
       );
       await sendReturnTOExecutiveEmail(
         request,
         "items successfully returned by petrol leader.",
-        selectedDESCRIPTIONDetails
+        selectedDESCRIPTIONDetails,
       );
       // Show success message
       showToast(
         `Successfully marked ${
           response.updatedCount || selectedDESCRIPTIONs.length
         } item(s) as returned.`,
-        "success"
+        "success",
       );
 
       console.log("Bulk return process completed successfully");
@@ -2430,7 +2452,7 @@ const RequestDetailsModal = ({
 
       showToast(
         error.message || "Failed to update items. Please try again.",
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -2448,9 +2470,13 @@ const RequestDetailsModal = ({
   };
 
   const handleAddNewDESCRIPTION = async () => {
-    if (!newDESCRIPTION.itemDescription || !newDESCRIPTION.serialNumber || !newDESCRIPTION.categoryDescription) {
+    if (
+      !newDESCRIPTION.itemDescription ||
+      !newDESCRIPTION.serialNumber ||
+      !newDESCRIPTION.categoryDescription
+    ) {
       alert(
-        "Please fill in all required fields (item Name, Serial Number, Category)"
+        "Please fill in all required fields (item Name, Serial Number, Category)",
       );
       return;
     }
@@ -3019,7 +3045,7 @@ const RequestDetailsModal = ({
             <span class="label">Loading Time:</span> ${
               request?.requestDetails?.loading?.loadingTime
                 ? new Date(
-                    request.requestDetails.loading.loadingTime
+                    request.requestDetails.loading.loadingTime,
                   ).toLocaleString()
                 : "N/A"
             }
@@ -3122,7 +3148,7 @@ const RequestDetailsModal = ({
                     <td>${item?.itemCode || "-"}</td>
                     
                   </tr>
-                `
+                `,
                   )
                   .join("")}
               </tbody>
@@ -3211,7 +3237,7 @@ const RequestDetailsModal = ({
       yPos,
       col1Width + col2Width + col3Width + col4Width + col5Width,
       8,
-      "F"
+      "F",
     );
 
     doc.text("item Name", margin + 3, yPos + 5.5);
@@ -3221,7 +3247,7 @@ const RequestDetailsModal = ({
     doc.text(
       "Item Code",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
-      yPos + 5.5
+      yPos + 5.5,
     );
 
     yPos += 8;
@@ -3240,7 +3266,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
 
         doc.text("item Name", margin + 3, yPos + 5.5);
@@ -3249,12 +3275,12 @@ const RequestDetailsModal = ({
         doc.text(
           "Qty",
           margin + col1Width + col2Width + col3Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
         doc.text(
           "Item Code",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
 
         yPos += 8;
@@ -3268,7 +3294,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
       }
 
@@ -3283,27 +3309,27 @@ const RequestDetailsModal = ({
       doc.text(
         truncateText(item?.itemDescription || "N/A", 25),
         margin + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.serialNumber || "N/A", 15),
         margin + col1Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.categoryDescription || "N/A", 12),
         margin + col1Width + col2Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemQuantity?.toString() || "1",
         margin + col1Width + col2Width + col3Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         truncateText(item?.itemCode || "N/A", 15),
         margin + col1Width + col2Width + col3Width + col4Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
 
       // Draw horizontal line after each row
@@ -3311,7 +3337,7 @@ const RequestDetailsModal = ({
         margin,
         yPos + 8,
         margin + col1Width + col2Width + col3Width + col4Width + col5Width,
-        yPos + 8
+        yPos + 8,
       );
 
       yPos += 8;
@@ -3325,7 +3351,7 @@ const RequestDetailsModal = ({
       "This is an electronically generated document and does not require signature.",
       pageWidth / 2,
       footerYPos,
-      { align: "center" }
+      { align: "center" },
     );
 
     // Save the PDF
@@ -3341,8 +3367,8 @@ const RequestDetailsModal = ({
             activeTab === "pending"
               ? "bg-gradient-to-r from-amber-600 to-orange-300"
               : activeTab === "approved"
-              ? "bg-gradient-to-br from-emerald-600 to-green-600"
-              : "bg-gradient-to-br from-rose-600 to-red-400"
+                ? "bg-gradient-to-br from-emerald-600 to-green-600"
+                : "bg-gradient-to-br from-rose-600 to-red-400"
           }`}
         >
           <div className="flex justify-between items-center">
@@ -3470,7 +3496,10 @@ const RequestDetailsModal = ({
                   <FaBoxOpen className="mr-2" /> item Details
                   <button
                     onClick={() =>
-                      generateDESCRIPTIONDetailsPDF(request.items, request.refNo)
+                      generateDESCRIPTIONDetailsPDF(
+                        request.items,
+                        request.refNo,
+                      )
                     }
                     className="ml-auto px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center transition-colors"
                   >
@@ -3482,7 +3511,8 @@ const RequestDetailsModal = ({
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          item </th>
+                          item{" "}
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Serial Number
                         </th>
@@ -3509,7 +3539,9 @@ const RequestDetailsModal = ({
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="px-6 py-4">{item?.itemDescription}</td>
                           <td className="px-6 py-4">{item?.serialNumber}</td>
-                          <td className="px-6 py-4">{item?.categoryDescription}</td>
+                          <td className="px-6 py-4">
+                            {item?.categoryDescription}
+                          </td>
                           <td className="px-6 py-4">{item?.itemQuantity}</td>
                           <td className="px-6 py-4">{item?.itemCode}</td>
                           <td className="px-6 py-4">
@@ -3558,7 +3590,8 @@ const RequestDetailsModal = ({
                   className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium flex items-center transition-colors shadow-sm"
                 >
                   <FaPlus className="mr-2" />
-                  Add New item </button>
+                  Add New item{" "}
+                </button>
 
                 <div className="overflow-x-auto rounded-xl border border-gray-200">
                   <table className="w-full">
@@ -3568,7 +3601,8 @@ const RequestDetailsModal = ({
                           Select
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          item </th>
+                          item{" "}
+                        </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Serial Number
                         </th>
@@ -3603,12 +3637,16 @@ const RequestDetailsModal = ({
                               <input
                                 type="checkbox"
                                 disabled={isSuperAdmin}
-                                checked={selectedDESCRIPTIONs?.includes(item.serialNumber)}
+                                checked={selectedDESCRIPTIONs?.includes(
+                                  item.serialNumber,
+                                )}
                                 onChange={() => handleSelect(item.serialNumber)}
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                               />
                             </td>
-                            <td className="px-6 py-4">{item.itemDescription}</td>
+                            <td className="px-6 py-4">
+                              {item.itemDescription}
+                            </td>
                             <td className="px-6 py-4">{item.serialNumber}</td>
                             <td className="px-6 py-4">{item?.itemQuantity}</td>
                             <td className="px-6 py-4">{item?.itemCode}</td>
@@ -3627,7 +3665,9 @@ const RequestDetailsModal = ({
                   <button
                     onClick={handleBulkReturn}
                     disabled={
-                      isSuperAdmin || selectedDESCRIPTIONs?.length === 0 || loading
+                      isSuperAdmin ||
+                      selectedDESCRIPTIONs?.length === 0 ||
+                      loading
                     }
                     className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
                       isSuperAdmin || selectedDESCRIPTIONs?.length === 0
@@ -4056,92 +4096,118 @@ const RequestDetailsModal = ({
           )}
 
           {/* Add New item Modal */}
-                      {showAddDESCRIPTIONModal && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                          <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
-                            {/* Modal Header */}
-                            <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6">
-                              <div className="flex justify-between items-center">
-                                <h2 className="text-2xl font-bold text-white flex items-center">
-                                  <FaPlus className="mr-3" /> Add New Returnable item </h2>
-                                <button
-                                  onClick={() => setShowAddDESCRIPTIONModal(false)}
-                                  className="text-white/80 hover:text-white transition-colors"
-                                >
-                                  <FaTimes className="text-xl" />
-                                </button>
-                              </div>
-                            </div>
-          
-                            {/* Modal Content */}
-                            <div className="p-6 max-h-[70vh] overflow-y-auto">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    item Name <span className="text-red-500">*</span>
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={newDESCRIPTION.itemDescription}
-                                    onChange={(e) => setNewDESCRIPTION({...newDESCRIPTION, itemDescription: e.target.value})}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter item name"
-                                  />
-                                </div>
-          
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Serial Number <span className="text-red-500">*</span>
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={newDESCRIPTION.serialNumber}
-                                    onChange={(e) => setNewDESCRIPTION({...newDESCRIPTION, serialNo: e.target.value})}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter serial number"
-                                  />
-                                </div>
-          
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Category <span className="text-red-500">*</span>
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={newDESCRIPTION.categoryDescription}
-                                    onChange={(e) => setNewDESCRIPTION({...newDESCRIPTION, categoryDescription: e.target.value})}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter category"
-                                  />
-                                </div>
-          
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Item Code
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={newDESCRIPTION.itemCode}
-                                    onChange={(e) => setNewDESCRIPTION({...newDESCRIPTION, itemCode: e.target.value})}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter Item Code"
-                                  />
-                                </div>
-          
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Quantity
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={newDESCRIPTION.itemQuantity}
-                                    onChange={(e) => setNewDESCRIPTION({...newDESCRIPTION, itemQuantity: parseInt(e.target.value) || 1})}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                  />
-                                </div>
-          
-                                {/*<div>
+          {showAddDESCRIPTIONModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-white flex items-center">
+                      <FaPlus className="mr-3" /> Add New Returnable item{" "}
+                    </h2>
+                    <button
+                      onClick={() => setShowAddDESCRIPTIONModal(false)}
+                      className="text-white/80 hover:text-white transition-colors"
+                    >
+                      <FaTimes className="text-xl" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        item Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newDESCRIPTION.itemDescription}
+                        onChange={(e) =>
+                          setNewDESCRIPTION({
+                            ...newDESCRIPTION,
+                            itemDescription: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter item name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Serial Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newDESCRIPTION.serialNumber}
+                        onChange={(e) =>
+                          setNewDESCRIPTION({
+                            ...newDESCRIPTION,
+                            serialNo: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter serial number"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Category <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newDESCRIPTION.categoryDescription}
+                        onChange={(e) =>
+                          setNewDESCRIPTION({
+                            ...newDESCRIPTION,
+                            categoryDescription: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter category"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Item Code
+                      </label>
+                      <input
+                        type="text"
+                        value={newDESCRIPTION.itemCode}
+                        onChange={(e) =>
+                          setNewDESCRIPTION({
+                            ...newDESCRIPTION,
+                            itemCode: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter Item Code"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newDESCRIPTION.itemQuantity}
+                        onChange={(e) =>
+                          setNewDESCRIPTION({
+                            ...newDESCRIPTION,
+                            itemQuantity: parseInt(e.target.value) || 1,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/*<div>
                                   <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Expected Return Date
                                   </label>
@@ -4177,7 +4243,8 @@ const RequestDetailsModal = ({
                     className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center"
                   >
                     <FaPlus className="mr-2" />
-                    Add item </button>
+                    Add item{" "}
+                  </button>
                 </div>
               </div>
             </div>
@@ -4221,34 +4288,38 @@ const RequestDetailsModal = ({
                 {staffType === "SLT" ? (
                   <>
                     {/* SLT Employee Search */}
-                              <div className="mb-4">
-                                       <div className="flex items-center mb-4">
-                      <input
-                        type="text"
-                        value={serviceId}
-                        onChange={(e) => setServiceId(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !isSuperAdmin && serviceId.trim()) {
-                            e.preventDefault();
-                            handleEmployeeSearch();
-                          }
-                        }}
-                        placeholder="Enter Service ID"
-                        className="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    
-                      <button
-                        onClick={handleEmployeeSearch}
-                        disabled={isSuperAdmin}
-                        className={`px-4 py-3 rounded-r-lg ${
-                          isSuperAdmin
-                            ? "bg-gray-300 cursor-not-allowed"
-                            : "bg-blue-500 hover:bg-blue-600 text-white"
-                        }`}
-                      >
-                        <FaSearch />
-                      </button>
-                    </div>
+                    <div className="mb-4">
+                      <div className="flex items-center mb-4">
+                        <input
+                          type="text"
+                          value={serviceId}
+                          onChange={(e) => setServiceId(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (
+                              e.key === "Enter" &&
+                              !isSuperAdmin &&
+                              serviceId.trim()
+                            ) {
+                              e.preventDefault();
+                              handleEmployeeSearch();
+                            }
+                          }}
+                          placeholder="Enter Service ID"
+                          className="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+
+                        <button
+                          onClick={handleEmployeeSearch}
+                          disabled={isSuperAdmin}
+                          className={`px-4 py-3 rounded-r-lg ${
+                            isSuperAdmin
+                              ? "bg-gray-300 cursor-not-allowed"
+                              : "bg-blue-500 hover:bg-blue-600 text-white"
+                          }`}
+                        >
+                          <FaSearch />
+                        </button>
+                      </div>
 
                       {searchedEmployee && (
                         <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
@@ -4432,7 +4503,7 @@ const RequestDetailsModal = ({
                           printReport(
                             request,
                             transporterDetails,
-                            searchedEmployee
+                            searchedEmployee,
                           )
                         }
                         className="px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-all flex items-center"
@@ -4613,7 +4684,7 @@ const RequestDetailsModal = ({
                             <li>
                               Time:{" "}
                               {new Date(
-                                request?.requestDetails?.loading.loadingTime
+                                request?.requestDetails?.loading.loadingTime,
                               ).toLocaleString() || "Not specified"}
                             </li>
                             <li>
@@ -4892,7 +4963,9 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
           {/* Header with close button */}
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemDescription}</h3>
+              <h3 className="text-xl font-semibold text-white">
+                {itemDescription}
+              </h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
@@ -4929,4 +5002,3 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
 };
 
 export default Verify;
-

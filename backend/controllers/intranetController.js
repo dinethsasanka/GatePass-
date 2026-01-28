@@ -27,7 +27,7 @@ const fetchItemCategories = async (req, res) => {
 const fetchItemBySerialNumber = async (req, res) => {
   try {
     const { serialNumber } = req.params;
-    
+
     if (!serialNumber) {
       return res.status(400).json({
         message: "Serial number is required",
@@ -38,14 +38,14 @@ const fetchItemBySerialNumber = async (req, res) => {
     res.status(200).json(item);
   } catch (error) {
     console.error("Error in fetchItemBySerialNumber:", error.message);
-    
+
     if (error.message.includes("not found")) {
       return res.status(404).json({
         message: error.message,
         found: false,
       });
     }
-    
+
     res.status(500).json({
       message: "Failed to fetch item",
       error: error.message,
@@ -58,8 +58,10 @@ const fetchItemBySerialNumber = async (req, res) => {
  */
 const fetchHolidays = async (req, res) => {
   try {
-    const year = req.query.year ? parseInt(req.query.year) : new Date().getFullYear();
-    
+    const year = req.query.year
+      ? parseInt(req.query.year)
+      : new Date().getFullYear();
+
     if (isNaN(year) || year < 2000 || year > 2100) {
       return res.status(400).json({
         message: "Invalid year parameter. Year must be between 2000 and 2100",
@@ -82,8 +84,10 @@ const fetchHolidays = async (req, res) => {
  */
 const syncHolidays = async (req, res) => {
   try {
-    const year = req.query.year ? parseInt(req.query.year) : new Date().getFullYear();
-    
+    const year = req.query.year
+      ? parseInt(req.query.year)
+      : new Date().getFullYear();
+
     if (isNaN(year) || year < 2000 || year > 2100) {
       return res.status(400).json({
         message: "Invalid year parameter. Year must be between 2000 and 2100",
@@ -92,7 +96,7 @@ const syncHolidays = async (req, res) => {
 
     console.log(`Syncing holidays for year ${year}...`);
     const holidays = await getHolidays(year);
-    
+
     let addedCount = 0;
     let updatedCount = 0;
     let skippedCount = 0;
@@ -100,7 +104,7 @@ const syncHolidays = async (req, res) => {
     for (const holiday of holidays) {
       try {
         const existing = await Holiday.findOne({ dateISO: holiday.dateISO });
-        
+
         if (existing) {
           // Update existing holiday if name changed
           if (existing.name !== holiday.name) {

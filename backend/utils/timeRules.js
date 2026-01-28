@@ -23,10 +23,10 @@ const isRestrictedPeriod = async (override = {}) => {
   try {
     const currentYear = now.getFullYear();
     const holidays = await getHolidays(currentYear);
-    
+
     // Find if today is a holiday
-    const todayHoliday = holidays.find(h => h.dateISO === todayISO);
-    
+    const todayHoliday = holidays.find((h) => h.dateISO === todayISO);
+
     if (todayHoliday) {
       return {
         restricted: true,
