@@ -4,11 +4,16 @@ import {
   fetchExecutivePending,
   fetchExecutiveApproved,
   fetchExecutiveRejected,
+  fetchMoreExecutivePending,
+  fetchMoreExecutiveApproved,
+  fetchMoreExecutiveRejected,
   selectExecutivePending,
   selectExecutiveApproved,
   selectExecutiveRejected,
   selectExecutiveLoading,
 } from '../features/executive/executiveSlice';
+import { LoadingSpinner } from '../components/LoadingSpinner.jsx';
+import { LoadMoreButton } from '../components/LoadMoreButton.jsx';
 import {
   createStatus,
   getPendingStatuses,
@@ -66,6 +71,7 @@ const ExecutiveApproval = () => {
   const approvedItems = useSelector(selectExecutiveApproved);
   const rejectedItems = useSelector(selectExecutiveRejected);
   const isLoading = useSelector(selectExecutiveLoading);
+  const pagination = useSelector(state => state.executive.pagination);
   
   // UI state (keep local)
   const [activeTab, setActiveTab] = useState("pending");
@@ -112,6 +118,17 @@ const ExecutiveApproval = () => {
       dispatch(fetchExecutiveRejected());
     }
   }, [activeTab, dispatch]);
+
+  // Handle load more based on active tab
+  const handleLoadMore = () => {
+    if (activeTab === "pending") {
+      dispatch(fetchMoreExecutivePending());
+    } else if (activeTab === "approved") {
+      dispatch(fetchMoreExecutiveApproved());
+    } else if (activeTab === "rejected") {
+      dispatch(fetchMoreExecutiveRejected());
+    }
+  };
 
 
 
@@ -692,7 +709,7 @@ const ExecutiveApproval = () => {
                 activeTab === "pending" ? "text-white" : "text-amber-500"
               }`}
             >
-              {pendingItems.length}
+              {pagination.pending?.total || 0}
             </div>
             <p
               className={
@@ -739,7 +756,7 @@ const ExecutiveApproval = () => {
                 activeTab === "approved" ? "text-white" : "text-emerald-500"
               }`}
             >
-              {approvedItems.length}
+              {pagination.approved?.total || 0}
             </div>
             <p
               className={
@@ -786,7 +803,7 @@ const ExecutiveApproval = () => {
                 activeTab === "rejected" ? "text-white" : "text-rose-500"
               }`}
             >
-              {rejectedItems.length}
+              {pagination.rejected?.total || 0}
             </div>
             <p
               className={
@@ -1035,8 +1052,15 @@ const ExecutiveApproval = () => {
           </table>
         </div>
 
+        {/* Loading State - Initial Load */}
+        {isLoading && (activeTab === "pending" ? pendingItems : activeTab === "approved" ? approvedItems : rejectedItems).length === 0 && (
+          <div className="flex justify-center py-12">
+            <LoadingSpinner size="lg" message="Loading requests..." />
+          </div>
+        )}
+
         {/* Empty State */}
-        {(activeTab === "pending"
+        {!isLoading && (activeTab === "pending"
           ? filteredPendingItems
           : activeTab === "approved"
           ? filteredApprovedItems
@@ -1052,6 +1076,24 @@ const ExecutiveApproval = () => {
                 ? "Try adjusting your search criteria"
                 : "Your gate pass requests will appear here"}
             </p>
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {!isLoading && (activeTab === "pending"
+          ? filteredPendingItems
+          : activeTab === "approved"
+          ? filteredApprovedItems
+          : filteredRejectedItems
+        ).length > 0 && (
+          <div className="py-6">
+            <LoadMoreButton
+              onClick={handleLoadMore}
+              loading={isLoading}
+              hasMore={pagination[activeTab]?.hasMore}
+              currentCount={(activeTab === "pending" ? pendingItems : activeTab === "approved" ? approvedItems : rejectedItems).length}
+              total={pagination[activeTab]?.total}
+            />
           </div>
         )}
       </div>

@@ -4,6 +4,9 @@ import {
   fetchVerifyPending,
   fetchVerifyApproved,
   fetchVerifyRejected,
+  fetchMoreVerifyPending,
+  fetchMoreVerifyApproved,
+  fetchMoreVerifyRejected,
   selectVerifyPending,
   selectVerifyApproved,
   selectVerifyRejected,
@@ -28,6 +31,8 @@ import {
   searchReceiverByServiceNo,
 } from "../services/RequestService.js";
 import { useToast } from "../components/ToastProvider.jsx";
+import { LoadingSpinner } from "../components/LoadingSpinner.jsx";
+import { LoadMoreButton } from "../components/LoadMoreButton.jsx";
 import { emailSent } from "../services/emailService.js";
 import { jsPDF } from "jspdf";
 import logoUrl from "../assets/SLTMobitel_Logo.png";
@@ -77,6 +82,7 @@ const Verify = () => {
   const approvedItems = useSelector(selectVerifyApproved);
   const rejectedItems = useSelector(selectVerifyRejected);
   const isLoading = useSelector(selectVerifyLoading);
+  const pagination = useSelector(state => state.verify.pagination);
   
   // UI state (keep local)
   const [activeTab, setActiveTab] = useState("pending");
@@ -138,6 +144,17 @@ const Verify = () => {
       dispatch(fetchVerifyRejected());
     }
   }, [activeTab, dispatch]);
+
+  // Handle load more based on active tab
+  const handleLoadMore = () => {
+    if (activeTab === "pending") {
+      dispatch(fetchMoreVerifyPending());
+    } else if (activeTab === "approved") {
+      dispatch(fetchMoreVerifyApproved());
+    } else if (activeTab === "rejected") {
+      dispatch(fetchMoreVerifyRejected());
+    }
+  };
 
   const StatusPill = ({ status }) => {
     const styles = {
@@ -1288,7 +1305,7 @@ const Verify = () => {
                 activeTab === "pending" ? "text-white" : "text-amber-500"
               }`}
             >
-              {pendingItems.length}
+              {pagination.pending?.total || 0}
             </div>
             <p
               className={
@@ -1335,7 +1352,7 @@ const Verify = () => {
                 activeTab === "approved" ? "text-white" : "text-emerald-500"
               }`}
             >
-              {approvedItems.length}
+              {pagination.approved?.total || 0}
             </div>
             <p
               className={
@@ -1382,7 +1399,7 @@ const Verify = () => {
                 activeTab === "rejected" ? "text-white" : "text-rose-500"
               }`}
             >
-              {rejectedItems.length}
+              {pagination.rejected?.total || 0}
             </div>
             <p
               className={
@@ -1629,8 +1646,15 @@ const Verify = () => {
           </table>
         </div>
 
+        {/* Loading State - Initial Load */}
+        {isLoading && (activeTab === "pending" ? pendingItems : activeTab === "approved" ? approvedItems : rejectedItems).length === 0 && (
+          <div className="flex justify-center py-12">
+            <LoadingSpinner size="lg" message="Loading requests..." />
+          </div>
+        )}
+
         {/* Empty State */}
-        {(activeTab === "pending"
+        {!isLoading && (activeTab === "pending"
           ? filteredPendingItems
           : activeTab === "approved"
           ? filteredApprovedItems
@@ -1646,6 +1670,24 @@ const Verify = () => {
                 ? "Try adjusting your search criteria"
                 : "Your gate pass requests will appear here"}
             </p>
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {!isLoading && (activeTab === "pending"
+          ? filteredPendingItems
+          : activeTab === "approved"
+          ? filteredApprovedItems
+          : filteredRejectedItems
+        ).length > 0 && (
+          <div className="py-6">
+            <LoadMoreButton
+              onClick={handleLoadMore}
+              loading={isLoading}
+              hasMore={pagination[activeTab]?.hasMore}
+              currentCount={(activeTab === "pending" ? pendingItems : activeTab === "approved" ? approvedItems : rejectedItems).length}
+              total={pagination[activeTab]?.total}
+            />
           </div>
         )}
       </div>

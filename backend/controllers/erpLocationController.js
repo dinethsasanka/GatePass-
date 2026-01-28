@@ -35,8 +35,6 @@ const getBranchNameByLocationId = async (req, res) => {
       });
     }
 
-    console.log(`🔍 Fetching branch name for location ID: ${locationId}`);
-
     const location = await ErpLocation.findOne({ locationId: locationId });
 
     if (!location) {

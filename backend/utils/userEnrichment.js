@@ -32,14 +32,10 @@ async function enrichSingleUser(user, useCache = true) {
     let erpData = null;
     if (useCache) {
       erpData = userCache.get(cacheKey);
-      if (erpData) {
-        console.log(`✅ Cache HIT for user: ${user.serviceNo}`);
-      }
     }
 
     // Fetch from ERP if not in cache
     if (!erpData) {
-      console.log(`🔍 Fetching ERP data for user: ${user.serviceNo}`);
       const erpResponse = await erpService.getEmployeeDetails(
         "string",
         "string",

@@ -85,13 +85,11 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 // 10) Socket.IO connection handling
 io.on("connection", (socket) => {
-  console.log(`Client connected: ${socket.id}`);
 
   // Join user-specific room based on service number
   socket.on("join-user-room", (serviceNo) => {
     if (serviceNo) {
       socket.join(`user-${serviceNo}`);
-      console.log(`User ${serviceNo} joined their room`);
     }
   });
 
@@ -99,7 +97,6 @@ io.on("connection", (socket) => {
   socket.on("join-role-room", (role) => {
     if (role) {
       socket.join(`role-${role}`);
-      console.log(`User joined role room: ${role}`);
     }
   });
 
@@ -107,12 +104,10 @@ io.on("connection", (socket) => {
   socket.on("join-branch-room", (branch) => {
     if (branch) {
       socket.join(`branch-${branch}`);
-      console.log(`User joined branch room: ${branch}`);
     }
   });
 
   socket.on("disconnect", () => {
-    console.log(`Client disconnected: ${socket.id}`);
   });
 });
 

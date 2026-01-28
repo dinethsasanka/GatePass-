@@ -1,14 +1,20 @@
-export const LoadMoreButton = ({ onClick, loading, hasMore }) => {
-  if (!hasMore) {
+export const LoadMoreButton = ({ onClick, loading, hasMore, currentCount, total }) => {
+  if (!hasMore && currentCount >= total) {
     return (
-      <div className="text-center p-4 text-gray-500">
-        No more items to load
+      <div className="text-center p-4 space-y-2">
+        <p className="text-gray-500">No more items to load</p>
+        <p className="text-sm text-gray-400">Showing all {total} items</p>
       </div>
     );
   }
   
   return (
-    <div className="flex justify-center p-6">
+    <div className="flex flex-col items-center justify-center p-6 space-y-3">
+      {total > 0 && (
+        <p className="text-sm text-gray-600">
+          Showing {currentCount} of {total} items
+        </p>
+      )}
       <button
         onClick={onClick}
         disabled={loading}
@@ -26,3 +32,5 @@ export const LoadMoreButton = ({ onClick, loading, hasMore }) => {
     </div>
   );
 };
+
+export default LoadMoreButton;

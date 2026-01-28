@@ -8,7 +8,6 @@ const getUserByServiceNo = async (req, res) => {
 
     // Try to fetch from ERP API first (primary source)
     try {
-      console.log(`🔍 Fetching user from ERP API: ${serviceNo}`);
       const erpData = await erpService.getEmployeeDetails(
         "string",
         "string",
@@ -37,7 +36,6 @@ const getUserByServiceNo = async (req, res) => {
           _source: "ERP",
         };
 
-        console.log(`✅ User found in ERP: ${userData.name}`);
         return res.status(200).json(userData);
       }
     } catch (erpError) {
@@ -45,7 +43,6 @@ const getUserByServiceNo = async (req, res) => {
     }
 
     // Fallback: Try MongoDB if ERP fails
-    console.log(`📚 Fallback to MongoDB for: ${serviceNo}`);
     const user = await User.findOne({ serviceNo });
 
     if (!user) {
@@ -68,7 +65,6 @@ const getUserByServiceNo = async (req, res) => {
       _source: "MongoDB",
     };
 
-    console.log(`✅ User found in MongoDB: ${userData.name}`);
     res.status(200).json(userData);
   } catch (error) {
     console.error(`❌ Error fetching user: ${error.message}`);

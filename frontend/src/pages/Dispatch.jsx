@@ -4,11 +4,16 @@ import {
   fetchDispatchPending,
   fetchDispatchApproved,
   fetchDispatchRejected,
+  fetchMoreDispatchPending,
+  fetchMoreDispatchApproved,
+  fetchMoreDispatchRejected,
   selectDispatchPending,
   selectDispatchApproved,
   selectDispatchRejected,
   selectDispatchLoading,
 } from '../features/dispatch/dispatchSlice';
+import { LoadingSpinner } from '../components/LoadingSpinner.jsx';
+import { LoadMoreButton } from '../components/LoadMoreButton.jsx';
 import {
   getPendingStatuses,
   getApprovedStatuses,
@@ -91,6 +96,7 @@ const Dispatch = () => {
   const approvedItems = useSelector(selectDispatchApproved);
   const rejectedItems = useSelector(selectDispatchRejected);
   const isLoading = useSelector(selectDispatchLoading);
+  const pagination = useSelector(state => state.dispatch.pagination);
 
   // UI state (keep local)
   const [activeTab, setActiveTab] = useState("pending");
@@ -145,10 +151,19 @@ const Dispatch = () => {
     }
   }, [activeTab, dispatch]);
 
+  // Handle load more based on active tab
+  const handleLoadMore = () => {
+    if (activeTab === "pending") {
+      dispatch(fetchMoreDispatchPending());
+    } else if (activeTab === "approved") {
+      dispatch(fetchMoreDispatchApproved());
+    } else if (activeTab === "rejected") {
+      dispatch(fetchMoreDispatchRejected());
+    }
+  };
 
   // --- Approval Logic ---
 
-  // First, rename the function (change sendRecieverNotificationEmail to sendReceiverNotificationEmail)
   const sendReceiverNotificationEmail = async (
     receiverData,
     requestData,
@@ -1079,7 +1094,7 @@ const Dispatch = () => {
                 activeTab === "pending" ? "text-white" : "text-amber-500"
               }`}
             >
-              {pendingItems.length}
+              {pagination.pending?.total || 0}
             </div>
             <p
               className={
@@ -1125,7 +1140,7 @@ const Dispatch = () => {
                 activeTab === "approved" ? "text-white" : "text-emerald-500"
               }`}
             >
-              {approvedItems.length}
+              {pagination.approved?.total || 0}
             </div>
             <p
               className={
@@ -1171,7 +1186,7 @@ const Dispatch = () => {
                 activeTab === "rejected" ? "text-white" : "text-rose-500"
               }`}
             >
-              {rejectedItems.length}
+              {pagination.rejected?.total || 0}
             </div>
             <p
               className={
@@ -1376,8 +1391,15 @@ const Dispatch = () => {
           </table>
         </div>
 
+        {/* Loading State - Initial Load */}
+        {isLoading && (activeTab === "pending" ? pendingItems : activeTab === "approved" ? approvedItems : rejectedItems).length === 0 && (
+          <div className="flex justify-center py-12">
+            <LoadingSpinner size="lg" message="Loading requests..." />
+          </div>
+        )}
+
         {/* Empty State */}
-        {(activeTab === "pending"
+        {!isLoading && (activeTab === "pending"
           ? filteredPendingItems
           : activeTab === "approved"
           ? filteredApprovedItems
@@ -1393,6 +1415,24 @@ const Dispatch = () => {
                 ? "Try adjusting your search criteria"
                 : "Your gate pass requests will appear here"}
             </p>
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {!isLoading && (activeTab === "pending"
+          ? filteredPendingItems
+          : activeTab === "approved"
+          ? filteredApprovedItems
+          : filteredRejectedItems
+        ).length > 0 && (
+          <div className="py-6">
+            <LoadMoreButton
+              onClick={handleLoadMore}
+              loading={isLoading}
+              hasMore={pagination[activeTab]?.hasMore}
+              currentCount={(activeTab === "pending" ? pendingItems : activeTab === "approved" ? approvedItems : rejectedItems).length}
+              total={pagination[activeTab]?.total}
+            />
           </div>
         )}
       </div>
