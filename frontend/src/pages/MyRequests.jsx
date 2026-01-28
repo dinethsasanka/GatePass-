@@ -826,22 +826,18 @@ const RequestDetailsModal = ({
                   <label className="text-sm font-medium text-gray-600">
                     Executive Officer
                   </label>
-                  <select
-                    value={selectedExecutive}
-                    onChange={handleExecutiveChange}
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  >
-                    {executiveOfficers.map((officer) => (
-                      <option key={officer.serviceNo} value={officer.serviceNo}>
-                        {officer.name} - {officer.designation}
-                      </option>
-                    ))}
-                  </select>
-                  {updateSuccess && (
-                    <p className="text-sm text-green-600 mt-1">
-                      Executive officer updated successfully!
-                    </p>
-                  )}
+                  <p className="text-gray-800">
+                    {executiveOfficers.find(
+                      (officer) => officer.serviceNo === request?.executiveOfficerServiceNo
+                    )?.name || "N/A"} 
+                    {executiveOfficers.find(
+                      (officer) => officer.serviceNo === request?.executiveOfficerServiceNo
+                    )?.designation && (
+                      <span className="text-gray-600"> - {executiveOfficers.find(
+                        (officer) => officer.serviceNo === request?.executiveOfficerServiceNo
+                      )?.designation}</span>
+                    )}
+                  </p>
                 </div>
               </div>
             </div>

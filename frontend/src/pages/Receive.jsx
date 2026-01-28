@@ -216,6 +216,7 @@ const Receive = () => {
       .replace(/\s+/g, " "); // collapse whitespace
 
   // Real-time updates for Receive page (status: 6 = Receiver Pending)
+  // Optimized: backend now returns enriched data with all user details
   useAutoRefetch(
     async () => {
       if (activeTab !== "pending" || !userDetails?.serviceNo) return;
@@ -229,117 +230,48 @@ const Receive = () => {
           (s) => s && s.request,
         );
 
-        const visible = withRequest.filter((s) => s.request.show !== false);
+        // Backend now enriches with user data, so we just format for display
+        const formatted = withRequest.map((status) => {
+          const req = status.request || {};
+          
+          // Use server-provided enriched data (fallback to manual lookup if needed)
+          const senderDetails = status.senderDetails || {
+            serviceNo: req.employeeServiceNo,
+            name: "N/A",
+            section: "N/A",
+            group: "N/A",
+            designation: "N/A",
+            contactNo: "N/A",
+          };
 
-        const filtered = visible;
+          const receiverDetails = status.receiverDetails || 
+            ensureReceiverDetails(null, req.receiverServiceNo, req);
 
-        const formatted = await Promise.all(
-          filtered.map(async (status) => {
-            const req = status.request || {};
-            const senderServiceNo = req.employeeServiceNo;
-            const receiverServiceNo = req.receiverServiceNo;
-            const transportData = req.transport;
-            const loadingDetails = req.loading || {};
-            const statusDetails = status;
-
-            let senderDetails = null;
-            if (senderServiceNo) {
-              try {
-                senderDetails = await getCachedUser(
-                  senderServiceNo,
-                  searchUserByServiceNo,
-                );
-              } catch {}
-            }
-
-            // Fallback for missing sender details
-            if (!senderDetails && senderServiceNo) {
-              senderDetails = {
-                serviceNo: senderServiceNo,
-                name: "N/A",
-                section: "N/A",
-                group: "N/A",
-                designation: "N/A",
-                contactNo: "N/A",
-              };
-            }
-
-            let receiverDetails = null;
-            if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
-              try {
-                receiverDetails = await getCachedUserAllowRefresh(
-                  receiverServiceNo,
-                  fetchReceiverDetails,
-                );
-              } catch {}
-            }
-            receiverDetails = ensureReceiverDetails(
-              receiverDetails,
-              receiverServiceNo,
-              status.request,
-            );
-
-            let loadUserData = null;
-            if (
-              loadingDetails?.staffType === "SLT" &&
-              loadingDetails?.staffServiceNo
-            ) {
-              try {
-                loadUserData = await getCachedUser(
-                  loadingDetails.staffServiceNo,
-                  searchUserByServiceNo,
-                );
-              } catch {}
-            }
-
-            let unLoadUserData = null;
-            const unloadServiceNo =
-              req?.unLoading?.staffServiceNo ||
-              statusDetails?.recieveOfficerServiceNumber;
-            if (unloadServiceNo) {
-              try {
-                unLoadUserData = await searchUserByServiceNo(unloadServiceNo);
-              } catch {}
-            }
-
-            let receiveOfficerData = null;
-            if (status?.recieveOfficerServiceNumber) {
-              try {
-                receiveOfficerData = await searchUserByServiceNo(
-                  status.recieveOfficerServiceNumber,
-                );
-              } catch {}
-            }
-
-            const { executiveOfficerData, verifyOfficerData } =
-              await fetchOfficerData(statusDetails || status);
-
-            return {
-              refNo: status.referenceNumber,
-              senderDetails,
-              receiverDetails,
-              transportData,
-              loadingDetails,
-              inLocation: req.inLocation,
-              outLocation: req.outLocation,
-              createdAt: fmtDate(
-                status?.createdAt ||
-                  status?.updatedAt ||
-                  status?.request?.updatedAt ||
-                  status?.request?.createdAt,
-              ),
-              items: req.items || [],
-              comment: status.comment,
-              requestDetails: { ...req },
-              loadUserData,
-              unLoadUserData,
-              statusDetails,
-              receiveOfficerData,
-              executiveOfficerData,
-              verifyOfficerData,
-            };
-          }),
-        );
+          return {
+            refNo: status.referenceNumber,
+            senderDetails,
+            receiverDetails,
+            transportData: req.transport,
+            loadingDetails: req.loading || {},
+            inLocation: req.inLocation,
+            outLocation: req.outLocation,
+            createdAt: fmtDate(
+              status?.createdAt ||
+                status?.updatedAt ||
+                req?.updatedAt ||
+                req?.createdAt,
+            ),
+            items: req.items || [],
+            comment: status.comment,
+            requestDetails: { ...req },
+            loadUserData: status.loadingStaffDetails,
+            unLoadUserData: status.unloadingStaffDetails,
+            statusDetails: status,
+            receiveOfficerData: status.receiveOfficerDetails,
+            executiveOfficerData: status.executiveOfficerDetails,
+            verifyOfficerData: status.verifyOfficerDetails,
+          };
+        });
 
         const uniqueItems = formatted.reduce((acc, item) => {
           const existing = acc.find((x) => x.refNo === item.refNo);
@@ -373,7 +305,7 @@ const Receive = () => {
       if (!userDetails?.serviceNo) return;
 
       try {
-        // Fetch and format pending items (same logic as useAutoRefetch)
+        // Fetch and format pending items - optimized with server-side enrichment
         if (activeTab === "pending") {
           const data = await getPendingStatuses(
             isSuper ? undefined : userDetails?.serviceNo,
@@ -383,112 +315,47 @@ const Receive = () => {
             (s) => s && s.request,
           );
 
-          const visible = withRequest.filter((s) => s.request.show !== false);
+          // Backend now enriches with user data, so we just format for display
+          const formatted = withRequest.map((status) => {
+            const req = status.request || {};
+            
+            const senderDetails = status.senderDetails || {
+              serviceNo: req.employeeServiceNo,
+              name: "N/A",
+              section: "N/A",
+              group: "N/A",
+              designation: "N/A",
+              contactNo: "N/A",
+            };
 
-          const filtered = visible;
+            const receiverDetails = status.receiverDetails || 
+              ensureReceiverDetails(null, req.receiverServiceNo, req);
 
-          const formatted = await Promise.all(
-            filtered.map(async (status) => {
-              const req = status.request || {};
-              const senderServiceNo = req.employeeServiceNo;
-              const receiverServiceNo = req.receiverServiceNo;
-              const transportData = req.transport;
-              const loadingDetails = req.loading || {};
-              const statusDetails = status;
-
-              let senderDetails = null;
-              if (senderServiceNo) {
-                try {
-                  senderDetails = await getCachedUser(
-                    senderServiceNo,
-                    searchUserByServiceNo,
-                  );
-                } catch {}
-              }
-
-              // Fallback for missing sender details
-              if (!senderDetails && senderServiceNo) {
-                senderDetails = {
-                  serviceNo: senderServiceNo,
-                  name: "N/A",
-                  section: "N/A",
-                  group: "N/A",
-                  designation: "N/A",
-                  contactNo: "N/A",
-                };
-              }
-
-              let receiverDetails = null;
-              if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
-                try {
-                  receiverDetails = await getCachedUserAllowRefresh(
-                    receiverServiceNo,
-                    fetchReceiverDetails,
-                  );
-                } catch {}
-              }
-              receiverDetails = ensureReceiverDetails(
-                receiverDetails,
-                receiverServiceNo,
-                status.request,
-              );
-
-              let loadUserData = null;
-              if (
-                loadingDetails?.staffType === "SLT" &&
-                loadingDetails?.staffServiceNo
-              ) {
-                try {
-                  loadUserData = await getCachedUser(
-                    loadingDetails.staffServiceNo,
-                    searchUserByServiceNo,
-                  );
-                } catch {}
-              }
-
-              let unLoadUserData = null;
-              const unloadServiceNo =
-                req?.unLoading?.staffServiceNo ||
-                statusDetails?.recieveOfficerServiceNumber;
-              if (unloadServiceNo) {
-                try {
-                  unLoadUserData = await searchUserByServiceNo(unloadServiceNo);
-                } catch {}
-              }
-
-              let receiveOfficerData = null;
-              if (status?.recieveOfficerServiceNumber) {
-                try {
-                  receiveOfficerData = await searchUserByServiceNo(
-                    status.recieveOfficerServiceNumber,
-                  );
-                } catch {}
-              }
-
-              return {
-                refNo: status.referenceNumber,
-                senderDetails,
-                receiverDetails,
-                transportData,
-                loadingDetails,
-                inLocation: req.inLocation,
-                outLocation: req.outLocation,
-                createdAt: fmtDate(
-                  status?.createdAt ||
-                    status?.updatedAt ||
-                    status?.request?.updatedAt ||
-                    status?.request?.createdAt,
-                ),
-                items: req.items || [],
-                comment: status.comment,
-                requestDetails: { ...req },
-                loadUserData,
-                unLoadUserData,
-                statusDetails,
-                receiveOfficerData,
-              };
-            }),
-          );
+            return {
+              refNo: status.referenceNumber,
+              senderDetails,
+              receiverDetails,
+              transportData: req.transport,
+              loadingDetails: req.loading || {},
+              inLocation: req.inLocation,
+              outLocation: req.outLocation,
+              createdAt: fmtDate(
+                status?.createdAt ||
+                  status?.updatedAt ||
+                  req?.updatedAt ||
+                  req?.createdAt,
+              ),
+              items: req.items || [],
+              comment: status.comment,
+              requestDetails: { ...req },
+              loadUserData: status.loadingStaffDetails,
+              unLoadUserData: status.unloadingStaffDetails,
+              statusDetails: status,
+              receiveOfficerData: status.receiveOfficerDetails,
+              executiveOfficerData: status.executiveOfficerDetails,
+              verifyOfficerData: status.verifyOfficerDetails,
+            };
+          });
 
           const uniqueItems = formatted.reduce((acc, item) => {
             const existing = acc.find((x) => x.refNo === item.refNo);
@@ -508,121 +375,53 @@ const Receive = () => {
           setPendingItems(uniqueItems);
         }
 
-        // approved
-        // approved (formatted)
+        // approved - optimized with server-side enrichment
         const approvedData = await getApprovedStatuses(
           isSuper ? undefined : userDetails?.serviceNo,
         );
 
-        const approvedFormatted = await Promise.all(
-          (approvedData || [])
-            .filter((s) => s && s.request)
-            .filter((s) => s.request.show !== false)
-            .map(async (status) => {
-              const req = status.request || {};
-              const senderServiceNo = req.employeeServiceNo;
-              const receiverServiceNo = req.receiverServiceNo;
-              const loadingDetails = req.loading || {};
+        const approvedFormatted = (approvedData || [])
+          .filter((s) => s && s.request)
+          .map((status) => {
+            const req = status.request || {};
 
-              let senderDetails = null;
-              if (senderServiceNo) {
-                try {
-                  senderDetails = await getCachedUser(
-                    senderServiceNo,
-                    searchUserByServiceNo,
-                  );
-                } catch {}
-              }
+            const senderDetails = status.senderDetails || {
+              serviceNo: req.employeeServiceNo,
+              name: "N/A",
+              section: "N/A",
+              group: "N/A",
+              designation: "N/A",
+              contactNo: "N/A",
+            };
 
-              // Fallback for missing sender details
-              if (!senderDetails && senderServiceNo) {
-                senderDetails = {
-                  serviceNo: senderServiceNo,
-                  name: "N/A",
-                  section: "N/A",
-                  group: "N/A",
-                  designation: "N/A",
-                  contactNo: "N/A",
-                };
-              }
+            const receiverDetails = status.receiverDetails || 
+              ensureReceiverDetails(null, req.receiverServiceNo, req);
 
-              let receiverDetails = null;
-              if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
-                try {
-                  receiverDetails = await getCachedUserAllowRefresh(
-                    receiverServiceNo,
-                    fetchReceiverDetails,
-                  );
-                } catch {}
-              }
-              receiverDetails = ensureReceiverDetails(
-                receiverDetails,
-                receiverServiceNo,
-                status.request,
-              );
-
-              let loadUserData = null;
-              if (
-                loadingDetails?.staffType === "SLT" &&
-                loadingDetails?.staffServiceNo
-              ) {
-                try {
-                  loadUserData = await getCachedUser(
-                    loadingDetails.staffServiceNo,
-                    searchUserByServiceNo,
-                  );
-                } catch {}
-              }
-
-              let receiveOfficerData = null;
-              if (status?.recieveOfficerServiceNumber) {
-                try {
-                  receiveOfficerData = await getCachedUser(
-                    status.recieveOfficerServiceNumber,
-                    searchUserByServiceNo,
-                  );
-                } catch {}
-              }
-
-              let unLoadUserData = null;
-              if (req?.unLoading?.staffServiceNo) {
-                try {
-                  unLoadUserData = await getCachedUser(
-                    req.unLoading.staffServiceNo,
-                    searchUserByServiceNo,
-                  );
-                } catch {}
-              }
-
-              const { executiveOfficerData, verifyOfficerData } =
-                await fetchOfficerData(status);
-
-              return {
-                refNo: status.referenceNumber,
-                senderDetails,
-                receiverDetails,
-                transportData: req.transport,
-                loadingDetails,
-                inLocation: req.inLocation,
-                outLocation: req.outLocation,
-                createdAt: fmtDate(
-                  status?.createdAt ||
-                    status?.updatedAt ||
-                    req?.updatedAt ||
-                    req?.createdAt,
-                ),
-                items: req.items || [],
-                comment: status.comment,
-                requestDetails: { ...req },
-                loadUserData,
-                unLoadUserData,
-                statusDetails: status,
-                receiveOfficerData,
-                executiveOfficerData,
-                verifyOfficerData,
-              };
-            }),
-        );
+            return {
+              refNo: status.referenceNumber,
+              senderDetails,
+              receiverDetails,
+              transportData: req.transport,
+              loadingDetails: req.loading || {},
+              inLocation: req.inLocation,
+              outLocation: req.outLocation,
+              createdAt: fmtDate(
+                status?.createdAt ||
+                  status?.updatedAt ||
+                  req?.updatedAt ||
+                  req?.createdAt,
+              ),
+              items: req.items || [],
+              comment: status.comment,
+              requestDetails: { ...req },
+              loadUserData: status.loadingStaffDetails,
+              unLoadUserData: status.unloadingStaffDetails,
+              statusDetails: status,
+              receiveOfficerData: status.receiveOfficerDetails,
+              executiveOfficerData: status.executiveOfficerDetails,
+              verifyOfficerData: status.verifyOfficerDetails,
+            };
+          });
 
         // Remove duplicates by reference number (keep the most recent one)
         const uniqueApproved = approvedFormatted.reduce((acc, item) => {
@@ -642,11 +441,57 @@ const Receive = () => {
 
         setApprovedItems(uniqueApproved);
 
-        // rejected
+        // rejected - optimized with server-side enrichment
         const rejectedData = await getRejectedStatuses(
           isSuper ? undefined : userDetails?.serviceNo,
         );
-        setRejectedItems(rejectedData || []);
+        
+        const rejectedFormatted = (rejectedData || [])
+          .filter((s) => s && s.request)
+          .map((status) => {
+            const req = status.request || {};
+
+            const senderDetails = status.senderDetails || {
+              serviceNo: req.employeeServiceNo,
+              name: "N/A",
+              section: "N/A",
+              group: "N/A",
+              designation: "N/A",
+              contactNo: "N/A",
+            };
+
+            const receiverDetails = status.receiverDetails || 
+              ensureReceiverDetails(null, req.receiverServiceNo, req);
+
+            return {
+              refNo: status.referenceNumber,
+              senderDetails,
+              receiverDetails,
+              transportData: req.transport,
+              loadingDetails: req.loading || {},
+              inLocation: req.inLocation,
+              outLocation: req.outLocation,
+              createdAt: fmtDate(
+                status?.createdAt ||
+                  status?.updatedAt ||
+                  req?.updatedAt ||
+                  req?.createdAt,
+              ),
+              items: req.items || [],
+              comment: status.comment,
+              requestDetails: { ...req },
+              loadUserData: status.loadingStaffDetails,
+              unLoadUserData: status.unloadingStaffDetails,
+              statusDetails: status,
+              receiveOfficerData: status.receiveOfficerDetails,
+              executiveOfficerData: status.executiveOfficerDetails,
+              verifyOfficerData: status.verifyOfficerDetails,
+              rejectedBy: status.rejectedBy,
+              rejectedByServiceNo: status.rejectedByServiceNo,
+            };
+          });
+        
+        setRejectedItems(rejectedFormatted);
       } catch (err) {
         console.error("Receiver data load error:", err);
       }
@@ -654,182 +499,6 @@ const Receive = () => {
 
     loadAll();
   }, [userDetails?.serviceNo, userDetails?.branches, refetchTrigger]);
-
-  useEffect(() => {
-    if (activeTab !== "rejected" || !userDetails?.serviceNo) return;
-
-    const fetchData = async () => {
-      try {
-        const data = await getRejectedStatuses(userDetails.serviceNo);
-
-        // Filter rows safely: must have request, must be visible, and (optionally) match branch
-        const filtered = (Array.isArray(data) ? data : [])
-          .filter((s) => s && s.request) // ensure request exists
-          .filter((s) => s.request.show !== false) // respect visibility
-          .filter((s) =>
-            userDetails?.branches?.length
-              ? userDetails.branches.includes(s.request.inLocation)
-              : true,
-          );
-
-        const formattedData = await Promise.all(
-          filtered.map(async (status) => {
-            const req = status.request || {};
-            const senderServiceNo = req.employeeServiceNo;
-            const receiverServiceNo = req.receiverServiceNo;
-            const transportData = req.transport;
-            const loadingDetails = req.loading || {};
-            const statusDetails = status;
-
-            let senderDetails = null;
-            if (senderServiceNo) {
-              try {
-                senderDetails = await searchUserByServiceNo(senderServiceNo);
-              } catch (error) {
-                console.error(
-                  `Error fetching user for service number ${senderServiceNo}:`,
-                  error,
-                );
-              }
-            }
-
-            // Fallback for missing sender details
-            if (!senderDetails && senderServiceNo) {
-              senderDetails = {
-                serviceNo: senderServiceNo,
-                name: "N/A",
-                section: "N/A",
-                group: "N/A",
-                designation: "N/A",
-                contactNo: "N/A",
-              };
-            }
-
-            let receiverDetails = null;
-            if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
-              try {
-                const userData = await getCachedUserAllowRefresh(
-                  receiverServiceNo,
-                  fetchReceiverDetails,
-                );
-                if (userData) receiverDetails = userData;
-              } catch (error) {
-                console.error(
-                  `Error fetching user for service number ${receiverServiceNo}:`,
-                  error,
-                );
-              }
-            }
-            receiverDetails = ensureReceiverDetails(
-              receiverDetails,
-              receiverServiceNo,
-              status.request,
-            );
-
-            let loadUserData = null;
-            if (
-              loadingDetails?.staffType === "SLT" &&
-              loadingDetails?.staffServiceNo
-            ) {
-              try {
-                loadUserData = await getCachedUser(
-                  loadingDetails.staffServiceNo,
-                  searchUserByServiceNo,
-                );
-              } catch (error) {
-                console.error(
-                  `Error fetching user for service number ${loadingDetails.staffServiceNo}:`,
-                  error,
-                );
-              }
-            }
-
-            let unLoadUserData = null;
-            const unloadServiceNo =
-              req?.unLoading?.staffServiceNo ||
-              statusDetails?.recieveOfficerServiceNumber;
-            if (unloadServiceNo) {
-              try {
-                unLoadUserData = await searchUserByServiceNo(unloadServiceNo);
-              } catch (error) {
-                console.error(
-                  `Error fetching user for service number ${unloadServiceNo}:`,
-                  error,
-                );
-              }
-            }
-
-            let receiveOfficerData = null;
-            if (status.recieveOfficerServiceNumber) {
-              try {
-                receiveOfficerData = await searchUserByServiceNo(
-                  status.recieveOfficerServiceNumber,
-                );
-              } catch (error) {
-                console.error(
-                  `Error fetching user for service number ${status.recieveOfficerServiceNumber}:`,
-                  error,
-                );
-              }
-            }
-
-            return {
-              refNo: status.referenceNumber,
-              senderDetails,
-              receiverDetails,
-              transportData,
-              loadingDetails,
-              inLocation: req.inLocation,
-              outLocation: req.outLocation,
-              createdAt: fmtDate(
-                status?.createdAt ||
-                  status?.updatedAt ||
-                  status?.request?.updatedAt ||
-                  status?.request?.createdAt,
-              ),
-              items: req.items || [],
-              comment: status.comment,
-              requestDetails: { ...req },
-              loadUserData,
-              unLoadUserData,
-              statusDetails,
-              receiveOfficerData,
-              executiveOfficerData,
-              verifyOfficerData,
-              rejectedBy: status.rejectedBy,
-              rejectedByServiceNo: status.rejectedByServiceNo,
-              rejectedByBranch: status.rejectedByBranch,
-              rejectedAt: status.rejectedAt,
-              rejectionLevel: status.rejectionLevel,
-            };
-          }),
-        );
-
-        // Remove duplicates by reference number (keep the most recent one)
-        const uniqueRejected = formattedData.reduce((acc, item) => {
-          const existing = acc.find((x) => x.refNo === item.refNo);
-          if (!existing) {
-            acc.push(item);
-          } else {
-            const existingDate = new Date(existing.createdAt);
-            const currentDate = new Date(item.createdAt);
-            if (currentDate > existingDate) {
-              const index = acc.findIndex((x) => x.refNo === item.refNo);
-              acc[index] = item;
-            }
-          }
-          return acc;
-        }, []);
-
-        setRejectedItems(uniqueRejected);
-      } catch (error) {
-        console.error("Error fetching rejected statuses:", error);
-        setRejectedItems([]); // fail-safe
-      }
-    };
-
-    fetchData();
-  }, [activeTab, userDetails?.serviceNo, userDetails?.branches]);
 
   const StatusPill = ({ status }) => {
     const styles = {

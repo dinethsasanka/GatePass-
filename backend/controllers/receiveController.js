@@ -10,6 +10,7 @@ const {
   emitRequestCompletion,
   emitRequestRejection,
 } = require("../utils/socketEmitter");
+const { getAzureUserData } = require("../utils/azureUserCache");
 
 // ------------- helpers -------------
 const pick = (obj, path) =>
@@ -43,6 +44,160 @@ async function findUserByServiceNo(serviceNo) {
 
 // Import user helpers at the top
 const { findRequesterWithERPData } = require("../utils/userHelpers");
+
+// Helper function to enrich statuses with all user data in batch
+async function enrichStatusesWithUserData(statuses) {
+  if (!statuses || statuses.length === 0) return [];
+
+  // Collect all unique service numbers
+  const serviceNumbers = new Set();
+  
+  statuses.forEach(status => {
+    const req = status.request || {};
+    
+    // Sender
+    if (req.employeeServiceNo) serviceNumbers.add(String(req.employeeServiceNo));
+    
+    // Receiver
+    if (req.receiverServiceNo) serviceNumbers.add(String(req.receiverServiceNo));
+    
+    // Loading staff
+    if (req.loading?.staffServiceNo) serviceNumbers.add(String(req.loading.staffServiceNo));
+    
+    // Unloading staff
+    if (req.unLoading?.staffServiceNo) serviceNumbers.add(String(req.unLoading.staffServiceNo));
+    
+    // Receive officer
+    if (status.recieveOfficerServiceNumber) serviceNumbers.add(String(status.recieveOfficerServiceNumber));
+    
+    // Executive officer
+    if (req.executiveOfficerServiceNo) serviceNumbers.add(String(req.executiveOfficerServiceNo));
+    
+    // Verify officer
+    if (req.verifyOfficerServiceNo) serviceNumbers.add(String(req.verifyOfficerServiceNo));
+  });
+
+  // Batch fetch all users at once
+  const userMap = {};
+  if (serviceNumbers.size > 0) {
+    const users = await User.find({
+      serviceNo: { $in: Array.from(serviceNumbers) }
+    }).lean();
+    
+    users.forEach(user => {
+      userMap[String(user.serviceNo)] = user;
+    });
+  }
+
+  // For any missing users, try to get from Azure cache
+  const missingServiceNumbers = Array.from(serviceNumbers).filter(
+    sn => !userMap[sn]
+  );
+
+  if (missingServiceNumbers.length > 0) {
+    await Promise.all(
+      missingServiceNumbers.map(async (serviceNo) => {
+        try {
+          const azureData = await getAzureUserData(serviceNo, true);
+          if (azureData) {
+            userMap[serviceNo] = {
+              serviceNo: serviceNo,
+              name: azureData.displayName || azureData.name || "N/A",
+              email: azureData.mail || azureData.email || "N/A",
+              designation: azureData.jobTitle || "N/A",
+              section: azureData.department || "N/A",
+              group: azureData.officeLocation || "N/A",
+              contactNo: azureData.mobilePhone || azureData.businessPhones?.[0] || "N/A"
+            };
+          }
+        } catch (err) {
+          // Silently fail for individual Azure lookups
+        }
+      })
+    );
+  }
+
+  // Enrich each status with user data
+  return statuses.map(status => {
+    const req = status.request || {};
+    const enriched = { ...status };
+
+    // Add user data as nested objects with fallback to request data
+    enriched.senderDetails = userMap[String(req.employeeServiceNo)] || 
+      (req.employeeServiceNo ? {
+        serviceNo: req.employeeServiceNo,
+        name: "N/A",
+        section: "N/A",
+        group: "N/A",
+        designation: "N/A",
+        contactNo: "N/A"
+      } : null);
+
+    // For receiver, use request fields if user not found
+    enriched.receiverDetails = userMap[String(req.receiverServiceNo)] || 
+      (req.receiverServiceNo || req.receiverName ? {
+        serviceNo: req.receiverServiceNo || "N/A",
+        name: req.receiverName || "N/A",
+        section: "N/A",
+        group: "N/A",
+        designation: "N/A",
+        contactNo: req.receiverContact || "N/A"
+      } : null);
+
+    enriched.loadingStaffDetails = userMap[String(req.loading?.staffServiceNo)] || 
+      (req.loading?.staffServiceNo ? {
+        serviceNo: req.loading.staffServiceNo,
+        name: "N/A",
+        section: "N/A",
+        group: "N/A",
+        designation: "N/A",
+        contactNo: "N/A"
+      } : null);
+
+    enriched.unloadingStaffDetails = userMap[String(req.unLoading?.staffServiceNo)] || 
+                                     userMap[String(status.recieveOfficerServiceNumber)] || 
+      (req.unLoading?.staffServiceNo ? {
+        serviceNo: req.unLoading.staffServiceNo,
+        name: "N/A",
+        section: "N/A",
+        group: "N/A",
+        designation: "N/A",
+        contactNo: "N/A"
+      } : null);
+
+    enriched.receiveOfficerDetails = userMap[String(status.recieveOfficerServiceNumber)] || 
+      (status.recieveOfficerServiceNumber ? {
+        serviceNo: status.recieveOfficerServiceNumber,
+        name: "N/A",
+        section: "N/A",
+        group: "N/A",
+        designation: "N/A",
+        contactNo: "N/A"
+      } : null);
+
+    enriched.executiveOfficerDetails = userMap[String(req.executiveOfficerServiceNo)] || 
+      (req.executiveOfficerServiceNo ? {
+        serviceNo: req.executiveOfficerServiceNo,
+        name: "N/A",
+        section: "N/A",
+        group: "N/A",
+        designation: "N/A",
+        contactNo: "N/A"
+      } : null);
+
+    enriched.verifyOfficerDetails = userMap[String(req.verifyOfficerServiceNo)] || 
+      (req.verifyOfficerServiceNo ? {
+        serviceNo: req.verifyOfficerServiceNo,
+        name: "N/A",
+        section: "N/A",
+        group: "N/A",
+        designation: "N/A",
+        contactNo: "N/A"
+      } : null);
+
+    return enriched;
+  });
+}
 
 // Try to resolve the Requester user record from the Request document
 // NOW WITH ERP DATA!
@@ -227,9 +382,12 @@ const getPending = async (req, res) => {
       return true;
     });
 
+    // Enrich with user data server-side for better performance
+    const enriched = await enrichStatusesWithUserData(filtered);
+
     return res
       .status(200)
-      .json(sortNewest(filtered, ["updatedAt", "createdAt"]));
+      .json(sortNewest(enriched, ["updatedAt", "createdAt"]));
   } catch (error) {
     console.error("Error fetching receiver pending:", error);
     res.status(500).json({ message: "Server error" });
@@ -289,7 +447,10 @@ const getApproved = async (req, res) => {
       return true;
     });
 
-    res.status(200).json(sortNewest(filtered, ["updatedAt", "createdAt"]));
+    // Enrich with user data server-side for better performance
+    const enriched = await enrichStatusesWithUserData(filtered);
+
+    res.status(200).json(sortNewest(enriched, ["updatedAt", "createdAt"]));
   } catch (error) {
     console.error("Error fetching approved statuses:", error);
     res.status(500).json({ message: "Server error" });
@@ -340,7 +501,10 @@ const getRejected = async (req, res) => {
       return true;
     });
 
-    res.status(200).json(sortNewest(filtered, ["updatedAt", "createdAt"]));
+    // Enrich with user data server-side for better performance
+    const enriched = await enrichStatusesWithUserData(filtered);
+
+    res.status(200).json(sortNewest(enriched, ["updatedAt", "createdAt"]));
   } catch (error) {
     console.error("Error fetching rejected statuses:", error);
     res.status(500).json({ message: "Server error" });
