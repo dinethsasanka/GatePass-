@@ -98,6 +98,8 @@ exports.getPending = async (req, res) => {
     const routeSvc = String(req.params.id || req.query.serviceNo || "").trim();
     const userSvc = String(req.user?.serviceNo || "").trim();
     const svcNo = isSuper ? routeSvc || null : userSvc;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
 
     if (!isSuper && !svcNo) {
       return res
@@ -126,7 +128,19 @@ exports.getPending = async (req, res) => {
       }
     }
 
-    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
+    const sorted = sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]);
+    const total = sorted.length;
+    const paginatedData = sorted.slice(skip, skip + limit);
+    
+    return res.json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
   } catch (err) {
     console.error("Executive getPending error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -143,6 +157,8 @@ exports.getApproved = async (req, res) => {
     const routeSvc = String(req.params.id || req.query.serviceNo || "").trim();
     const userSvc = String(req.user?.serviceNo || "").trim();
     const svcNo = isSuper ? routeSvc || null : userSvc;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
 
     // Get all reference numbers that have been rejected at any level
     const rejectedRefs = await Status.find({
@@ -177,7 +193,19 @@ exports.getApproved = async (req, res) => {
       }
     }
 
-    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
+    const sorted = sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]);
+    const total = sorted.length;
+    const paginatedData = sorted.slice(skip, skip + limit);
+    
+    return res.json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
   } catch (err) {
     console.error("Executive getApproved error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -194,6 +222,8 @@ exports.getRejected = async (req, res) => {
     const routeSvc = String(req.params.id || req.query.serviceNo || "").trim();
     const userSvc = String(req.user?.serviceNo || "").trim();
     const svcNo = isSuper ? routeSvc || null : userSvc;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
 
     // Show rejections where Executive was involved:
     // 1. Executive rejected it themselves (executiveOfficerStatus: 3)
@@ -231,7 +261,19 @@ exports.getRejected = async (req, res) => {
       }
     }
 
-    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
+    const sorted = sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]);
+    const total = sorted.length;
+    const paginatedData = sorted.slice(skip, skip + limit);
+    
+    return res.json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
   } catch (err) {
     console.error("Executive getRejected error:", err);
     return res.status(500).json({ message: "Internal server error" });

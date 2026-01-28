@@ -72,6 +72,8 @@ const getPending = async (req, res) => {
     }
 
     const isSuper = isSuperAdmin(req.user?.role);
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
 
     const mySvc = String(req.user?.serviceNo || "").trim();
     if (!isSuper && !mySvc) {
@@ -108,7 +110,18 @@ const getPending = async (req, res) => {
         new Date(a.updatedAt || a.createdAt),
     );
 
-    return res.status(200).json(unique);
+    const total = unique.length;
+    const paginatedData = unique.slice(skip, skip + limit);
+    
+    return res.status(200).json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
   } catch (error) {
     console.error("Error fetching pending statuses:", error);
     return res.status(500).json({ message: "Server error" });
@@ -119,6 +132,9 @@ const getApproved = async (req, res) => {
   try {
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
     const mySvc = String(req.user?.serviceNo || "").trim();
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
+    
     if (!isSuper && !mySvc) {
       return res.status(400).json({ message: "Missing serviceNo" });
     }
@@ -135,7 +151,18 @@ const getApproved = async (req, res) => {
       );
     }
 
-    return res.status(200).json(filtered);
+    const total = filtered.length;
+    const paginatedData = filtered.slice(skip, skip + limit);
+    
+    return res.status(200).json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -145,6 +172,8 @@ const getRejected = async (req, res) => {
   try {
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
     const mySvc = String(req.user?.serviceNo || "").trim();
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
 
     if (!isSuper && !mySvc) {
       return res.status(400).json({ message: "Missing serviceNo" });
@@ -179,7 +208,18 @@ const getRejected = async (req, res) => {
         new Date(a.updatedAt || a.createdAt),
     );
 
-    return res.status(200).json(unique);
+    const total = unique.length;
+    const paginatedData = unique.slice(skip, skip + limit);
+    
+    return res.status(200).json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

@@ -164,6 +164,8 @@ const getPending = async (req, res) => {
       ? null
       : req.user?.serviceNo || req.query.serviceNo || null;
     const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
     const esc = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const branchRegex = branches
       .filter(Boolean)
@@ -214,7 +216,20 @@ const getPending = async (req, res) => {
         unique.push(s);
       }
     }
-    res.status(200).json(sortNewest(unique, ["updatedAt", "createdAt"]));
+    
+    const sorted = sortNewest(unique, ["updatedAt", "createdAt"]);
+    const total = sorted.length;
+    const paginatedData = sorted.slice(skip, skip + limit);
+    
+    res.status(200).json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
     return;
 
     res.status(200).json(filtered);
@@ -231,6 +246,8 @@ const getApproved = async (req, res) => {
       ? null
       : req.user?.serviceNo || req.query.serviceNo || null;
     const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
     const esc = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const branchRegex = branches
       .filter(Boolean)
@@ -277,7 +294,19 @@ const getApproved = async (req, res) => {
       return true;
     });
 
-    res.status(200).json(sortNewest(filtered, ["updatedAt", "createdAt"]));
+    const sorted = sortNewest(filtered, ["updatedAt", "createdAt"]);
+    const total = sorted.length;
+    const paginatedData = sorted.slice(skip, skip + limit);
+    
+    res.status(200).json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
   } catch (error) {
     console.error("Error fetching approved statuses:", error);
     res.status(500).json({ message: "Server error" });
@@ -291,6 +320,8 @@ const getRejected = async (req, res) => {
       ? null
       : req.user?.serviceNo || req.query.serviceNo || null;
     const branches = Array.isArray(req.user?.branches) ? req.user.branches : [];
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
     const esc = (s) => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const branchRegex = branches
       .filter(Boolean)
@@ -328,7 +359,19 @@ const getRejected = async (req, res) => {
       return true;
     });
 
-    res.status(200).json(sortNewest(filtered, ["updatedAt", "createdAt"]));
+    const sorted = sortNewest(filtered, ["updatedAt", "createdAt"]);
+    const total = sorted.length;
+    const paginatedData = sorted.slice(skip, skip + limit);
+    
+    res.status(200).json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
   } catch (error) {
     console.error("Error fetching rejected statuses:", error);
     res.status(500).json({ message: "Server error" });

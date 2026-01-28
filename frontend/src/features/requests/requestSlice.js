@@ -8,7 +8,9 @@ import {
   getPendingStatuses,
   getApprovedStatuses,
   getRejectedStatuses,
+  searchUserByServiceNo,
 } from "../../services/ApproveService";
+import { getCachedUser, setCachedUser } from "../../utils/userCache";
 
 const initialState = {
   // All requests
@@ -61,7 +63,102 @@ export const fetchPendingRequests = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await getPendingStatuses();
-      return response;
+      const loggedUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+      // Helper to check if service number is Non-SLT
+      const isNonSltIdentifier = (serviceNo) => {
+        if (!serviceNo) return false;
+        if (serviceNo.startsWith("NSL")) return true;
+        if (/^\d{4,6}$/.test(serviceNo)) return true;
+        return false;
+      };
+
+      // Process each status with async operations
+      const enrichedData = await Promise.all(
+        response.map(async (status) => {
+          const senderServiceNo = status.request?.employeeServiceNo;
+          const receiverServiceNo = status.request?.receiverServiceNo;
+          const transportData = status.request?.transport;
+          const isNonSltPlace = status.request?.isNonSltPlace;
+          let senderDetails = null;
+
+          // Check if the sender is the logged-in user
+          if (senderServiceNo === loggedUser.serviceNo) {
+            senderDetails = {
+              serviceNo: loggedUser.serviceNo,
+              name: loggedUser.name,
+              section: loggedUser.section || "N/A",
+              group: loggedUser.group || "N/A",
+              designation: loggedUser.designation || "N/A",
+              contactNo: loggedUser.contactNo || "N/A",
+              email: loggedUser.email || "N/A",
+              branches: loggedUser.branches || "N/A",
+            };
+            setCachedUser(loggedUser.serviceNo, senderDetails);
+          } else if (senderServiceNo) {
+            // Fetch sender details
+            try {
+              senderDetails = await getCachedUser(
+                senderServiceNo,
+                searchUserByServiceNo
+              );
+            } catch (error) {
+              console.error("[Redux] Failed to fetch sender:", senderServiceNo);
+            }
+          }
+
+          // Fallback for missing sender details
+          if (!senderDetails && senderServiceNo) {
+            senderDetails = {
+              serviceNo: senderServiceNo,
+              name: "N/A",
+              section: "N/A",
+              group: "N/A",
+              designation: "N/A",
+              contactNo: "N/A",
+            };
+          }
+
+          let receiverDetails = null;
+          if (
+            receiverServiceNo &&
+            !isNonSltPlace &&
+            !isNonSltIdentifier(receiverServiceNo)
+          ) {
+            try {
+              const userData = await searchUserByServiceNo(receiverServiceNo);
+              if (userData) receiverDetails = userData;
+            } catch (error) {}
+          } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
+            receiverDetails = {
+              name: status.request?.receiverName || "N/A",
+              nic: status.request?.receiverNIC || receiverServiceNo,
+              contactNo: status.request?.receiverContact || "N/A",
+            };
+          }
+
+          return {
+            refNo: status.referenceNumber,
+            senderDetails,
+            receiverDetails,
+            transportData,
+            inLocation: status.request?.inLocation,
+            outLocation: status.request?.outLocation,
+            createdAt: new Date(
+              status.request?.createdAt || status.createdAt
+            ).toLocaleString(),
+            items: status.request?.items || [],
+            comment: status.comment,
+            request: status.request,
+            requestDetails: { ...status.request },
+          };
+        })
+      );
+
+      // Sort by creation date (newest first)
+      return enrichedData.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      );
     } catch (error) {
       return rejectWithValue(
         error.message || "Failed to fetch pending requests"
@@ -75,11 +172,83 @@ export const fetchApprovedRequests = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await getApprovedStatuses();
-      return response;
-    } catch (error) {
-      return rejectWithValue(
-        error.message || "Failed to fetch approved requests"
+      const loggedUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+      const isNonSltIdentifier = (serviceNo) => {
+        if (!serviceNo) return false;
+        if (serviceNo.startsWith("NSL")) return true;
+        if (/^\d{4,6}$/.test(serviceNo)) return true;
+        return false;
+      };
+
+      const enrichedData = await Promise.all(
+        response.map(async (status) => {
+          const senderServiceNo = status.request?.employeeServiceNo;
+          const receiverServiceNo = status.request?.receiverServiceNo;
+          const isNonSltPlace = status.request?.isNonSltPlace;
+          let senderDetails = null;
+
+          if (senderServiceNo === loggedUser.serviceNo) {
+            senderDetails = {
+              serviceNo: loggedUser.serviceNo,
+              name: loggedUser.name,
+              section: loggedUser.section || "N/A",
+              group: loggedUser.group || "N/A",
+              designation: loggedUser.designation || "N/A",
+              contactNo: loggedUser.contactNo || "N/A",
+              email: loggedUser.email || "N/A",
+            };
+            setCachedUser(loggedUser.serviceNo, senderDetails);
+          } else if (senderServiceNo) {
+            try {
+              senderDetails = await getCachedUser(senderServiceNo, searchUserByServiceNo);
+            } catch (error) {}
+          }
+
+          if (!senderDetails && senderServiceNo) {
+            senderDetails = {
+              serviceNo: senderServiceNo,
+              name: "N/A",
+              section: "N/A",
+              group: "N/A",
+              designation: "N/A",
+              contactNo: "N/A",
+            };
+          }
+
+          let receiverDetails = null;
+          if (receiverServiceNo && !isNonSltPlace && !isNonSltIdentifier(receiverServiceNo)) {
+            try {
+              receiverDetails = await getCachedUser(receiverServiceNo, searchUserByServiceNo);
+            } catch (error) {}
+          } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
+            receiverDetails = {
+              name: status.request?.receiverName || "N/A",
+              nic: status.request?.receiverNIC || receiverServiceNo,
+              contactNo: status.request?.receiverContact || "N/A",
+            };
+          }
+
+          return {
+            refNo: status.referenceNumber,
+            senderDetails,
+            receiverDetails,
+            transportData: status.request?.transport,
+            loadingDetails: status.request?.loading,
+            inLocation: status.request?.inLocation,
+            outLocation: status.request?.outLocation,
+            createdAt: new Date(status.request?.createdAt || status.createdAt).toLocaleString(),
+            items: status.request?.items || [],
+            comment: status.verifyOfficerComment,
+            request: status.request,
+            requestDetails: { ...status.request },
+          };
+        })
       );
+
+      return enrichedData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } catch (error) {
+      return rejectWithValue(error.message || "Failed to fetch approved requests");
     }
   }
 );
@@ -89,11 +258,89 @@ export const fetchRejectedRequests = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await getRejectedStatuses();
-      return response;
-    } catch (error) {
-      return rejectWithValue(
-        error.message || "Failed to fetch rejected requests"
+      const loggedUser = JSON.parse(localStorage.getItem("user") || "{}");
+
+      const isNonSltIdentifier = (serviceNo) => {
+        if (!serviceNo) return false;
+        if (serviceNo.startsWith("NSL")) return true;
+        if (/^\d{4,6}$/.test(serviceNo)) return true;
+        return false;
+      };
+
+      const enrichedData = await Promise.all(
+        response.map(async (status) => {
+          const senderServiceNo = status.request?.employeeServiceNo;
+          const receiverServiceNo = status.request?.receiverServiceNo;
+          const isNonSltPlace = status.request?.isNonSltPlace;
+          let senderDetails = null;
+
+          if (senderServiceNo === loggedUser.serviceNo) {
+            senderDetails = {
+              serviceNo: loggedUser.serviceNo,
+              name: loggedUser.name,
+              section: loggedUser.section || "N/A",
+              group: loggedUser.group || "N/A",
+              designation: loggedUser.designation || "N/A",
+              contactNo: loggedUser.contactNo || "N/A",
+              email: loggedUser.email || "N/A",
+            };
+            setCachedUser(loggedUser.serviceNo, senderDetails);
+          } else if (senderServiceNo) {
+            try {
+              senderDetails = await getCachedUser(senderServiceNo, searchUserByServiceNo);
+            } catch (error) {}
+          }
+
+          if (!senderDetails && senderServiceNo) {
+            senderDetails = {
+              serviceNo: senderServiceNo,
+              name: "N/A",
+              section: "N/A",
+              group: "N/A",
+              designation: "N/A",
+              contactNo: "N/A",
+            };
+          }
+
+          let receiverDetails = null;
+          if (receiverServiceNo && !isNonSltPlace && !isNonSltIdentifier(receiverServiceNo)) {
+            try {
+              receiverDetails = await getCachedUser(receiverServiceNo, searchUserByServiceNo);
+            } catch (error) {}
+          } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
+            receiverDetails = {
+              name: status.request?.receiverName || "N/A",
+              nic: status.request?.receiverNIC || receiverServiceNo,
+              contactNo: status.request?.receiverContact || "N/A",
+            };
+          }
+
+          return {
+            refNo: status.referenceNumber,
+            senderDetails,
+            receiverDetails,
+            transportData: status.request?.transport,
+            loadingDetails: status.request?.loading,
+            inLocation: status.request?.inLocation,
+            outLocation: status.request?.outLocation,
+            createdAt: new Date(status.request?.createdAt || status.createdAt).toLocaleString(),
+            items: status.request?.items || [],
+            comment: status.verifyOfficerComment,
+            request: status.request,
+            requestDetails: { ...status.request },
+            statusDetails: status,
+            rejectedBy: status.rejectedBy,
+            rejectedByServiceNo: status.rejectedByServiceNo,
+            rejectedByBranch: status.rejectedByBranch,
+            rejectedAt: status.rejectedAt,
+            rejectionLevel: status.rejectionLevel,
+          };
+        })
       );
+
+      return enrichedData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } catch (error) {
+      return rejectWithValue(error.message || "Failed to fetch rejected requests");
     }
   }
 );

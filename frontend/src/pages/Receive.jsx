@@ -1,4 +1,14 @@
 import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchReceivePending,
+  fetchReceiveApproved,
+  fetchReceiveRejected,
+  selectReceivePending,
+  selectReceiveApproved,
+  selectReceiveRejected,
+  selectReceiveLoading,
+} from '../features/receive/receiveSlice';
 import {
   createStatus,
   getPendingStatuses,
@@ -65,13 +75,18 @@ const isNonSltIdentifier = (serviceNo) => {
 };
 
 const Receive = () => {
+  // Redux
+  const dispatch = useDispatch();
+  const pendingItems = useSelector(selectReceivePending);
+  const approvedItems = useSelector(selectReceiveApproved);
+  const rejectedItems = useSelector(selectReceiveRejected);
+  const isLoading = useSelector(selectReceiveLoading);
+
+  // UI state (keep local)
   const [activeTab, setActiveTab] = useState("pending");
   const [showModal, setShowModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [comment, setComment] = useState("");
-  const [pendingItems, setPendingItems] = useState([]);
-  const [approvedItems, setApprovedItems] = useState([]);
-  const [rejectedItems, setRejectedItems] = useState([]);
   const [transportData, setTransportData] = useState(null);
   const { showToast } = useToast();
   const [userDetails, setUserDetails] = useState(null);
@@ -128,142 +143,31 @@ const Receive = () => {
   // Real-time updates for Receive page (status: 6 = Receiver Pending)
   useAutoRefetch(
     async () => {
-      if (activeTab !== "pending" || !userDetails?.serviceNo) return;
-
-      try {
-        const data = await getPendingStatuses(
-          isSuper ? undefined : userDetails?.serviceNo,
-        );
-
-        const withRequest = (Array.isArray(data) ? data : []).filter(
-          (s) => s && s.request,
-        );
-
-        const visible = withRequest.filter((s) => s.request.show !== false);
-
-        const filtered = visible;
-
-        const formatted = await Promise.all(
-          filtered.map(async (status) => {
-            const req = status.request || {};
-            const senderServiceNo = req.employeeServiceNo;
-            const receiverServiceNo = req.receiverServiceNo;
-            const transportData = req.transport;
-            const loadingDetails = req.loading || {};
-            const statusDetails = status;
-
-            let senderDetails = null;
-            if (senderServiceNo) {
-              try {
-                senderDetails = await getCachedUser(
-                  senderServiceNo,
-                  searchUserByServiceNo,
-                );
-              } catch {}
-            }
-
-            // Fallback for missing sender details
-            if (!senderDetails && senderServiceNo) {
-              senderDetails = {
-                serviceNo: senderServiceNo,
-                name: "N/A",
-                section: "N/A",
-                group: "N/A",
-                designation: "N/A",
-                contactNo: "N/A",
-              };
-            }
-
-            let receiverDetails = null;
-            if (receiverServiceNo && !isNonSltIdentifier(receiverServiceNo)) {
-              try {
-                receiverDetails = await getCachedUser(
-                  receiverServiceNo,
-                  searchUserByServiceNo,
-                );
-              } catch {}
-            }
-
-            let loadUserData = null;
-            if (
-              loadingDetails?.staffType === "SLT" &&
-              loadingDetails?.staffServiceNo
-            ) {
-              try {
-                loadUserData = await getCachedUser(
-                  loadingDetails.staffServiceNo,
-                  searchUserByServiceNo,
-                );
-              } catch {}
-            }
-
-            let unLoadUserData = null;
-            if (statusDetails?.recieveOfficerServiceNumber) {
-              try {
-                unLoadUserData = await searchUserByServiceNo(
-                  statusDetails.recieveOfficerServiceNumber,
-                );
-              } catch {}
-            }
-
-            let receiveOfficerData = null;
-            if (status?.recieveOfficerServiceNumber) {
-              try {
-                receiveOfficerData = await searchUserByServiceNo(
-                  status.recieveOfficerServiceNumber,
-                );
-              } catch {}
-            }
-
-            return {
-              refNo: status.referenceNumber,
-              senderDetails,
-              receiverDetails,
-              transportData,
-              loadingDetails,
-              inLocation: req.inLocation,
-              outLocation: req.outLocation,
-              createdAt: fmtDate(
-                status?.createdAt ||
-                  status?.updatedAt ||
-                  status?.request?.updatedAt ||
-                  status?.request?.createdAt,
-              ),
-              items: req.items || [],
-              comment: status.comment,
-              requestDetails: { ...req },
-              loadUserData,
-              unLoadUserData,
-              statusDetails,
-              receiveOfficerData,
-            };
-          }),
-        );
-
-        const uniqueItems = formatted.reduce((acc, item) => {
-          const existing = acc.find((x) => x.refNo === item.refNo);
-          if (!existing) {
-            acc.push(item);
-          } else {
-            const existingDate = new Date(existing.createdAt);
-            const currentDate = new Date(item.createdAt);
-            if (currentDate > existingDate) {
-              const index = acc.findIndex((x) => x.refNo === item.refNo);
-              acc[index] = item;
-            }
-          }
-          return acc;
-        }, []);
-
-        setPendingItems(uniqueItems);
-      } catch (error) {
-        console.error("Error fetching pending statuses:", error);
-        setPendingItems([]);
+      if (activeTab === "pending") {
+        dispatch(fetchReceivePending());
       }
     },
-    [activeTab, userDetails?.serviceNo, userDetails?.branches],
-    { status: 6 }, // Receiver pending requests
+    [activeTab, dispatch],
+    { status: 6 } // Receiver pending requests
   );
+
+  // Fetch ALL tabs on mount to show counts immediately
+  useEffect(() => {
+    dispatch(fetchReceivePending());
+    dispatch(fetchReceiveApproved());
+    dispatch(fetchReceiveRejected());
+  }, [dispatch]);
+
+  // Fetch data based on active tab using Redux
+  useEffect(() => {
+    if (activeTab === "pending") {
+      dispatch(fetchReceivePending());
+    } else if (activeTab === "approved") {
+      dispatch(fetchReceiveApproved());
+    } else if (activeTab === "rejected") {
+      dispatch(fetchReceiveRejected());
+    }
+  }, [activeTab, dispatch]);
 
   // Fetch Pending Items - Now handled by useAutoRefetch hook above
 

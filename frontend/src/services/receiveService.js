@@ -24,33 +24,36 @@ export const createStatus = async (statusData) => {
 };
 
 // Get Receiver → Pending (optionally filtered by serviceNo)
-export const getPendingStatuses = async (serviceNo) => {
+export const getPendingStatuses = async (serviceNo, limit = 20, skip = 0) => {
+  const params = { limit, skip };
+  if (serviceNo) params.serviceNo = serviceNo;
+  
   const response = await axiosInstance.get(`/receive/pending`, {
-    params: serviceNo ? { serviceNo } : undefined,
+    params,
     headers: authHeaders(),
   });
   return response.data;
 };
 
 // Get Receiver → Approved (optionally filtered by serviceNo)
-export const getApprovedStatuses = async (serviceNo) => {
+export const getApprovedStatuses = async (serviceNo, limit = 20, skip = 0) => {
   try {
-    return await getWithParams(
-      `/receive/approved`,
-      serviceNo ? { serviceNo } : undefined
-    );
+    const params = { limit, skip };
+    if (serviceNo) params.serviceNo = serviceNo;
+    
+    return await getWithParams(`/receive/approved`, params);
   } catch (error) {
     throw new Error("Failed to fetch approved statuses");
   }
 };
 
 // Get Receiver → Rejected (optionally filtered by serviceNo)
-export const getRejectedStatuses = async (serviceNo) => {
+export const getRejectedStatuses = async (serviceNo, limit = 20, skip = 0) => {
   try {
-    return await getWithParams(
-      `/receive/rejected`,
-      serviceNo ? { serviceNo } : undefined
-    );
+    const params = { limit, skip };
+    if (serviceNo) params.serviceNo = serviceNo;
+    
+    return await getWithParams(`/receive/rejected`, params);
   } catch (error) {
     throw new Error("Failed to fetch rejected statuses");
   }

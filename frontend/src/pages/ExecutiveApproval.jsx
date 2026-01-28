@@ -1,4 +1,14 @@
 import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchExecutivePending,
+  fetchExecutiveApproved,
+  fetchExecutiveRejected,
+  selectExecutivePending,
+  selectExecutiveApproved,
+  selectExecutiveRejected,
+  selectExecutiveLoading,
+} from '../features/executive/executiveSlice';
 import {
   createStatus,
   getPendingStatuses,
@@ -50,13 +60,18 @@ const isNonSltIdentifier = (serviceNo) => {
 };
 
 const ExecutiveApproval = () => {
+  // Redux
+  const dispatch = useDispatch();
+  const pendingItems = useSelector(selectExecutivePending);
+  const approvedItems = useSelector(selectExecutiveApproved);
+  const rejectedItems = useSelector(selectExecutiveRejected);
+  const isLoading = useSelector(selectExecutiveLoading);
+  
+  // UI state (keep local)
   const [activeTab, setActiveTab] = useState("pending");
   const [showModal, setShowModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [comment, setComment] = useState("");
-  const [pendingItems, setPendingItems] = useState([]);
-  const [approvedItems, setApprovedItems] = useState([]);
-  const [rejectedItems, setRejectedItems] = useState([]);
   const [transportData, setTransportData] = useState(null);
   const { showToast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
@@ -72,431 +87,37 @@ const ExecutiveApproval = () => {
   // Real-time auto-refetch when new requests come in or status changes
   useAutoRefetch(
     async () => {
-      // Only refetch the active tab
       if (activeTab === "pending") {
-        try {
-          // const data = await getPendingStatuses(user.serviceNo);
-          const data = await getPendingStatuses();
-          const formattedData = await Promise.all(
-            data.map(async (status) => {
-              const senderServiceNo = status.request?.employeeServiceNo;
-              const receiverServiceNo = status.request?.receiverServiceNo;
-              const transportData = status.request?.transport;
-              const isNonSltPlace = status.request?.isNonSltPlace;
-              let senderDetails = null;
-
-              if (senderServiceNo === user.serviceNo) {
-                senderDetails = {
-                  serviceNo: user.serviceNo,
-                  name: user.name,
-                  section: user.section || "N/A",
-                  group: user.group || "N/A",
-                  designation: user.designation || "N/A",
-                  contactNo: user.contactNo || "N/A",
-                  email: user.email || "N/A",
-                  branches: user.branches || "N/A",
-                };
-                setCachedUser(user.serviceNo, senderDetails);
-              } else if (senderServiceNo) {
-                // Fetch sender details for any service number
-                try {
-                  senderDetails = await getCachedUser(
-                    senderServiceNo,
-                    searchUserByServiceNo
-                  );
-                } catch {}
-              }
-
-              // Fallback for missing sender details
-              if (!senderDetails && senderServiceNo) {
-                senderDetails = {
-                  serviceNo: senderServiceNo,
-                  name: "N/A",
-                  section: "N/A",
-                  group: "N/A",
-                  designation: "N/A",
-                  contactNo: "N/A",
-                };
-              }
-
-              let receiverDetails = null;
-              if (
-                receiverServiceNo &&
-                !isNonSltPlace &&
-                !isNonSltIdentifier(receiverServiceNo)
-              ) {
-                try {
-                  receiverDetails = await getCachedUser(
-                    receiverServiceNo,
-                    searchUserByServiceNo
-                  );
-                } catch (error) {
-                  // Silently handle missing users
-                }
-              } else if (
-                isNonSltPlace ||
-                isNonSltIdentifier(receiverServiceNo)
-              ) {
-                receiverDetails = {
-                  name: status.request?.receiverName || "N/A",
-                  nic: status.request?.receiverNIC || receiverServiceNo,
-                  contactNo: status.request?.receiverContact || "N/A",
-                };
-              }
-
-              return {
-                refNo: status.referenceNumber,
-                senderDetails,
-                receiverDetails,
-                transportData,
-                inLocation: status.request?.inLocation,
-                outLocation: status.request?.outLocation,
-                createdAt: new Date(
-                  status.request?.createdAt || status.createdAt
-                ).toLocaleString(),
-                items: status.request?.items || [],
-                comment: status.executiveOfficerComment || "",
-                request: status.request,
-                requestDetails: { ...status.request },
-              };
-            })
-          );
-          setPendingItems(formattedData);
-        } catch (error) {
-          console.error("Error in real-time refetch:", error);
-        }
+        dispatch(fetchExecutivePending());
       }
     },
-    [user, activeTab],
-    { status: 1 } // Only refetch for pending status updates
+    [user, activeTab, dispatch],
+    { status: 3 } // Executive pending status
   );
 
+  // Fetch ALL tabs on mount to show counts immediately
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // const data = await getPendingStatuses(user.serviceNo);
-        const data = await getPendingStatuses();
+    dispatch(fetchExecutivePending());
+    dispatch(fetchExecutiveApproved());
+    dispatch(fetchExecutiveRejected());
+  }, [dispatch]);
 
-        // Process each status with async operations
-        const formattedData = await Promise.all(
-          data.map(async (status) => {
-            const senderServiceNo = status.request?.employeeServiceNo;
-            const receiverServiceNo = status.request?.receiverServiceNo;
-            const transportData = status.request?.transport;
-            const isNonSltPlace = status.request?.isNonSltPlace;
-            let senderDetails = null;
-
-            // Check if the sender is the logged-in user
-            if (senderServiceNo === user.serviceNo) {
-              // Use logged-in user's data for sender details
-              senderDetails = {
-                serviceNo: user.serviceNo,
-                name: user.name,
-                section: user.section || "N/A",
-                group: user.group || "N/A",
-                designation: user.designation || "N/A",
-                contactNo: user.contactNo || "N/A",
-                email: user.email || "N/A",
-                branches: user.branches || "N/A",
-              };
-              // Cache the logged-in user data
-              setCachedUser(user.serviceNo, senderDetails);
-            } else if (senderServiceNo) {
-              // Fetch user data for ANY service number (SLT or Non-SLT)
-              try {
-                senderDetails = await getCachedUser(
-                  senderServiceNo,
-                  searchUserByServiceNo
-                );
-              } catch (error) {
-                // User not found - will use fallback
-              }
-            }
-
-            // If sender details couldn't be fetched, create a basic object with at least the service number
-            if (!senderDetails && senderServiceNo) {
-              senderDetails = {
-                serviceNo: senderServiceNo,
-                name: "N/A",
-                section: "N/A",
-                group: "N/A",
-                designation: "N/A",
-                contactNo: "N/A",
-              };
-            }
-
-            let receiverDetails = null;
-
-            // Only fetch receiver details if it's an SLT Branch destination
-            // Check if receiverServiceNo is not a Non-SLT identifier (like NSL789)
-            if (
-              receiverServiceNo &&
-              !isNonSltPlace &&
-              !isNonSltIdentifier(receiverServiceNo)
-            ) {
-              try {
-                receiverDetails = await getCachedUser(
-                  receiverServiceNo,
-                  searchUserByServiceNo
-                );
-              } catch (error) {
-                // Silently handle missing users - this is expected for test data
-              }
-            } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
-              // For Non-SLT destinations, use the receiver details from the request
-              receiverDetails = {
-                name: status.request?.receiverName || "N/A",
-                nic: status.request?.receiverNIC || receiverServiceNo,
-                contactNo: status.request?.receiverContact || "N/A",
-              };
-            }
-
-            return {
-              refNo: status.referenceNumber,
-              senderDetails: senderDetails,
-              receiverDetails: receiverDetails,
-              transportData: transportData,
-              inLocation: status.request?.inLocation,
-              outLocation: status.request?.outLocation,
-              createdAt: new Date(
-                status.request?.createdAt || status.createdAt
-              ).toLocaleString(),
-              items: status.request?.items || [],
-              comment: status.executiveOfficerComment || "",
-              request: status.request,
-              requestDetails: { ...status.request },
-            };
-          })
-        );
-
-        setPendingItems(formattedData);
-      } catch (error) {
-        console.error("Error fetching pending statuses:", error);
-      }
-    };
-
-    fetchData();
-  }, [activeTab]);
-
+  // Fetch data based on active tab using Redux
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await getApprovedStatuses();
+    if (activeTab === "pending") {
+      dispatch(fetchExecutivePending());
+    } else if (activeTab === "approved") {
+      dispatch(fetchExecutiveApproved());
+    } else if (activeTab === "rejected") {
+      dispatch(fetchExecutiveRejected());
+    }
+  }, [activeTab, dispatch]);
 
-        // Process each status with async operations
-        const formattedData = await Promise.all(
-          data.map(async (status) => {
-            const senderServiceNo = status.request?.employeeServiceNo;
-            const receiverServiceNo = status.request?.receiverServiceNo;
-            const transportData = status.request?.transport;
-            const isNonSltPlace = status.request?.isNonSltPlace;
-            let senderDetails = null;
 
-            // Check if the sender is the logged-in user
-            if (senderServiceNo === user.serviceNo) {
-              // Use logged-in user's data for sender details
-              senderDetails = {
-                serviceNo: user.serviceNo,
-                name: user.name,
-                section: user.section || "N/A",
-                group: user.group || "N/A",
-                designation: user.designation || "N/A",
-                contactNo: user.contactNo || "N/A",
-                email: user.email || "N/A",
-                branches: user.branches || "N/A",
-              };
-              setCachedUser(user.serviceNo, senderDetails);
-            } else if (senderServiceNo) {
-              // Fetch sender details for any service number
-              try {
-                senderDetails = await getCachedUser(
-                  senderServiceNo,
-                  searchUserByServiceNo
-                );
-              } catch (error) {
-                // Silently handle missing users
-              }
-            }
 
-            // Fallback for missing sender details
-            if (!senderDetails && senderServiceNo) {
-              senderDetails = {
-                serviceNo: senderServiceNo,
-                name: "N/A",
-                section: "N/A",
-                group: "N/A",
-                designation: "N/A",
-                contactNo: "N/A",
-              };
-            }
 
-            let receiverDetails = null;
 
-            // Only fetch receiver details if it's an SLT Branch destination
-            // Check if receiverServiceNo is not a Non-SLT identifier (like NSL789)
-            if (
-              receiverServiceNo &&
-              !isNonSltPlace &&
-              !isNonSltIdentifier(receiverServiceNo)
-            ) {
-              try {
-                const userData = await getCachedUser(
-                  receiverServiceNo,
-                  searchUserByServiceNo
-                );
-                if (userData) {
-                  receiverDetails = userData;
-                  // console.log("Receiver Details", receiverDetails);
-                }
-              } catch (error) {
-                // Silently handle missing users - this is expected for test data
-              }
-            } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
-              // For Non-SLT destinations, use the receiver details from the request
-              receiverDetails = {
-                name: status.request?.receiverName || "N/A",
-                nic: status.request?.receiverNIC || receiverServiceNo,
-                contactNo: status.request?.receiverContact || "N/A",
-              };
-            }
 
-            return {
-              refNo: status.referenceNumber,
-              senderDetails: senderDetails,
-              receiverDetails: receiverDetails,
-              transportData: transportData,
-              inLocation: status.request?.inLocation,
-              outLocation: status.request?.outLocation,
-              createdAt: new Date(
-                status.request?.createdAt || status.createdAt
-              ).toLocaleString(),
-              items: status.request?.items || [],
-              comment: status.executiveOfficerComment,
-              request: status.request,
-              requestDetails: { ...status.request },
-            };
-          })
-        );
-        setApprovedItems(formattedData);
-      } catch (error) {
-        console.error("Error fetching pending statuses:", error);
-      }
-    };
-    fetchData();
-  }, [activeTab]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await getRejectedStatuses();
-
-        // Process each status with async operations
-        const formattedData = await Promise.all(
-          data.map(async (status) => {
-            const senderServiceNo = status.request?.employeeServiceNo;
-            const receiverServiceNo = status.request?.receiverServiceNo;
-            const transportData = status.request?.transport;
-            const isNonSltPlace = status.request?.isNonSltPlace;
-            let senderDetails = null;
-
-            // Check if the sender is the logged-in user
-            if (senderServiceNo === user.serviceNo) {
-              // Use logged-in user's data for sender details
-              senderDetails = {
-                serviceNo: user.serviceNo,
-                name: user.name,
-                section: user.section || "N/A",
-                group: user.group || "N/A",
-                designation: user.designation || "N/A",
-                contactNo: user.contactNo || "N/A",
-                email: user.email || "N/A",
-                branches: user.branches || "N/A",
-              };
-              setCachedUser(user.serviceNo, senderDetails);
-            } else if (senderServiceNo) {
-              // Fetch sender details for any service number
-              try {
-                senderDetails = await getCachedUser(
-                  senderServiceNo,
-                  searchUserByServiceNo
-                );
-              } catch (error) {
-                // Silently handle missing users
-              }
-            }
-
-            // If sender details couldn't be fetched, create a basic object with at least the service number
-            if (!senderDetails && senderServiceNo) {
-              senderDetails = {
-                serviceNo: senderServiceNo,
-                name: "N/A",
-                section: "N/A",
-                group: "N/A",
-                designation: "N/A",
-                contactNo: "N/A",
-              };
-            }
-
-            let receiverDetails = null;
-
-            // Only fetch receiver details if it's an SLT Branch destination
-            // Check if receiverServiceNo is not a Non-SLT identifier (like NSL789)
-            if (
-              receiverServiceNo &&
-              !isNonSltPlace &&
-              !isNonSltIdentifier(receiverServiceNo)
-            ) {
-              try {
-                const userData = await getCachedUser(
-                  receiverServiceNo,
-                  searchUserByServiceNo
-                );
-                if (userData) {
-                  receiverDetails = userData;
-                  // console.log("Receiver Details", receiverDetails);
-                }
-              } catch (error) {
-                // Silently handle missing users - this is expected for test data
-              }
-            } else if (isNonSltPlace || isNonSltIdentifier(receiverServiceNo)) {
-              // For Non-SLT destinations, use the receiver details from the request
-              receiverDetails = {
-                name: status.request?.receiverName || "N/A",
-                nic: status.request?.receiverNIC || receiverServiceNo,
-                contactNo: status.request?.receiverContact || "N/A",
-              };
-            }
-
-            return {
-              refNo: status.referenceNumber,
-              senderDetails: senderDetails,
-              receiverDetails: receiverDetails,
-              transportData: transportData,
-              inLocation: status.request?.inLocation,
-              outLocation: status.request?.outLocation,
-              createdAt: new Date(
-                status.request?.createdAt || status.createdAt
-              ).toLocaleString(),
-              items: status.request?.items || [],
-              comment: status.executiveOfficerComment,
-              request: status.request,
-              requestDetails: { ...status.request },
-              rejectedBy: status.rejectedBy,
-              rejectedByServiceNo: status.rejectedByServiceNo,
-              rejectedByBranch: status.rejectedByBranch,
-              rejectedAt: status.rejectedAt,
-              rejectionLevel: status.rejectionLevel,
-            };
-          })
-        );
-
-        setRejectedItems(formattedData);
-      } catch (error) {
-        console.error("Error fetching pending statuses:", error);
-      }
-    };
-    fetchData();
-  }, [activeTab]);
 
   const StatusPill = ({ status }) => {
     const styles = {

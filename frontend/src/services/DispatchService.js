@@ -17,9 +17,9 @@ export const createStatus = async (statusData) => {
 };
 
 // Get all pending statuses
-export const getPendingStatuses = async () => {
+export const getPendingStatuses = async (limit = 20, skip = 0) => {
   try {
-    const response = await axiosInstance.get(`/dispatch/pending`);
+    const response = await axiosInstance.get(`/dispatch/pending?limit=${limit}&skip=${skip}`);
     return response.data;
   } catch (error) {
     throw new Error("Failed to fetch pending statuses");
@@ -27,9 +27,9 @@ export const getPendingStatuses = async () => {
 };
 
 // Get all approved statuses
-export const getApprovedStatuses = async () => {
+export const getApprovedStatuses = async (limit = 20, skip = 0) => {
   try {
-    const response = await axiosInstance.get(`/dispatch/approved`);
+    const response = await axiosInstance.get(`/dispatch/approved?limit=${limit}&skip=${skip}`);
     return response.data;
   } catch (error) {
     throw new Error("Failed to fetch approved statuses");
@@ -37,9 +37,9 @@ export const getApprovedStatuses = async () => {
 };
 
 // Get all rejected statuses
-export const getRejectedStatuses = async () => {
+export const getRejectedStatuses = async (limit = 20, skip = 0) => {
   try {
-    const response = await axiosInstance.get(`/dispatch/rejected`);
+    const response = await axiosInstance.get(`/dispatch/rejected?limit=${limit}&skip=${skip}`);
     return response.data;
   } catch (error) {
     throw new Error("Failed to fetch approved statuses");

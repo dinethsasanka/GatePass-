@@ -171,6 +171,8 @@ exports.getPending = async (req, res) => {
     }
 
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
 
     let allowedBranchesNorm = null;
 
@@ -198,7 +200,7 @@ exports.getPending = async (req, res) => {
       // de-dupe
       allowedBranchesNorm = Array.from(new Set(combined));
 
-      if (!allowedBranchesNorm.length) return res.json([]);
+      if (!allowedBranchesNorm.length) return res.json({ data: [], pagination: { total: 0, limit, skip, hasMore: false } });
     }
 
     const rows = await Status.find({ verifyOfficerStatus: { $in: [1, "1"] } })
@@ -231,7 +233,19 @@ exports.getPending = async (req, res) => {
       }
     }
 
-    return res.json(sortNewest(unique, ["updatedAt", "createdAt"]));
+    const sorted = sortNewest(unique, ["updatedAt", "createdAt"]);
+    const total = sorted.length;
+    const paginatedData = sorted.slice(skip, skip + limit);
+    
+    return res.json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
   } catch (err) {
     console.error("Verify getPending error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -244,6 +258,8 @@ exports.getApproved = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
     let allowedBranchesNorm = null;
 
     if (!isSuper) {
@@ -268,7 +284,7 @@ exports.getApproved = async (req, res) => {
 
       allowedBranchesNorm = Array.from(new Set(combined));
 
-      if (!allowedBranchesNorm.length) return res.json([]);
+      if (!allowedBranchesNorm.length) return res.json({ data: [], pagination: { total: 0, limit, skip, hasMore: false } });
     }
 
     // Get all reference numbers that have been rejected at any level
@@ -305,7 +321,19 @@ exports.getApproved = async (req, res) => {
       }
     }
 
-    return res.json(sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]));
+    const sorted = sortNewest(uniqueFiltered, ["updatedAt", "createdAt"]);
+    const total = sorted.length;
+    const paginatedData = sorted.slice(skip, skip + limit);
+    
+    return res.json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
   } catch (err) {
     console.error("Verify getApproved error:", err);
     return res.status(500).json({ message: "Internal server error" });
@@ -318,6 +346,8 @@ exports.getRejected = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
     const isSuper = normalizeRole(req.user?.role) === "superadmin";
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = parseInt(req.query.skip) || 0;
     let allowedBranchesNorm = null;
 
     if (!isSuper) {
@@ -342,7 +372,7 @@ exports.getRejected = async (req, res) => {
 
       allowedBranchesNorm = Array.from(new Set(combined));
 
-      if (!allowedBranchesNorm.length) return res.json([]);
+      if (!allowedBranchesNorm.length) return res.json({ data: [], pagination: { total: 0, limit, skip, hasMore: false } });
     }
 
     // Show rejections where Verifier was involved:
@@ -371,13 +401,24 @@ exports.getRejected = async (req, res) => {
       const outNorm = normBranch(reqDoc.outLocation);
       return allowedBranchesNorm.includes(outNorm);
     });
-    return res.json(
-      filtered.sort(
-        (a, b) =>
-          new Date(b.updatedAt || b.createdAt) -
-          new Date(a.updatedAt || a.createdAt),
-      ),
+    
+    const sorted = filtered.sort(
+      (a, b) =>
+        new Date(b.updatedAt || b.createdAt) -
+        new Date(a.updatedAt || a.createdAt),
     );
+    const total = sorted.length;
+    const paginatedData = sorted.slice(skip, skip + limit);
+    
+    return res.json({
+      data: paginatedData,
+      pagination: {
+        total,
+        limit,
+        skip,
+        hasMore: skip + paginatedData.length < total
+      }
+    });
 
     // Remove duplicates by keeping only the latest Status per referenceNumber
     const uniqueFiltered = [];
