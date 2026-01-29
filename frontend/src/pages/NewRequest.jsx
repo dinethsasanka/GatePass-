@@ -297,10 +297,9 @@ const NewRequest = () => {
     });
   };
 
-  // Search for item by serial number
-  const handleSearchSerialNumber = async () => {
-    if (!serialNumberInput.trim()) {
-      showToast("Please enter a serial number", "warning");
+  // Auto-search for item by serial number
+  const handleSerialNumberLookup = async (serialNumber) => {
+    if (!serialNumber || serialNumber.length < 3) {
       return;
     }
 
@@ -308,40 +307,29 @@ const NewRequest = () => {
     try {
       const { getItemBySerialNumber } =
         await import("../services/intranetService.js");
-      const itemData = await getItemBySerialNumber(serialNumberInput.trim());
+      const itemData = await getItemBySerialNumber(serialNumber);
 
       // Populate form with API data
-      setCurrentItem({
-        serialNumber: itemData.serialNumber,
+      setCurrentItem((prev) => ({
+        ...prev,
+        serialNumber: serialNumber,
         itemCode: itemData.itemCode,
         itemDescription: itemData.itemDescription,
         itemCategory: itemData.itemCategory,
         categoryDescription: itemData.categoryDescription,
-        qty: 1,
-        returnable: "No",
-        images: [],
-        returnDate: "",
-      });
+        qty: prev.qty || 1,
+        returnable: prev.returnable || "No",
+        images: prev.images || [],
+        returnDate: prev.returnDate || "",
+      }));
 
-      showToast("Item found and loaded", "success");
+      showToast("Item found and auto-filled", "success");
     } catch (error) {
       console.error("Error fetching item:", error);
-      if (error.response?.status === 404) {
-        showToast("Item not found. You can add it manually.", "info");
-        // Clear the form for manual entry
-        setCurrentItem({
-          serialNumber: serialNumberInput.trim(),
-          itemCode: "",
-          itemDescription: "",
-          itemCategory: "",
-          categoryDescription: "",
-          qty: 1,
-          returnable: "No",
-          images: [],
-          returnDate: "",
-        });
-      } else {
-        showToast("Failed to search item. Please try again.", "error");
+      // Silently fail - user can fill manually
+      // Only show message if it's not a 404
+      if (error.response?.status !== 404) {
+        console.log("Item lookup failed, user can fill manually");
       }
     } finally {
       setIsSearchingItem(false);
@@ -1552,57 +1540,39 @@ const NewRequest = () => {
 
               {showItemForm && (
                 <div className="mb-6 bg-gray-50 rounded-xl p-6">
-                  {/* Serial Number Search */}
-                  <div className="mb-6 pb-6 border-b border-gray-300">
-                    <label className="block text-sm font-medium text-gray-600 mb-2">
-                      Search by Serial Number
-                    </label>
-                    <div className="flex gap-4">
-                      <input
-                        className="flex-1 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                        type="text"
-                        value={serialNumberInput}
-                        onChange={(e) => setSerialNumberInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleSearchSerialNumber();
-                          }
-                        }}
-                        placeholder="Enter serial number to search"
-                      />
-                      <button
-                        onClick={handleSearchSerialNumber}
-                        disabled={!serialNumberInput.trim() || isSearchingItem}
-                        className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                      >
-                        <Search className="h-5 w-5" />
-                        {isSearchingItem ? "Searching..." : "Search"}
-                      </button>
-                    </div>
-                    <p className="mt-2 text-xs text-gray-500">
-                      Search for an item by serial number, or fill in the
-                      details manually below
-                    </p>
-                  </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-2">
                         Serial Number <span className="text-red-500">*</span>
+                        {isSearchingItem && (
+                          <span className="ml-2 text-xs text-indigo-600">
+                            Searching...
+                          </span>
+                        )}
                       </label>
                       <input
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
                         type="text"
                         value={currentItem.serialNumber}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const serialNumber = e.target.value;
                           setCurrentItem({
                             ...currentItem,
-                            serialNumber: e.target.value,
-                          })
-                        }
+                            serialNumber: serialNumber,
+                          });
+                          // Auto-lookup after user stops typing (debounced)
+                          if (serialNumber.length >= 3) {
+                            clearTimeout(window.serialLookupTimeout);
+                            window.serialLookupTimeout = setTimeout(() => {
+                              handleSerialNumberLookup(serialNumber.trim());
+                            }, 800);
+                          }
+                        }}
                         placeholder="Enter serial number"
                       />
+                      <p className="mt-1 text-xs text-gray-500">
+                        Type serial number - details will auto-fill if found
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-2">
