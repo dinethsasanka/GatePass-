@@ -6,17 +6,19 @@ const INTRANET_BASE_URL = "http://172.25.41.33:8000";
 // Create axios instance with default config
 const intranetAxios = axios.create({
   baseURL: INTRANET_BASE_URL,
-  timeout: 10000, // 10 seconds timeout
+  timeout: 30000, // 30 seconds timeout (increased for intranet networks)
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 /**
- * Get all item categories
+ * Get all item categories with retry logic
  * @returns {Promise<Array>} List of item categories
  */
-const getItemCategories = async () => {
+const getItemCategories = async (retryCount = 0) => {
+  const MAX_RETRIES = 2;
+  
   try {
     console.log(
       "Fetching item categories from:",
@@ -36,6 +38,14 @@ const getItemCategories = async () => {
     // Fallback if format is different
     return response.data;
   } catch (error) {
+    // Retry on timeout errors
+    if ((error.code === "ECONNABORTED" || error.message.includes("timeout")) && retryCount < MAX_RETRIES) {
+      console.warn(`⚠️ Timeout on attempt ${retryCount + 1}. Retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+      // Wait 2 seconds before retrying
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return getItemCategories(retryCount + 1);
+    }
+
     console.error("Error fetching item categories:", error.message);
     console.warn("⚠️ Intranet API not available, using fallback categories");
     
@@ -45,11 +55,13 @@ const getItemCategories = async () => {
 };
 
 /**
- * Get item details by serial number
+ * Get item details by serial number with retry logic
  * @param {string} serialNumber - The item serial number
  * @returns {Promise<Object>} Item details
  */
-const getItemBySerialNumber = async (serialNumber) => {
+const getItemBySerialNumber = async (serialNumber, retryCount = 0) => {
+  const MAX_RETRIES = 2;
+  
   try {
     console.log(
       `Fetching item ${serialNumber} from:`,
@@ -65,6 +77,14 @@ const getItemBySerialNumber = async (serialNumber) => {
     // Fallback if format is different
     return response.data;
   } catch (error) {
+    // Retry on timeout errors
+    if ((error.code === "ECONNABORTED" || error.message.includes("timeout")) && retryCount < MAX_RETRIES) {
+      console.warn(`⚠️ Timeout on attempt ${retryCount + 1}. Retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+      // Wait 2 seconds before retrying
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return getItemBySerialNumber(serialNumber, retryCount + 1);
+    }
+
     console.error(`Error fetching item ${serialNumber}:`, error.message);
     if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
       throw new Error(
@@ -73,6 +93,11 @@ const getItemBySerialNumber = async (serialNumber) => {
     }
     if (error.response?.status === 404) {
       throw new Error(`Item with serial number ${serialNumber} not found`);
+    }
+    if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
+      throw new Error(
+        `Request timeout while fetching item. The intranet API server is taking too long to respond.`,
+      );
     }
     throw new Error(`Failed to fetch item: ${error.message}`);
   }

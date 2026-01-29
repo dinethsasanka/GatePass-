@@ -46,6 +46,22 @@ const fetchItemBySerialNumber = async (req, res) => {
       });
     }
 
+    if (error.message.includes("timeout")) {
+      return res.status(504).json({
+        message: "Intranet API server is responding slowly. Please try again in a moment.",
+        error: error.message,
+        found: false,
+      });
+    }
+
+    if (error.message.includes("not reachable")) {
+      return res.status(503).json({
+        message: "Intranet API is temporarily unavailable. Please try again later.",
+        error: error.message,
+        found: false,
+      });
+    }
+
     res.status(500).json({
       message: "Failed to fetch item",
       error: error.message,

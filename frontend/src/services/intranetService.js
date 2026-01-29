@@ -41,6 +41,30 @@ export const getItemBySerialNumber = async (serialNumber) => {
     return response.data;
   } catch (error) {
     console.error(`Error fetching item ${serialNumber}:`, error);
+    
+    // Handle specific error responses with better messages
+    if (error.response?.status === 404) {
+      throw new Error(`Item with serial number "${serialNumber}" not found in the intranet system.`);
+    }
+    
+    if (error.response?.status === 504) {
+      throw new Error(
+        "Intranet API server is responding slowly. This may be due to network congestion. Please wait a moment and try again.",
+      );
+    }
+    
+    if (error.response?.status === 503) {
+      throw new Error(
+        "The intranet API service is temporarily unavailable. Please try again in a few moments.",
+      );
+    }
+    
+    if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
+      throw new Error(
+        "Request timeout. The intranet API server took too long to respond. Please try again.",
+      );
+    }
+    
     throw error;
   }
 };
