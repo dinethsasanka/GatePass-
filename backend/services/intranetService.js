@@ -1,7 +1,7 @@
 const axios = require("axios");
 
 // Intranet API Configuration
-const INTRANET_BASE_URL = "http://172.25.41.33:8000";
+const INTRANET_BASE_URL = process.env.INTRANET_BASE_URL || "http://localhost:8000";
 
 // Create axios instance with default config
 const intranetAxios = axios.create({
