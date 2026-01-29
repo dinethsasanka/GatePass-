@@ -1659,7 +1659,7 @@ const NewRequest = () => {
                         <option value="">Select category</option>
                         {categoriesLoading ? (
                           <option disabled>Loading categories...</option>
-                        ) : (
+                        ) : intranetCategories.length > 0 ? (
                           intranetCategories
                             .sort((a, b) => a.localeCompare(b))
                             .map((category, idx) => (
@@ -1667,6 +1667,8 @@ const NewRequest = () => {
                                 {category}
                               </option>
                             ))
+                        ) : (
+                          <option value="Electronic">Electronic</option>
                         )}
                       </select>
                     </div>

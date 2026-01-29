@@ -37,12 +37,10 @@ const getItemCategories = async () => {
     return response.data;
   } catch (error) {
     console.error("Error fetching item categories:", error.message);
-    if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
-      throw new Error(
-        "Intranet API is not reachable. Please check network connectivity.",
-      );
-    }
-    throw new Error(`Failed to fetch item categories: ${error.message}`);
+    console.warn("⚠️ Intranet API not available, using fallback categories");
+    
+    // Return hardcoded categories as fallback
+    return ["Laptop", "Desktop", "Monitor", "Printer", "Mobile Phone", "Tablet"];
   }
 };
 
