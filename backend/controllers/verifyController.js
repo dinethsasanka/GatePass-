@@ -436,7 +436,8 @@ exports.updateApproved = async (req, res) => {
     if (req.user?.serviceNo) {
       status.verifyOfficerServiceNumber = String(req.user.serviceNo).trim();
       if (status.request) {
-        status.request.verifyOfficerServiceNo = status.verifyOfficerServiceNumber;
+        status.request.verifyOfficerServiceNo =
+          status.verifyOfficerServiceNumber;
       }
     }
 
@@ -538,7 +539,6 @@ exports.updateApproved = async (req, res) => {
     }
     await status.save();
 
-
     // Email Petrol Leader (Dispatch) at IN-location for dispatch approval
     try {
       const pleader = await findPetrolLeaderForInLocation(inLocation);
@@ -622,7 +622,8 @@ exports.updateRejected = async (req, res) => {
     if (req.user?.serviceNo) {
       status.verifyOfficerServiceNumber = String(req.user.serviceNo).trim();
       if (status.request) {
-        status.request.verifyOfficerServiceNo = status.verifyOfficerServiceNumber;
+        status.request.verifyOfficerServiceNo =
+          status.verifyOfficerServiceNumber;
       }
     }
     status.rejectedAt = new Date();
@@ -840,11 +841,12 @@ exports.addReturnableItemToRequest = async (req, res) => {
 
     // Create new returnable item data
     const newItem = {
-      itemName: itemData.itemName,
-      serialNo: itemData.serialNo,
+      serialNumber: itemData.serialNumber,
+      itemCode: itemData.itemCode || "",
+      itemDescription: itemData.itemDescription,
       itemCategory: itemData.itemCategory,
+      categoryDescription: itemData.categoryDescription,
       itemQuantity: itemData.itemQuantity || 1,
-      itemModel: itemData.itemModel || "",
       returnDate: itemData.returnDate || null,
       status: "returnable",
       returned: false,

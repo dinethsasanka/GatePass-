@@ -120,7 +120,8 @@ const fetchReceiverDetails = async (serviceNo) => {
 
 const fetchOfficerData = async (status) => {
   const execServiceNo =
-    status?.executiveOfficerServiceNo || status?.request?.executiveOfficerServiceNo;
+    status?.executiveOfficerServiceNo ||
+    status?.request?.executiveOfficerServiceNo;
   const verifyServiceNo =
     status?.verifyOfficerServiceNumber ||
     status?.verifyOfficerServiceNo ||
@@ -133,7 +134,7 @@ const fetchOfficerData = async (status) => {
     try {
       executiveOfficerData = await getCachedUser(
         execServiceNo,
-        searchUserByServiceNo
+        searchUserByServiceNo,
       );
     } catch {}
   }
@@ -142,7 +143,7 @@ const fetchOfficerData = async (status) => {
     try {
       verifyOfficerData = await getCachedUser(
         verifyServiceNo,
-        searchUserByServiceNo
+        searchUserByServiceNo,
       );
     } catch {}
   }
@@ -153,11 +154,11 @@ const fetchOfficerData = async (status) => {
 const Verify = () => {
   const [activeTab, setActiveTab] = useState("pending");
   const [showModal, setShowModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setselectedItem] = useState(null);
   const [comment, setComment] = useState("");
-  const [pendingItems, setPendingItems] = useState([]);
-  const [approvedItems, setApprovedItems] = useState([]);
-  const [rejectedItems, setRejectedItems] = useState([]);
+  const [pendingDESCRIPTIONs, setPendingDESCRIPTIONs] = useState([]);
+  const [approvedDESCRIPTIONs, setApprovedDESCRIPTIONs] = useState([]);
+  const [rejectedDESCRIPTIONs, setRejectedDESCRIPTIONs] = useState([]);
   const [transportData, setTransportData] = useState(null);
   const [userDetails, setUserDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -224,13 +225,13 @@ const Verify = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 console.error(
                   "[Verify] Failed to fetch sender:",
                   senderServiceNo,
-                  error.message
+                  error.message,
                 );
               }
             }
@@ -278,7 +279,7 @@ const Verify = () => {
               try {
                 const userData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
                 loadUserData = userData;
               } catch (error) {
@@ -298,7 +299,7 @@ const Verify = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.comment,
@@ -309,13 +310,13 @@ const Verify = () => {
               executiveOfficerData,
               verifyOfficerData,
             };
-          })
+          }),
         );
 
-        setPendingItems(
+        setPendingDESCRIPTIONs(
           pendingData.sort(
-            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-          )
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+          ),
         );
       } catch (error) {
         console.error("Error fetching pending statuses:", error);
@@ -325,7 +326,7 @@ const Verify = () => {
       }
     },
     [activeTab],
-    { status: 2 } // Verifier pending requests
+    { status: 2 }, // Verifier pending requests
   );
 
   useEffect(() => {
@@ -376,13 +377,13 @@ const Verify = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 console.error(
                   "[Verify] Failed to fetch sender:",
                   senderServiceNo,
-                  error.message
+                  error.message,
                 );
               }
             }
@@ -430,7 +431,7 @@ const Verify = () => {
               try {
                 const userData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
                 loadUserData = userData;
               } catch (error) {
@@ -449,7 +450,7 @@ const Verify = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.comment,
@@ -460,13 +461,13 @@ const Verify = () => {
               executiveOfficerData,
               verifyOfficerData,
             };
-          })
+          }),
         );
 
-        setPendingItems(
+        setPendingDESCRIPTIONs(
           pendingData.sort(
-            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-          )
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+          ),
         );
       } catch (error) {
         console.error("Error fetching pending statuses:", error);
@@ -478,7 +479,7 @@ const Verify = () => {
     fetchData();
   }, [activeTab]);
 
-  // Fetch Approved Items
+  // Fetch Approved items
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -521,7 +522,7 @@ const Verify = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 // Silently handle missing users
@@ -547,7 +548,10 @@ const Verify = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                receiverDetails = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                receiverDetails = await getCachedUserAllowRefresh(
+                  receiverServiceNo,
+                  fetchReceiverDetails,
+                );
               } catch (error) {
                 // Silently handle missing users
               }
@@ -573,7 +577,7 @@ const Verify = () => {
               try {
                 const userData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
                 loadUserData = userData;
               } catch (error) {
@@ -593,7 +597,7 @@ const Verify = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.verifyOfficerComment,
@@ -604,13 +608,13 @@ const Verify = () => {
               executiveOfficerData,
               verifyOfficerData,
             };
-          })
+          }),
         );
 
-        setApprovedItems(
+        setApprovedDESCRIPTIONs(
           approvedData.sort(
-            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-          )
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+          ),
         );
       } catch (error) {
         console.error("Error fetching approved statuses:", error);
@@ -661,7 +665,7 @@ const Verify = () => {
               try {
                 senderDetails = await getCachedUser(
                   senderServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
               } catch (error) {
                 // Silently handle missing users
@@ -690,7 +694,10 @@ const Verify = () => {
               !isNonSltIdentifier(receiverServiceNo)
             ) {
               try {
-                const userData = await getCachedUserAllowRefresh(receiverServiceNo, fetchReceiverDetails);
+                const userData = await getCachedUserAllowRefresh(
+                  receiverServiceNo,
+                  fetchReceiverDetails,
+                );
                 if (userData) {
                   receiverDetails = userData;
                 }
@@ -721,7 +728,7 @@ const Verify = () => {
               try {
                 const userData = await getCachedUser(
                   loadingDetails.staffServiceNo,
-                  searchUserByServiceNo
+                  searchUserByServiceNo,
                 );
                 loadUserData = userData;
               } catch (error) {
@@ -741,7 +748,7 @@ const Verify = () => {
               inLocation: status.request?.inLocation,
               outLocation: status.request?.outLocation,
               createdAt: new Date(
-                status.request?.createdAt || status.createdAt
+                status.request?.createdAt || status.createdAt,
               ).toLocaleString(),
               items: status.request?.items || [],
               comment: status.verifyOfficerComment,
@@ -757,13 +764,13 @@ const Verify = () => {
               rejectedAt: status.rejectedAt,
               rejectionLevel: status.rejectionLevel,
             };
-          })
+          }),
         );
 
-        setRejectedItems(
+        setRejectedDESCRIPTIONs(
           rejectedData.sort(
-            (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-          )
+            (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+          ),
         );
       } catch (error) {
         console.error("Error fetching rejected statuses:", error);
@@ -797,7 +804,7 @@ const Verify = () => {
   const sendApprovalEmailToPetrolLeader = async (
     petrolLeaderEmail,
     request,
-    comment
+    comment,
   ) => {
     try {
       if (!petrolLeaderEmail) {
@@ -850,7 +857,7 @@ const Verify = () => {
               <td style="padding: 8px 0;">${request.inLocation}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #757575;">Items Count:</td>
+              <td style="padding: 8px 0; color: #757575;">items Count:</td>
               <td style="padding: 8px 0;">${request.items.length}</td>
             </tr>
             <tr>
@@ -861,12 +868,12 @@ const Verify = () => {
         </div>
         
         <div style="margin-bottom: 20px;">
-          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Items to be Loaded</h3>
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">items to be Loaded</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;">
             <thead>
               <tr style="background-color: #f8f9fa;">
-                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Item Name</th>
-                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Serial No</th>
+                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">item Name</th>
+                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Serial Number</th>
                 <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Category</th>
                 <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Quantity</th>
               </tr>
@@ -877,19 +884,19 @@ const Verify = () => {
                   (item) => `
                 <tr>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.itemName || "N/A"
+                    item.itemDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.serialNo || "N/A"
+                    item.serialNumber || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.itemCategory || "N/A"
+                    item.categoryDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
                     item.itemQuantity || "1"
                   }</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -972,7 +979,7 @@ const Verify = () => {
               <td style="padding: 8px 0;">${request.inLocation}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #757575;">Items Count:</td>
+              <td style="padding: 8px 0; color: #757575;">items Count:</td>
               <td style="padding: 8px 0;">${request.items.length}</td>
             </tr>
             <tr>
@@ -983,12 +990,12 @@ const Verify = () => {
         </div>
         
         <div style="margin-bottom: 20px;">
-          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Incoming Items</h3>
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Incoming items</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;">
             <thead>
               <tr style="background-color: #f8f9fa;">
-                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Item Name</th>
-                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Serial No</th>
+                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">item Name</th>
+                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Serial Number</th>
                 <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Category</th>
                 <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Quantity</th>
               </tr>
@@ -999,19 +1006,19 @@ const Verify = () => {
                   (item) => `
                 <tr>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.itemName || "N/A"
+                    item.itemDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.serialNo || "N/A"
+                    item.serialNumber || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.itemCategory || "N/A"
+                    item.categoryDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
                     item.itemQuantity || "1"
                   }</td>
                 </tr>
-              `
+              `,
                 )
                 .join("")}
             </tbody>
@@ -1092,19 +1099,19 @@ const Verify = () => {
         return;
       }
 
-      const emailSubject = `Returnable Items Update: ${request.refNo}`;
+      const emailSubject = `Returnable items Update: ${request.refNo}`;
 
       // Create items table for email
       const itemsTable =
         itemDetails.length > 0
           ? `
       <div style="margin: 20px 0;">
-        <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned Items</h3>
+        <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned items</h3>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
           <thead>
             <tr style="background-color: #f5f5f5;">
-              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Item Name</th>
-              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial No</th>
+              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">item Name</th>
+              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial Number</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Category</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Quantity</th>
             </tr>
@@ -1115,19 +1122,19 @@ const Verify = () => {
                 (item) => `
               <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                  item.itemName || "N/A"
+                  item.itemDescription || "N/A"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                  item.serialNo || "N/A"
+                  item.serialNumber || "N/A"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                  item.itemCategory || "N/A"
+                  item.categoryDescription || "N/A"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
                   item.itemQuantity || "1"
                 }</td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -1139,7 +1146,7 @@ const Verify = () => {
       const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable Items Update</h2>
+          <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable items Update</h2>
           <p style="color: #757575; font-size: 14px;">Reference Number: ${
             request.refNo
           }</p>
@@ -1151,8 +1158,8 @@ const Verify = () => {
           <p>We would like to inform you that ${
             itemDetails.length
           } returnable item(s) under reference number <b>${
-        request.refNo
-      }</b> have been returned by the Receiver.</p>
+            request.refNo
+          }</b> have been returned by the Receiver.</p>
           <p>You can view it under your <i>Completed</i> or relevant section.</p>
         </div>
 
@@ -1181,7 +1188,7 @@ const Verify = () => {
   const sendReturnTOExecutiveEmail = async (
     request,
     comment,
-    selectedItemDetails
+    selectedDESCRIPTIONDetails,
   ) => {
     try {
       // Get the executive officer details from the request
@@ -1204,7 +1211,7 @@ const Verify = () => {
         return;
       }
 
-      const emailSubject = `Action Required: Review and Return Items - ${request.refNo}`;
+      const emailSubject = `Action Required: Review and Return items - ${request.refNo}`;
 
       // Create a professional email body with HTML formatting
       const emailBody = `
@@ -1212,7 +1219,7 @@ const Verify = () => {
         
         <!-- Header -->
         <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="color: #2fd33dff; margin-bottom: 5px;">⚠️ Action Required: Review and Return Items</h2>
+          <h2 style="color: #2fd33dff; margin-bottom: 5px;">⚠️ Action Required: Review and Return items</h2>
           <p style="color: #757575; font-size: 14px;">Reference Number: <strong>${
             request.refNo
           }</strong></p>
@@ -1247,38 +1254,38 @@ const Verify = () => {
           </p>
         </div>
 
-        <!-- Items Table -->
+        <!-- items Table -->
         <div style="margin-bottom: 20px;">
-          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Items to be Returned</h3>
+          <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">items to be Returned</h3>
           <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px;">
             <thead>
               <tr style="background-color: #f8f9fa;">
-                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Item Name</th>
-                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Serial No</th>
+                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">item Name</th>
+                <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Serial Number</th>
                 <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Category</th>
                 <th style="padding: 8px; text-align: left; border: 1px solid #dee2e6;">Quantity</th>
               </tr>
             </thead>
             <tbody>
               ${
-                selectedItemDetails
+                selectedDESCRIPTIONDetails
                   ?.map(
                     (item) => `
                 <tr>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.itemName || "N/A"
+                    item.itemDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.serialNo || "N/A"
+                    item.serialNumber || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
-                    item.itemCategory || "N/A"
+                    item.categoryDescription || "N/A"
                   }</td>
                   <td style="padding: 8px; border: 1px solid #dee2e6;">${
                     item.itemQuantity || "1"
                   }</td>
                 </tr>
-              `
+              `,
                   )
                   .join("") ||
                 '<tr><td colspan="4" style="padding: 8px; text-align: center;">No items selected</td></tr>'
@@ -1338,7 +1345,7 @@ const Verify = () => {
       console.log("Executive officer notification email sent successfully");
       showToast(
         "Return notification email sent to executive officer",
-        "success"
+        "success",
       );
 
       return result;
@@ -1371,7 +1378,7 @@ const Verify = () => {
           await sendApprovalEmailToPetrolLeader(
             fallbackEmail,
             request,
-            comment
+            comment,
           );
           emailCount++;
           successRecipients.push(`Petrol Leader: ${fallbackEmail}`);
@@ -1381,7 +1388,7 @@ const Verify = () => {
         } catch (fallbackError) {
           console.error(
             `❌ Fallback email failed for ${fallbackEmail}:`,
-            fallbackError
+            fallbackError,
           );
           // Continue to next fallback
         }
@@ -1402,12 +1409,12 @@ const Verify = () => {
           emailCount++;
           successRecipients.push(`Receiver: ${request.receiverDetails.email}`);
           console.log(
-            `Email sent successfully to receiver: ${request.receiverDetails.email}`
+            `Email sent successfully to receiver: ${request.receiverDetails.email}`,
           );
         } catch (emailError) {
           console.error(
             `❌ Failed to send email to receiver ${request.receiverDetails.email}:`,
-            emailError
+            emailError,
           );
           errors.push(`Receiver email failed: ${emailError.message}`);
         }
@@ -1426,27 +1433,27 @@ const Verify = () => {
         if (errors.length > 0) {
           showToast(
             `Approval sent! Notifications delivered to ${emailCount} recipient(s), but ${errors.join(
-              ", "
+              ", ",
             )}`,
-            "warning"
+            "warning",
           );
         } else {
           showToast(
             `✅ Approval successful! Notifications sent to ${emailCount} recipient(s)`,
-            "success"
+            "success",
           );
         }
       } else {
         showToast(
           "✅ Request approved, but no email notifications could be sent",
-          "warning"
+          "warning",
         );
       }
     } catch (error) {
       console.error("❌ Critical error in sendApprovalEmails:", error);
       showToast(
         "✅ Request approved, but email notifications failed. Please contact support.",
-        "error"
+        "error",
       );
       throw error;
     }
@@ -1465,7 +1472,7 @@ const Verify = () => {
         if (!searchedEmployee) {
           showToast(
             "Please search and select an SLT employee for loading",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -1475,7 +1482,7 @@ const Verify = () => {
         if (!nonSltStaffDetails.name || !nonSltStaffDetails.nic) {
           showToast(
             "Please fill in all required non-SLT staff details",
-            "warning"
+            "warning",
           );
           return;
         }
@@ -1485,20 +1492,20 @@ const Verify = () => {
           item.refNo,
           comment,
           loadingDetails,
-          userDetails.serviceNo
+          userDetails.serviceNo,
         );
 
         // Send emails to both petrol leaders and receiver
         await sendApprovalEmails(item, comment);
 
         // Format the approved item in the same structure as your UI expects
-        const approvedItem = {
+        const approvedDESCRIPTION = {
           refNo: updatedStatus.referenceNumber,
           name: updatedStatus.request?.name,
           inLocation: updatedStatus.request?.inLocation,
           outLocation: updatedStatus.request?.outLocation,
           createdAt: new Date(
-            updatedStatus.request?.createdAt || updatedStatus.createdAt
+            updatedStatus.request?.createdAt || updatedStatus.createdAt,
           ).toLocaleString(),
           items: updatedStatus.request?.items || [],
           comment: updatedStatus.verifyOfficerComment,
@@ -1513,11 +1520,11 @@ const Verify = () => {
         item.refNo,
         comment,
         loadingDetails,
-        userDetails.serviceNo
+        userDetails.serviceNo,
       );
 
       console.log(
-        "✅ Request approved in database, now sending notifications..."
+        "✅ Request approved in database, now sending notifications...",
       );
 
       // Send emails - don't wait for result to block the approval (non-blocking)
@@ -1530,7 +1537,7 @@ const Verify = () => {
         });
 
       // Format the approved item in the same structure as your UI expects
-      const approvedItem = {
+      const approvedDESCRIPTION = {
         refNo: updatedStatus.referenceNumber,
         name: updatedStatus.request?.name,
         inLocation: updatedStatus.request?.inLocation,
@@ -1542,8 +1549,10 @@ const Verify = () => {
       };
 
       // Update UI state immediately (don't wait for emails)
-      setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
-      setApprovedItems([...approvedItems, approvedItem]);
+      setPendingDESCRIPTIONs(
+        pendingDESCRIPTIONs.filter((i) => i.refNo !== item.refNo),
+      );
+      setApprovedDESCRIPTIONs([...approvedDESCRIPTIONs, approvedDESCRIPTION]);
 
       // Reset modal and comment
       setShowModal(false);
@@ -1609,15 +1618,18 @@ const Verify = () => {
                   <td style="padding: 8px 0;">${request.inLocation}</td>
                 </tr>
                 <tr>
-                  <td style="padding: 8px 0; color: #757575;">Items:</td>
+                  <td style="padding: 8px 0; color: #757575;">items:</td>
                   <td style="padding: 8px 0;">${request.items
-                    .map((item) => `${item.itemName} (${item.serialNo})`)
+                    .map(
+                      (item) =>
+                        `${item.itemDescription} (${item.serialNumber})`,
+                    )
                     .join(", ")}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; color: #757575;">Requested Date:</td>
                   <td style="padding: 8px 0;">${new Date(
-                    request.createdAt
+                    request.createdAt,
                   ).toLocaleDateString()}</td>
                 </tr>
               </table>
@@ -1651,7 +1663,7 @@ const Verify = () => {
 
   const sendRejectionEmailApprover = async (request, comment) => {
     const approver = await searchReceiverByServiceNo(
-      request.requestDetails.executiveOfficerServiceNo
+      request.requestDetails.executiveOfficerServiceNo,
     );
 
     try {
@@ -1694,15 +1706,18 @@ const Verify = () => {
                   <td style="padding: 8px 0;">${request.inLocation}</td>
                 </tr>
                 <tr>
-                  <td style="padding: 8px 0; color: #757575;">Items:</td>
+                  <td style="padding: 8px 0; color: #757575;">items:</td>
                   <td style="padding: 8px 0;">${request.items
-                    .map((item) => `${item.itemName} (${item.serialNo})`)
+                    .map(
+                      (item) =>
+                        `${item.itemDescription} (${item.serialNumber})`,
+                    )
                     .join(", ")}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; color: #757575;">Requested Date:</td>
                   <td style="padding: 8px 0;">${new Date(
-                    request.createdAt
+                    request.createdAt,
                   ).toLocaleDateString()}</td>
                 </tr>
               </table>
@@ -1750,13 +1765,13 @@ const Verify = () => {
       await sendRejectionEmailApprover(item, comment);
 
       // Format the rejected item in the same structure as your UI expects
-      const rejectedItem = {
+      const rejectedDESCRIPTION = {
         refNo: updatedStatus.referenceNumber,
         name: updatedStatus.request?.name,
         inLocation: updatedStatus.request?.inLocation,
         outLocation: updatedStatus.request?.outLocation,
         createdAt: new Date(
-          updatedStatus.request?.createdAt || updatedStatus.createdAt
+          updatedStatus.request?.createdAt || updatedStatus.createdAt,
         ).toLocaleString(),
         items: updatedStatus.request?.items || [],
         comment: updatedStatus.verifyOfficerComment,
@@ -1764,8 +1779,10 @@ const Verify = () => {
       };
 
       // Update UI state
-      setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
-      setRejectedItems([...rejectedItems, rejectedItem]);
+      setPendingDESCRIPTIONs(
+        pendingDESCRIPTIONs.filter((i) => i.refNo !== item.refNo),
+      );
+      setRejectedDESCRIPTIONs([...rejectedDESCRIPTIONs, rejectedDESCRIPTION]);
 
       // Reset modal and comment
       setShowModal(false);
@@ -1776,12 +1793,12 @@ const Verify = () => {
   };
 
   const handleModelOpen = async (item) => {
-    setSelectedItem(item);
+    setselectedItem(item);
 
     if (item.requestDetails?.transport.transporterServiceNo) {
       try {
         const transportResponse = await searchEmployeeByServiceNo(
-          item.requestDetails.transport.transporterServiceNo
+          item.requestDetails.transport.transporterServiceNo,
         );
 
         console.log("Transport response:", transportResponse); // Debug log
@@ -1870,9 +1887,9 @@ const Verify = () => {
     });
   };
 
-  const filteredPendingItems = applyFilters(pendingItems);
-  const filteredApprovedItems = applyFilters(approvedItems);
-  const filteredRejectedItems = applyFilters(rejectedItems);
+  const filteredPendingDESCRIPTIONs = applyFilters(pendingDESCRIPTIONs);
+  const filteredApprovedDESCRIPTIONs = applyFilters(approvedDESCRIPTIONs);
+  const filteredRejectedDESCRIPTIONs = applyFilters(rejectedDESCRIPTIONs);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 p-8">
@@ -1922,7 +1939,7 @@ const Verify = () => {
                 activeTab === "pending" ? "text-white" : "text-amber-500"
               }`}
             >
-              {pendingItems.length}
+              {pendingDESCRIPTIONs.length}
             </div>
             <p
               className={
@@ -1969,7 +1986,7 @@ const Verify = () => {
                 activeTab === "approved" ? "text-white" : "text-emerald-500"
               }`}
             >
-              {approvedItems.length}
+              {approvedDESCRIPTIONs.length}
             </div>
             <p
               className={
@@ -2016,7 +2033,7 @@ const Verify = () => {
                 activeTab === "rejected" ? "text-white" : "text-rose-500"
               }`}
             >
-              {rejectedItems.length}
+              {rejectedDESCRIPTIONs.length}
             </div>
             <p
               className={
@@ -2182,10 +2199,10 @@ const Verify = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {(activeTab === "pending"
-                ? filteredPendingItems
+                ? filteredPendingDESCRIPTIONs
                 : activeTab === "approved"
-                ? filteredApprovedItems
-                : filteredRejectedItems
+                  ? filteredApprovedDESCRIPTIONs
+                  : filteredRejectedDESCRIPTIONs
               ).map((item) => (
                 <tr
                   key={item.refNo}
@@ -2250,8 +2267,8 @@ const Verify = () => {
                                                   activeTab === "pending"
                                                     ? "bg-amber-100 hover:bg-amber-200 text-amber-800"
                                                     : activeTab === "approved"
-                                                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                                                    : "bg-rose-100 text-rose-800 hover:bg-rose-200"
+                                                      ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                                                      : "bg-rose-100 text-rose-800 hover:bg-rose-200"
                                                 }`}
                     >
                       <FaEye className="mr-2" /> View Details
@@ -2265,10 +2282,10 @@ const Verify = () => {
 
         {/* Empty State */}
         {(activeTab === "pending"
-          ? filteredPendingItems
+          ? filteredPendingDESCRIPTIONs
           : activeTab === "approved"
-          ? filteredApprovedItems
-          : filteredRejectedItems
+            ? filteredApprovedDESCRIPTIONs
+            : filteredRejectedDESCRIPTIONs
         ).length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -2340,17 +2357,19 @@ const RequestDetailsModal = ({
   // Initialize with the correct value from request
   const [selectedExecutive, setSelectedExecutive] = useState("");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedItemImages, setSelectedItemImages] = useState([]);
-  const [selectedItemName, setSelectedItemName] = useState("");
+  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState(
+    [],
+  );
+  const [selecteditemDescription, setSelecteditemDescription] = useState("");
   const [updateSuccess, setUpdateSuccess] = useState(false);
-  const [selectedItems, setSelectedItems] = useState([]);
-  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [selectedDESCRIPTIONs, setSelectedDESCRIPTIONs] = useState([]);
+  const [showAddDESCRIPTIONModal, setShowAddDESCRIPTIONModal] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [newItem, setNewItem] = useState({
-    itemName: "",
-    serialNo: "",
-    itemCategory: "",
-    itemModel: "",
+  const [newDESCRIPTION, setNewDESCRIPTION] = useState({
+    itemDescription: "",
+    serialNumber: "",
+    categoryDescription: "",
+    itemCode: "",
     itemQuantity: 1,
     returnDate: "",
     status: "returnable",
@@ -2367,13 +2386,13 @@ const RequestDetailsModal = ({
   if (!isOpen || !request) return null;
 
   const handleBulkReturn = async () => {
-    if (selectedItems.length === 0) {
+    if (selectedDESCRIPTIONs.length === 0) {
       showToast("Please select at least one item to return", "warning");
       return;
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`
+      `Are you sure you want to mark ${selectedDESCRIPTIONs.length} item(s) as 'return'?`,
     );
 
     if (!confirmed) return;
@@ -2382,44 +2401,47 @@ const RequestDetailsModal = ({
 
     try {
       console.log("Starting bulk return process...");
-      console.log("Selected serial numbers:", selectedItems);
+      console.log("Selected serial numbers:", selectedDESCRIPTIONs);
       console.log("Reference number:", request.refNo);
 
       // Get full details of selected items
-      const selectedItemDetails = request.items.filter((item) =>
-        selectedItems.includes(item.serialNo)
+      const selectedDESCRIPTIONDetails = request.items.filter((item) =>
+        selectedDESCRIPTIONs.includes(item.serialNumber),
       );
 
-      console.log("Selected item details:", selectedItemDetails);
+      console.log("Selected item details:", selectedDESCRIPTIONDetails);
 
       // Call backend to update DB
-      const response = await markItemsAsReturned(request.refNo, selectedItems);
+      const response = await markItemsAsReturned(
+        request.refNo,
+        selectedDESCRIPTIONs,
+      );
 
       console.log("Backend response:", response);
 
-      // Now send the email notification WITH ITEM DETAILS
+      // Now send the email notification WITH item DETAILS
       await sendReturnEmail(
         request,
-        "Items successfully returned by petrol leader.",
-        selectedItemDetails
+        "items successfully returned by petrol leader.",
+        selectedDESCRIPTIONDetails,
       );
       await sendReturnTOExecutiveEmail(
         request,
-        "Items successfully returned by petrol leader.",
-        selectedItemDetails
+        "items successfully returned by petrol leader.",
+        selectedDESCRIPTIONDetails,
       );
       // Show success message
       showToast(
         `Successfully marked ${
-          response.updatedCount || selectedItems.length
+          response.updatedCount || selectedDESCRIPTIONs.length
         } item(s) as returned.`,
-        "success"
+        "success",
       );
 
       console.log("Bulk return process completed successfully");
 
       // Clear selected items
-      setSelectedItems([]);
+      setSelectedDESCRIPTIONs([]);
 
       // Refresh / close modal
       onClose();
@@ -2430,7 +2452,7 @@ const RequestDetailsModal = ({
 
       showToast(
         error.message || "Failed to update items. Please try again.",
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -2438,7 +2460,7 @@ const RequestDetailsModal = ({
   };
 
   const handleSelect = (serialNo) => {
-    setSelectedItems((prev) => {
+    setSelectedDESCRIPTIONs((prev) => {
       if (prev.includes(serialNo)) {
         return prev.filter((sn) => sn !== serialNo);
       } else {
@@ -2447,18 +2469,22 @@ const RequestDetailsModal = ({
     });
   };
 
-  const handleAddNewItem = async () => {
-    if (!newItem.itemName || !newItem.serialNo || !newItem.itemCategory) {
+  const handleAddNewDESCRIPTION = async () => {
+    if (
+      !newDESCRIPTION.itemDescription ||
+      !newDESCRIPTION.serialNumber ||
+      !newDESCRIPTION.categoryDescription
+    ) {
       alert(
-        "Please fill in all required fields (Item Name, Serial No, Category)"
+        "Please fill in all required fields (item Name, Serial Number, Category)",
       );
       return;
     }
 
     try {
-      await addReturnableItemToRequest(request.refNo, newItem);
+      await addReturnableItemToRequest(request.refNo, newDESCRIPTION);
       alert("Returnable item added successfully!");
-      setShowAddItemModal(false);
+      setShowAddDESCRIPTIONModal(false);
       window.location.reload();
       // optionally refresh data here
     } catch (error) {
@@ -2468,18 +2494,18 @@ const RequestDetailsModal = ({
   };
 
   /*const handleBulkReturn = async () => {
-    if (selectedItems.length === 0) return;
+    if (selectedDESCRIPTIONs.length === 0) return;
     
     setLoading(true);
     try {
-      for (const serialNo of selectedItems) {
-        const item = request.items.find(i => i.serialNo === serialNo);
+      for (const serialNo of selectedDESCRIPTIONs) {
+        const item = request.items.find(i => i.serialNumber === serialNo);
         if (item) {
-          await handleReturnSingleItem(item);
+          await handleReturnSingleDESCRIPTION(item);
         }
       }
-      setSelectedItems([]);
-      toast.success(`Successfully returned ${selectedItems.length} item(s)`);
+      setSelectedDESCRIPTIONs([]);
+      toast.success(`Successfully returned ${selectedDESCRIPTIONs.length} item(s)`);
     } catch (error) {
       console.error('Error returning items:', error);
       toast.error('Failed to return some items');
@@ -2489,8 +2515,8 @@ const RequestDetailsModal = ({
   };*/
 
   const handleViewImages = (item) => {
-    setSelectedItemImages(item.itemPhotos);
-    setSelectedItemName(item.itemName);
+    setSelectedDESCRIPTIONImages(item.itemPhotos);
+    setSelecteditemDescription(item.itemDescription);
     setIsImageModalOpen(true);
   };
 
@@ -2873,7 +2899,7 @@ const RequestDetailsModal = ({
                 }
               </div>
               <div class="item">
-                <span class="label">Vehicle Model:</span> ${
+                <span class="label">Vehicle Item Code:</span> ${
                   request?.requestDetails?.vehicleModel || "N/A"
                 }
               </div>
@@ -2912,7 +2938,7 @@ const RequestDetailsModal = ({
                 }
               </div>
               <div class="item">
-                <span class="label">Vehicle Model:</span> ${
+                <span class="label">Vehicle Item Code:</span> ${
                   request?.requestDetails?.vehicleModel || "N/A"
                 }
               </div>
@@ -3019,7 +3045,7 @@ const RequestDetailsModal = ({
             <span class="label">Loading Time:</span> ${
               request?.requestDetails?.loading?.loadingTime
                 ? new Date(
-                    request.requestDetails.loading.loadingTime
+                    request.requestDetails.loading.loadingTime,
                   ).toLocaleString()
                 : "N/A"
             }
@@ -3101,14 +3127,14 @@ const RequestDetailsModal = ({
       </div>
 
           <div class="section">
-            <h2 class="section-title">Items</h2>
+            <h2 class="section-title">items</h2>
             <table>
               <thead>
                 <tr>
-                  <th>Item Name</th>
-                  <th>Serial No</th>
+                  <th>item Name</th>
+                  <th>Serial Number</th>
                   <th>Category</th>
-                  <th>Model</th>
+                  <th>Item Code</th>
                 </tr>
               </thead>
               <tbody>
@@ -3116,13 +3142,13 @@ const RequestDetailsModal = ({
                   .map(
                     (item) => `
                   <tr>
-                    <td>${item?.itemName || "-"}</td>
-                    <td>${item?.serialNo || "-"}</td>
-                    <td>${item?.itemCategory || "-"}</td>
-                    <td>${item?.itemModel || "-"}</td>
+                    <td>${item?.itemDescription || "-"}</td>
+                    <td>${item?.serialNumber || "-"}</td>
+                    <td>${item?.categoryDescription || "-"}</td>
+                    <td>${item?.itemCode || "-"}</td>
                     
                   </tr>
-                `
+                `,
                   )
                   .join("")}
               </tbody>
@@ -3150,7 +3176,7 @@ const RequestDetailsModal = ({
     };
   };
 
-  const generateItemDetailsPDF = (items, refNo) => {
+  const generateDESCRIPTIONDetailsPDF = (items, refNo) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
@@ -3165,7 +3191,7 @@ const RequestDetailsModal = ({
     // Header
     doc.setFontSize(18);
     doc.setTextColor(0, 51, 153); // SLT blue color
-    doc.text("SLT Gate Pass - Item Details", pageWidth / 2, 20, {
+    doc.text("SLT Gate Pass - item Details", pageWidth / 2, 20, {
       align: "center",
     });
 
@@ -3186,10 +3212,10 @@ const RequestDetailsModal = ({
     doc.setDrawColor(220, 220, 220);
     doc.line(margin, 35, pageWidth - margin, 35);
 
-    // Items Table
+    // items Table
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    doc.text("Item Details", margin, 45);
+    doc.text("item Details", margin, 45);
 
     // Table header
     let yPos = 55;
@@ -3198,8 +3224,8 @@ const RequestDetailsModal = ({
     doc.setDrawColor(200, 200, 200);
 
     // Define column widths
-    const col1Width = 60; // Item Name
-    const col2Width = 40; // Serial No
+    const col1Width = 60; // item Name
+    const col2Width = 40; // Serial Number
     const col3Width = 30; // Category
     const col4Width = 20; // Quantity
     const col5Width = 30; // Status
@@ -3211,17 +3237,17 @@ const RequestDetailsModal = ({
       yPos,
       col1Width + col2Width + col3Width + col4Width + col5Width,
       8,
-      "F"
+      "F",
     );
 
-    doc.text("Item Name", margin + 3, yPos + 5.5);
-    doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+    doc.text("item Name", margin + 3, yPos + 5.5);
+    doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
     doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
     doc.text("Qty", margin + col1Width + col2Width + col3Width + 3, yPos + 5.5);
     doc.text(
-      "Model",
+      "Item Code",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
-      yPos + 5.5
+      yPos + 5.5,
     );
 
     yPos += 8;
@@ -3240,21 +3266,21 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
 
-        doc.text("Item Name", margin + 3, yPos + 5.5);
-        doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+        doc.text("item Name", margin + 3, yPos + 5.5);
+        doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
         doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
         doc.text(
           "Qty",
           margin + col1Width + col2Width + col3Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
         doc.text(
-          "Model",
+          "Item Code",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
-          yPos + 5.5
+          yPos + 5.5,
         );
 
         yPos += 8;
@@ -3268,7 +3294,7 @@ const RequestDetailsModal = ({
           yPos,
           col1Width + col2Width + col3Width + col4Width + col5Width,
           8,
-          "F"
+          "F",
         );
       }
 
@@ -3281,29 +3307,29 @@ const RequestDetailsModal = ({
       };
 
       doc.text(
-        truncateText(item?.itemName || "N/A", 25),
+        truncateText(item?.itemDescription || "N/A", 25),
         margin + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
-        truncateText(item?.serialNo || "N/A", 15),
+        truncateText(item?.serialNumber || "N/A", 15),
         margin + col1Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
-        truncateText(item?.itemCategory || "N/A", 12),
+        truncateText(item?.categoryDescription || "N/A", 12),
         margin + col1Width + col2Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
         item?.itemQuantity?.toString() || "1",
         margin + col1Width + col2Width + col3Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
       doc.text(
-        truncateText(item?.itemModel || "N/A", 15),
+        truncateText(item?.itemCode || "N/A", 15),
         margin + col1Width + col2Width + col3Width + col4Width + 3,
-        yPos + 5.5
+        yPos + 5.5,
       );
 
       // Draw horizontal line after each row
@@ -3311,7 +3337,7 @@ const RequestDetailsModal = ({
         margin,
         yPos + 8,
         margin + col1Width + col2Width + col3Width + col4Width + col5Width,
-        yPos + 8
+        yPos + 8,
       );
 
       yPos += 8;
@@ -3325,11 +3351,11 @@ const RequestDetailsModal = ({
       "This is an electronically generated document and does not require signature.",
       pageWidth / 2,
       footerYPos,
-      { align: "center" }
+      { align: "center" },
     );
 
     // Save the PDF
-    doc.save(`SLT_GatePass_Items_${request.refNo}.pdf`);
+    doc.save(`SLT_GatePass_DESCRIPTIONs_${request.refNo}.pdf`);
   };
 
   return (
@@ -3341,8 +3367,8 @@ const RequestDetailsModal = ({
             activeTab === "pending"
               ? "bg-gradient-to-r from-amber-600 to-orange-300"
               : activeTab === "approved"
-              ? "bg-gradient-to-br from-emerald-600 to-green-600"
-              : "bg-gradient-to-br from-rose-600 to-red-400"
+                ? "bg-gradient-to-br from-emerald-600 to-green-600"
+                : "bg-gradient-to-br from-rose-600 to-red-400"
           }`}
         >
           <div className="flex justify-between items-center">
@@ -3464,17 +3490,20 @@ const RequestDetailsModal = ({
                 </div>
               </div>
 
-              {/* Items Table */}
+              {/* items Table */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
-                  <FaBoxOpen className="mr-2" /> Item Details
+                  <FaBoxOpen className="mr-2" /> item Details
                   <button
                     onClick={() =>
-                      generateItemDetailsPDF(request.items, request.refNo)
+                      generateDESCRIPTIONDetailsPDF(
+                        request.items,
+                        request.refNo,
+                      )
                     }
                     className="ml-auto px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center transition-colors"
                   >
-                    <FaFilePdf className="mr-2" /> Download Items PDF
+                    <FaFilePdf className="mr-2" /> Download items PDF
                   </button>
                 </h3>
                 <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -3482,10 +3511,10 @@ const RequestDetailsModal = ({
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Item
+                          item{" "}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Serial No
+                          Serial Number
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Category
@@ -3494,7 +3523,7 @@ const RequestDetailsModal = ({
                           Quantity
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Model
+                          Item Code
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Status
@@ -3508,11 +3537,13 @@ const RequestDetailsModal = ({
                     <tbody className="divide-y divide-gray-200">
                       {request.items.map((item, index) => (
                         <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">{item?.itemName}</td>
-                          <td className="px-6 py-4">{item?.serialNo}</td>
-                          <td className="px-6 py-4">{item?.itemCategory}</td>
+                          <td className="px-6 py-4">{item?.itemDescription}</td>
+                          <td className="px-6 py-4">{item?.serialNumber}</td>
+                          <td className="px-6 py-4">
+                            {item?.categoryDescription}
+                          </td>
                           <td className="px-6 py-4">{item?.itemQuantity}</td>
-                          <td className="px-6 py-4">{item?.itemModel}</td>
+                          <td className="px-6 py-4">{item?.itemCode}</td>
                           <td className="px-6 py-4">
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -3535,10 +3566,10 @@ const RequestDetailsModal = ({
                               <FaEye className="mr-2" /> View Images
                             </button>
                             <ImageViewerModal
-                              images={selectedItemImages}
+                              images={selectedDESCRIPTIONImages}
                               isOpen={isImageModalOpen}
                               onClose={() => setIsImageModalOpen(false)}
-                              itemName={selectedItemName}
+                              itemDescription={selecteditemDescription}
                             />
                           </td>
                         </tr>
@@ -3548,18 +3579,18 @@ const RequestDetailsModal = ({
                 </div>
               </div>
 
-              {/* Returnable Items Section */}
+              {/* Returnable items Section */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
-                  <FaUndo className="mr-2" /> Returnable Items
+                  <FaUndo className="mr-2" /> Returnable items
                 </h3>
-                {/* Add New Item Button */}
+                {/* Add New item Button */}
                 <button
-                  onClick={() => setShowAddItemModal(true)}
+                  onClick={() => setShowAddDESCRIPTIONModal(true)}
                   className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium flex items-center transition-colors shadow-sm"
                 >
                   <FaPlus className="mr-2" />
-                  Add New Item
+                  Add New item{" "}
                 </button>
 
                 <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -3570,16 +3601,16 @@ const RequestDetailsModal = ({
                           Select
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Item
+                          item{" "}
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Serial No
+                          Serial Number
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Quantity
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Model
+                          Item Code
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Status
@@ -3606,15 +3637,19 @@ const RequestDetailsModal = ({
                               <input
                                 type="checkbox"
                                 disabled={isSuperAdmin}
-                                checked={selectedItems?.includes(item.serialNo)}
-                                onChange={() => handleSelect(item.serialNo)}
+                                checked={selectedDESCRIPTIONs?.includes(
+                                  item.serialNumber,
+                                )}
+                                onChange={() => handleSelect(item.serialNumber)}
                                 className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                               />
                             </td>
-                            <td className="px-6 py-4">{item.itemName}</td>
-                            <td className="px-6 py-4">{item.serialNo}</td>
+                            <td className="px-6 py-4">
+                              {item.itemDescription}
+                            </td>
+                            <td className="px-6 py-4">{item.serialNumber}</td>
                             <td className="px-6 py-4">{item?.itemQuantity}</td>
-                            <td className="px-6 py-4">{item?.itemModel}</td>
+                            <td className="px-6 py-4">{item?.itemCode}</td>
                             <td className="px-6 py-4">
                               <span className="px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                                 {item.status}
@@ -3630,15 +3665,17 @@ const RequestDetailsModal = ({
                   <button
                     onClick={handleBulkReturn}
                     disabled={
-                      isSuperAdmin || selectedItems?.length === 0 || loading
+                      isSuperAdmin ||
+                      selectedDESCRIPTIONs?.length === 0 ||
+                      loading
                     }
                     className={`px-4 py-2 rounded-lg text-white text-sm font-medium transition-colors ${
-                      isSuperAdmin || selectedItems?.length === 0
+                      isSuperAdmin || selectedDESCRIPTIONs?.length === 0
                         ? "bg-gray-300 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700"
                     }`}
                   >
-                    Mark as 'Returned' ({selectedItems?.length || 0})
+                    Mark as 'Returned' ({selectedDESCRIPTIONs?.length || 0})
                   </button>
                 </div>
               </div>
@@ -3936,7 +3973,7 @@ const RequestDetailsModal = ({
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">
-                          Vehicle Model
+                          Vehicle Item Code
                         </label>
                         <p className="text-gray-800">
                           {request?.requestDetails?.transport.vehicleModel ||
@@ -4058,101 +4095,126 @@ const RequestDetailsModal = ({
             </>
           )}
 
-          {/* Add New Item Modal */}
-                      {showAddItemModal && (
-                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-                          <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
-                            {/* Modal Header */}
-                            <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6">
-                              <div className="flex justify-between items-center">
-                                <h2 className="text-2xl font-bold text-white flex items-center">
-                                  <FaPlus className="mr-3" /> Add New Returnable Item
-                                </h2>
-                                <button
-                                  onClick={() => setShowAddItemModal(false)}
-                                  className="text-white/80 hover:text-white transition-colors"
-                                >
-                                  <FaTimes className="text-xl" />
-                                </button>
-                              </div>
-                            </div>
-          
-                            {/* Modal Content */}
-                            <div className="p-6 max-h-[70vh] overflow-y-auto">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Item Name <span className="text-red-500">*</span>
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={newItem.itemName}
-                                    onChange={(e) => setNewItem({...newItem, itemName: e.target.value})}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter item name"
-                                  />
-                                </div>
-          
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Serial Number <span className="text-red-500">*</span>
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={newItem.serialNo}
-                                    onChange={(e) => setNewItem({...newItem, serialNo: e.target.value})}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter serial number"
-                                  />
-                                </div>
-          
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Category <span className="text-red-500">*</span>
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={newItem.itemCategory}
-                                    onChange={(e) => setNewItem({...newItem, itemCategory: e.target.value})}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter category"
-                                  />
-                                </div>
-          
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Model
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={newItem.itemModel}
-                                    onChange={(e) => setNewItem({...newItem, itemModel: e.target.value})}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter model"
-                                  />
-                                </div>
-          
-                                <div>
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Quantity
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={newItem.itemQuantity}
-                                    onChange={(e) => setNewItem({...newItem, itemQuantity: parseInt(e.target.value) || 1})}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                  />
-                                </div>
-          
-                                {/*<div>
+          {/* Add New item Modal */}
+          {showAddDESCRIPTIONModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-2xl font-bold text-white flex items-center">
+                      <FaPlus className="mr-3" /> Add New Returnable item{" "}
+                    </h2>
+                    <button
+                      onClick={() => setShowAddDESCRIPTIONModal(false)}
+                      className="text-white/80 hover:text-white transition-colors"
+                    >
+                      <FaTimes className="text-xl" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        item Name <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newDESCRIPTION.itemDescription}
+                        onChange={(e) =>
+                          setNewDESCRIPTION({
+                            ...newDESCRIPTION,
+                            itemDescription: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter item name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Serial Number <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newDESCRIPTION.serialNumber}
+                        onChange={(e) =>
+                          setNewDESCRIPTION({
+                            ...newDESCRIPTION,
+                            serialNo: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter serial number"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Category <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newDESCRIPTION.categoryDescription}
+                        onChange={(e) =>
+                          setNewDESCRIPTION({
+                            ...newDESCRIPTION,
+                            categoryDescription: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter category"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Item Code
+                      </label>
+                      <input
+                        type="text"
+                        value={newDESCRIPTION.itemCode}
+                        onChange={(e) =>
+                          setNewDESCRIPTION({
+                            ...newDESCRIPTION,
+                            itemCode: e.target.value,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Enter Item Code"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Quantity
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newDESCRIPTION.itemQuantity}
+                        onChange={(e) =>
+                          setNewDESCRIPTION({
+                            ...newDESCRIPTION,
+                            itemQuantity: parseInt(e.target.value) || 1,
+                          })
+                        }
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    {/*<div>
                                   <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Expected Return Date
                                   </label>
                                   <input
                                     type="date"
-                                    value={newItem.returnDate}
-                                    onChange={(e) => setNewItem({...newItem, returnDate: e.target.value})}
+                                    value={newDESCRIPTION.returnDate}
+                                    onChange={(e) => setNewDESCRIPTION({...newDESCRIPTION, returnDate: e.target.value})}
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                   />
                                 </div>*/}
@@ -4171,17 +4233,17 @@ const RequestDetailsModal = ({
                 {/* Modal Footer */}
                 <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-200">
                   <button
-                    onClick={() => setShowAddItemModal(false)}
+                    onClick={() => setShowAddDESCRIPTIONModal(false)}
                     className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleAddNewItem}
+                    onClick={handleAddNewDESCRIPTION}
                     className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center"
                   >
                     <FaPlus className="mr-2" />
-                    Add Item
+                    Add item{" "}
                   </button>
                 </div>
               </div>
@@ -4226,34 +4288,38 @@ const RequestDetailsModal = ({
                 {staffType === "SLT" ? (
                   <>
                     {/* SLT Employee Search */}
-                              <div className="mb-4">
-                                       <div className="flex items-center mb-4">
-                      <input
-                        type="text"
-                        value={serviceId}
-                        onChange={(e) => setServiceId(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !isSuperAdmin && serviceId.trim()) {
-                            e.preventDefault();
-                            handleEmployeeSearch();
-                          }
-                        }}
-                        placeholder="Enter Service ID"
-                        className="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    
-                      <button
-                        onClick={handleEmployeeSearch}
-                        disabled={isSuperAdmin}
-                        className={`px-4 py-3 rounded-r-lg ${
-                          isSuperAdmin
-                            ? "bg-gray-300 cursor-not-allowed"
-                            : "bg-blue-500 hover:bg-blue-600 text-white"
-                        }`}
-                      >
-                        <FaSearch />
-                      </button>
-                    </div>
+                    <div className="mb-4">
+                      <div className="flex items-center mb-4">
+                        <input
+                          type="text"
+                          value={serviceId}
+                          onChange={(e) => setServiceId(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (
+                              e.key === "Enter" &&
+                              !isSuperAdmin &&
+                              serviceId.trim()
+                            ) {
+                              e.preventDefault();
+                              handleEmployeeSearch();
+                            }
+                          }}
+                          placeholder="Enter Service ID"
+                          className="flex-grow px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+
+                        <button
+                          onClick={handleEmployeeSearch}
+                          disabled={isSuperAdmin}
+                          className={`px-4 py-3 rounded-r-lg ${
+                            isSuperAdmin
+                              ? "bg-gray-300 cursor-not-allowed"
+                              : "bg-blue-500 hover:bg-blue-600 text-white"
+                          }`}
+                        >
+                          <FaSearch />
+                        </button>
+                      </div>
 
                       {searchedEmployee && (
                         <div className="mt-4 bg-white rounded-lg border border-gray-200 p-4">
@@ -4437,7 +4503,7 @@ const RequestDetailsModal = ({
                           printReport(
                             request,
                             transporterDetails,
-                            searchedEmployee
+                            searchedEmployee,
                           )
                         }
                         className="px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-all flex items-center"
@@ -4457,7 +4523,7 @@ const RequestDetailsModal = ({
                       <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li>Reference: {request.refNo}</li>
                         <li>Sender: {request.senderDetails?.name}</li>
-                        <li>Items: {request.items.length}</li>
+                        <li>items: {request.items.length}</li>
                         <li>From: {request.outLocation}</li>
                         <li>To: {request.inLocation}</li>
                       </ul>
@@ -4504,7 +4570,7 @@ const RequestDetailsModal = ({
                                     .vehicleNumber || "Not specified"}
                                 </li>
                                 <li>
-                                  Vehicle Model:{" "}
+                                  Vehicle Item Code:{" "}
                                   {request?.requestDetails?.transport
                                     .vehicleModel || "Not specified"}
                                 </li>
@@ -4566,7 +4632,7 @@ const RequestDetailsModal = ({
                                     .vehicleNumber || "Not specified"}
                                 </li>
                                 <li>
-                                  Vehicle Model:{" "}
+                                  Vehicle Item Code:{" "}
                                   {request?.requestDetails?.transport
                                     .vehicleModel || "Not specified"}
                                 </li>
@@ -4618,7 +4684,7 @@ const RequestDetailsModal = ({
                             <li>
                               Time:{" "}
                               {new Date(
-                                request?.requestDetails?.loading.loadingTime
+                                request?.requestDetails?.loading.loadingTime,
                               ).toLocaleString() || "Not specified"}
                             </li>
                             <li>
@@ -4801,7 +4867,7 @@ const RequestDetailsModal = ({
 };
 
 // In the ImageViewerModal component
-const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
+const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
   const [imageUrls, setImageUrls] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -4842,7 +4908,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
             {imageUrls.length > 0 && (
               <img
                 src={imageUrls[activeIndex]}
-                alt={`${itemName} ${activeIndex + 1}`}
+                alt={`${itemDescription} ${activeIndex + 1}`}
                 className="w-full h-full object-contain"
               />
             )}
@@ -4897,7 +4963,9 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
           {/* Header with close button */}
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemName}</h3>
+              <h3 className="text-xl font-semibold text-white">
+                {itemDescription}
+              </h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
@@ -4922,7 +4990,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
             >
               <img
                 src={url}
-                alt={`${itemName} thumbnail ${index + 1}`}
+                alt={`${itemDescription} thumbnail ${index + 1}`}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -4934,4 +5002,3 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
 };
 
 export default Verify;
-

@@ -4,7 +4,7 @@ const dotenv = require("dotenv");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const http = require("http");
-const path = require("path"); 
+const path = require("path");
 const { Server } = require("socket.io");
 const connectDB = require("./config/db");
 
@@ -36,8 +36,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // ADD THIS for form data
 app.use(cors());
 
-
-app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 //console.log('📁 Static files serving from:', path.join(__dirname, 'uploads'));
 
 // 7) Route imports
@@ -58,6 +57,7 @@ const emailRoutes = require("./routes/emailRoutes");
 const superAdminRoutes = require("./routes/superAdminRoutes");
 const adminRequestRoutes = require("./routes/adminRequestRoutes");
 const erpRoutes = require("./routes/erpRoutes");
+const intranetRoutes = require("./routes/intranetRoutes");
 
 // 8) Mount routes (only ONCE each)
 app.use("/api/auth", authRoutes);
@@ -79,6 +79,7 @@ app.use("/api/receive", receiveRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/admin", adminRequestRoutes);
 app.use("/api/erp", erpRoutes);
+app.use("/api/intranet", intranetRoutes);
 
 // 9) Health check (optional)
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -118,31 +119,29 @@ io.on("connection", (socket) => {
 
 // 11) Error handling middleware (for multer and other errors)
 app.use((error, req, res, next) => {
-  console.error('Error:', error);
-  
+  console.error("Error:", error);
+
   // Multer errors
-  if (error.code === 'LIMIT_FILE_SIZE') {
+  if (error.code === "LIMIT_FILE_SIZE") {
     return res.status(400).json({
-      message: 'File is too large. Maximum size is 5MB per file.'
+      message: "File is too large. Maximum size is 5MB per file.",
     });
   }
-  
-  if (error.code === 'LIMIT_FILE_COUNT') {
+
+  if (error.code === "LIMIT_FILE_COUNT") {
     return res.status(400).json({
-      message: 'Too many files uploaded.'
+      message: "Too many files uploaded.",
     });
   }
-  
+
   // Generic error
   res.status(error.status || 500).json({
-    message: error.message || 'Something went wrong!'
+    message: error.message || "Something went wrong!",
   });
 });
-
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 Socket.IO ready for real-time updates`);
-  
 });

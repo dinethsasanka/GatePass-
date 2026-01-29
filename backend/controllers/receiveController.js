@@ -823,7 +823,7 @@ const updateRejected = async (req, res) => {
  */
 const updateReturnableItem = async (req, res) => {
   try {
-    const { originalSerialNo, itemModel, serialNo } = req.body;
+    const { originalSerialNo, itemCode, serialNo } = req.body;
     const { referenceNumber } = req.params;
 
     // Validate required fields
@@ -833,9 +833,9 @@ const updateReturnableItem = async (req, res) => {
       });
     }
 
-    if (!itemModel && !serialNo) {
+    if (!itemCode && !serialNo) {
       return res.status(400).json({
-        message: "At least one field (itemModel or serialNo) must be provided",
+        message: "At least one field (itemCode or serialNo) must be provided",
       });
     }
 
@@ -869,23 +869,23 @@ const updateReturnableItem = async (req, res) => {
     console.log(
       "Available returnable items:",
       statusDoc.request.returnableItems.map((item) => ({
-        serialNo: item.serialNo,
-        itemName: item.itemName,
-        itemModel: item.itemModel,
+        serialNumber: item.serialNumber,
+        itemDescription: item.itemDescription,
+        itemCode: item.itemCode,
       })),
     );
     console.log("Looking for serial number:", originalSerialNo);
 
     // Find the item index by original serial number
     const itemIndex = statusDoc.request.returnableItems.findIndex(
-      (item) => item.serialNo === originalSerialNo,
+      (item) => item.serialNumber === originalSerialNo,
     );
 
     if (itemIndex === -1) {
       return res.status(404).json({
         message: "Returnable item not found with the provided serial number",
         availableSerialNumbers: statusDoc.request.returnableItems.map(
-          (item) => item.serialNo,
+          (item) => item.serialNumber,
         ),
         searchedSerialNumber: originalSerialNo,
       });
@@ -893,8 +893,8 @@ const updateReturnableItem = async (req, res) => {
 
     // Update the specific returnable item
     const updatedFields = {};
-    if (itemModel !== undefined) updatedFields.itemModel = itemModel;
-    if (serialNo !== undefined) updatedFields.serialNo = serialNo;
+    if (itemCode !== undefined) updatedFields.itemCode = itemCode;
+    if (serialNo !== undefined) updatedFields.serialNumber = serialNo;
 
     // Use MongoDB's array update syntax
     const updateQuery = {};
@@ -1068,11 +1068,12 @@ const addReturnableItemToRequest = async (req, res) => {
 
     // Create new returnable item data
     const newItem = {
-      itemName: itemData.itemName,
-      serialNo: itemData.serialNo,
+      serialNumber: itemData.serialNumber,
+      itemCode: itemData.itemCode || "",
+      itemDescription: itemData.itemDescription,
       itemCategory: itemData.itemCategory,
+      categoryDescription: itemData.categoryDescription,
       itemQuantity: itemData.itemQuantity || 1,
-      itemModel: itemData.itemModel || "",
       returnDate: itemData.returnDate || null,
       status: "returnable",
       returned: false,

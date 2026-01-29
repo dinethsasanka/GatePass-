@@ -158,18 +158,18 @@ const fetchOfficerData = async (status) => {
 const Receive = () => {
   const [activeTab, setActiveTab] = useState("pending");
   const [showModal, setShowModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItem, setselectedItem] = useState(null);
   const [comment, setComment] = useState("");
-  const [pendingItems, setPendingItems] = useState([]);
-  const [approvedItems, setApprovedItems] = useState([]);
-  const [rejectedItems, setRejectedItems] = useState([]);
+  const [pendingDESCRIPTIONs, setPendingDESCRIPTIONs] = useState([]);
+  const [approvedDESCRIPTIONs, setApprovedDESCRIPTIONs] = useState([]);
+  const [rejectedDESCRIPTIONs, setRejectedDESCRIPTIONs] = useState([]);
   const [transportData, setTransportData] = useState(null);
   const { showToast } = useToast();
   const [userDetails, setUserDetails] = useState(null);
   const [staffType, setStaffType] = useState("SLT");
   const [searchedEmployee, setSearchedEmployee] = useState(null);
   const [user, setUser] = useState(null);
-  const [selectedReturnableItems, setSelectedReturnableItems] = useState([]);
+  const [selectedReturnableDESCRIPTIONs, setSelectedReturnableDESCRIPTIONs] = useState([]);
   const [refetchTrigger, setRefetchTrigger] = useState(0); // Add trigger for refetching
   const [nonSltStaffDetails, setNonSltStaffDetails] = useState({
     name: "",
@@ -275,7 +275,7 @@ const Receive = () => {
           };
         });
 
-        const uniqueItems = formatted.reduce((acc, item) => {
+        const uniqueDESCRIPTIONs = formatted.reduce((acc, item) => {
           const existing = acc.find((x) => x.refNo === item.refNo);
           if (!existing) {
             acc.push(item);
@@ -290,17 +290,17 @@ const Receive = () => {
           return acc;
         }, []);
 
-        setPendingItems(uniqueItems);
+        setPendingDESCRIPTIONs(uniqueDESCRIPTIONs);
       } catch (error) {
         console.error("Error fetching pending statuses:", error);
-        setPendingItems([]);
+        setPendingDESCRIPTIONs([]);
       }
     },
     [activeTab, userDetails?.serviceNo, userDetails?.branches],
     { status: 6 }, // Receiver pending requests
   );
 
-  // Fetch Pending Items - Now handled by useAutoRefetch hook above
+  // Fetch Pending items - Now handled by useAutoRefetch hook above
 
   useEffect(() => {
     const loadAll = async () => {
@@ -360,7 +360,7 @@ const Receive = () => {
             };
           });
 
-          const uniqueItems = formatted.reduce((acc, item) => {
+          const uniqueDESCRIPTIONs = formatted.reduce((acc, item) => {
             const existing = acc.find((x) => x.refNo === item.refNo);
             if (!existing) {
               acc.push(item);
@@ -375,7 +375,7 @@ const Receive = () => {
             return acc;
           }, []);
 
-          setPendingItems(uniqueItems);
+          setPendingDESCRIPTIONs(uniqueDESCRIPTIONs);
         }
 
         // approved - optimized with server-side enrichment
@@ -443,7 +443,7 @@ const Receive = () => {
           return acc;
         }, []);
 
-        setApprovedItems(uniqueApproved);
+        setApprovedDESCRIPTIONs(uniqueApproved);
 
         // rejected - optimized with server-side enrichment
         const rejectedData = await getRejectedStatuses(
@@ -496,7 +496,7 @@ const Receive = () => {
             };
           });
 
-        setRejectedItems(rejectedFormatted);
+        setRejectedDESCRIPTIONs(rejectedFormatted);
       } catch (err) {
         console.error("Receiver data load error:", err);
       }
@@ -578,13 +578,13 @@ const Receive = () => {
         comment,
         unloadingDetails,
         userDetails.serviceNo,
-        selectedReturnableItems,
+        selectedReturnableDESCRIPTIONs,
       );
 
       showToast("Request received successfully", "success");
 
       // Refresh lists and close modal
-      setPendingItems((prev) => prev.filter((i) => i.refNo !== item.refNo));
+      setPendingDESCRIPTIONs((prev) => prev.filter((i) => i.refNo !== item.refNo));
       setRefetchTrigger((prev) => prev + 1);
       setShowModal(false);
       setComment("");
@@ -601,19 +601,19 @@ const Receive = () => {
         return;
       }
 
-      const emailSubject = `Returnable Items Update: ${request.refNo}`;
+      const emailSubject = `Returnable items Update: ${request.refNo}`;
 
       // Create items table for email
       const itemsTable =
         itemDetails.length > 0
           ? `
       <div style="margin: 20px 0;">
-        <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned Items</h3>
+        <h3 style="color: #424242; font-size: 16px; border-bottom: 1px solid #e0e0e0; padding-bottom: 8px;">Returned items</h3>
         <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
           <thead>
             <tr style="background-color: #f5f5f5;">
-              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Item Name</th>
-              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial No</th>
+              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">item Name</th>
+              <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Serial Number</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Category</th>
               <th style="padding: 8px; text-align: left; border-bottom: 1px solid #ddd;">Quantity</th>
             </tr>
@@ -624,13 +624,13 @@ const Receive = () => {
                 (item) => `
               <tr>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                  item.itemName || "N/A"
+                  item.itemDescription || "N/A"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                  item.serialNo || "N/A"
+                  item.serialNumber || "N/A"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
-                  item.itemCategory || "N/A"
+                  item.categoryDescription || "N/A"
                 }</td>
                 <td style="padding: 8px; border-bottom: 1px solid #eee;">${
                   item.itemQuantity || "1"
@@ -648,7 +648,7 @@ const Receive = () => {
       const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
         <div style="text-align: center; margin-bottom: 20px;">
-          <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable Items Update</h2>
+          <h2 style="color: #2fd33dff; margin-bottom: 5px;">Returnable items Update</h2>
           <p style="color: #757575; font-size: 14px;">Reference Number: ${
             request.refNo
           }</p>
@@ -781,9 +781,9 @@ const Receive = () => {
               <td style="padding: 8px 0;">${request.inLocation}</td>
             </tr>
             <tr>
-              <td style="padding: 8px 0; color: #757575;">Items:</td>
+              <td style="padding: 8px 0; color: #757575;">items:</td>
               <td style="padding: 8px 0;">${request.items
-                .map((item) => `${item.itemName} (${item.serialNo})`)
+                .map((item) => `${item.itemDescription} (${item.serialNumber})`)
                 .join(", ")}</td>
             </tr>
             <tr>
@@ -833,7 +833,7 @@ const Receive = () => {
       }
 
       // Format the rejected item BEFORE API call for optimistic UI update
-      const rejectedItem = {
+      const rejectedDESCRIPTION = {
         refNo: item.refNo,
         name: item.name,
         inLocation: item.inLocation,
@@ -847,8 +847,8 @@ const Receive = () => {
       };
 
       // OPTIMISTIC UPDATE: Update UI immediately
-      setPendingItems(pendingItems.filter((i) => i.refNo !== item.refNo));
-      setRejectedItems([rejectedItem, ...rejectedItems]);
+      setPendingDESCRIPTIONs(pendingDESCRIPTIONs.filter((i) => i.refNo !== item.refNo));
+      setRejectedDESCRIPTIONs([rejectedDESCRIPTION, ...rejectedDESCRIPTIONs]);
 
       // Reset modal and comment immediately
       setShowModal(false);
@@ -871,8 +871,8 @@ const Receive = () => {
         .catch((error) => {
           // Rollback on error
           console.error("Error rejecting status:", error.message);
-          setPendingItems((prev) => [item, ...prev]);
-          setRejectedItems((prev) =>
+          setPendingDESCRIPTIONs((prev) => [item, ...prev]);
+          setRejectedDESCRIPTIONs((prev) =>
             prev.filter((i) => i.refNo !== item.refNo),
           );
           showToast("Failed to reject request. Please try again.", "error");
@@ -884,7 +884,7 @@ const Receive = () => {
   };
 
   const handleModelOpen = async (item) => {
-    setSelectedItem(item);
+    setselectedItem(item);
 
     if (item.requestDetails?.transport.transporterServiceNo) {
       try {
@@ -970,9 +970,9 @@ const Receive = () => {
     });
   };
 
-  const filteredPendingItems = applyFilters(pendingItems);
-  const filteredApprovedItems = applyFilters(approvedItems);
-  const filteredRejectedItems = applyFilters(rejectedItems);
+  const filteredPendingDESCRIPTIONs = applyFilters(pendingDESCRIPTIONs);
+  const filteredApprovedDESCRIPTIONs = applyFilters(approvedDESCRIPTIONs);
+  const filteredRejectedDESCRIPTIONs = applyFilters(rejectedDESCRIPTIONs);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 p-8">
@@ -1022,7 +1022,7 @@ const Receive = () => {
                 activeTab === "pending" ? "text-white" : "text-amber-500"
               }`}
             >
-              {pendingItems.length}
+              {pendingDESCRIPTIONs.length}
             </div>
             <p
               className={
@@ -1069,7 +1069,7 @@ const Receive = () => {
                 activeTab === "approved" ? "text-white" : "text-emerald-500"
               }`}
             >
-              {approvedItems.length}
+              {approvedDESCRIPTIONs.length}
             </div>
             <p
               className={
@@ -1116,7 +1116,7 @@ const Receive = () => {
                 activeTab === "rejected" ? "text-white" : "text-rose-500"
               }`}
             >
-              {rejectedItems.length}
+              {rejectedDESCRIPTIONs.length}
             </div>
             <p
               className={
@@ -1279,10 +1279,10 @@ const Receive = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {(activeTab === "pending"
-                ? filteredPendingItems
+                ? filteredPendingDESCRIPTIONs
                 : activeTab === "approved"
-                  ? filteredApprovedItems
-                  : filteredRejectedItems
+                  ? filteredApprovedDESCRIPTIONs
+                  : filteredRejectedDESCRIPTIONs
               ).map((item) => (
                 <tr
                   key={
@@ -1353,10 +1353,10 @@ const Receive = () => {
 
         {/* Empty State */}
         {(activeTab === "pending"
-          ? pendingItems
+          ? pendingDESCRIPTIONs
           : activeTab === "approved"
-            ? approvedItems
-            : rejectedItems
+            ? approvedDESCRIPTIONs
+            : rejectedDESCRIPTIONs
         ).length === 0 && (
           <div className="flex flex-col items-center justify-center py-12">
             <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -1383,8 +1383,8 @@ const Receive = () => {
         showToast={showToast}
         setSearchedEmployee={setSearchedEmployee}
         searchedEmployee={searchedEmployee}
-        selectedReturnableItems={selectedReturnableItems}
-        setSelectedReturnableItems={setSelectedReturnableItems}
+        selectedReturnableDESCRIPTIONs={selectedReturnableDESCRIPTIONs}
+        setSelectedReturnableDESCRIPTIONs={setSelectedReturnableDESCRIPTIONs}
         nonSltStaffDetails={nonSltStaffDetails}
         setNonSltStaffDetails={setNonSltStaffDetails}
         sendReturnEmail={sendReturnEmail}
@@ -1413,8 +1413,8 @@ const RequestDetailsModal = ({
   showToast,
   setSearchedEmployee,
   searchedEmployee,
-  selectedReturnableItems,
-  setSelectedReturnableItems,
+  selectedReturnableDESCRIPTIONs,
+  setSelectedReturnableDESCRIPTIONs,
   nonSltStaffDetails,
   setNonSltStaffDetails,
   sendReturnEmail,
@@ -1425,20 +1425,20 @@ const RequestDetailsModal = ({
   // Initialize with the correct value from request
   const [selectedExecutive, setSelectedExecutive] = useState("");
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [selectedItemImages, setSelectedItemImages] = useState([]);
-  const [selectedItemName, setSelectedItemName] = useState("");
+  const [selectedDESCRIPTIONImages, setSelectedDESCRIPTIONImages] = useState([]);
+  const [selecteditemDescription, setselecteditemDescription] = useState("");
   const [updateSuccess, setUpdateSuccess] = useState(false);
   const [currentTab, setCurrentTab] = useState("details");
-  //const [selectedReturnableItems, setSelectedReturnableItems] = useState([]);
+  //const [selectedReturnableDESCRIPTIONs, setSelectedReturnableDESCRIPTIONs] = useState([]);
   const [returnRemarks, setReturnRemarks] = useState("");
-  const [selectedItems, setSelectedItems] = useState([]);
+  const [selectedDESCRIPTIONs, setSelectedDESCRIPTIONs] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showAddItemModal, setShowAddItemModal] = useState(false);
-  const [newItem, setNewItem] = useState({
-    itemName: "",
+  const [showAddDESCRIPTIONModal, setShowAddDESCRIPTIONModal] = useState(false);
+  const [newItem, setnewItem] = useState({
+    itemDescription: "",
     serialNo: "",
-    itemCategory: "",
-    itemModel: "",
+    categoryDescription: "",
+    itemCode: "",
     itemQuantity: 1,
     returnDate: "",
     status: "returnable",
@@ -1473,15 +1473,15 @@ const RequestDetailsModal = ({
   // States for returnable items editing
   const [editingItemSerialNo, setEditingItemSerialNo] = useState(null);
   const [editValues, setEditValues] = useState({
-    itemModel: "",
+    itemCode: "",
     serialNo: "",
   });
 
   if (!isOpen || !request) return null;
 
   const handleViewImages = (item) => {
-    setSelectedItemImages(item.itemPhotos);
-    setSelectedItemName(item.itemName);
+    setSelectedDESCRIPTIONImages(item.itemPhotos);
+    setselecteditemDescription(item.itemDescription);
     setIsImageModalOpen(true);
   };
 
@@ -1532,13 +1532,13 @@ const RequestDetailsModal = ({
       return;
     }
 
-    if (selectedItems.length === 0) {
+    if (selectedDESCRIPTIONs.length === 0) {
       showToast("Please select at least one item to return", "warning");
       return;
     }
 
     const confirmed = window.confirm(
-      `Are you sure you want to mark ${selectedItems.length} item(s) as 'return'?`,
+      `Are you sure you want to mark ${selectedDESCRIPTIONs.length} item(s) as 'return'?`,
     );
 
     if (!confirmed) return;
@@ -1547,32 +1547,32 @@ const RequestDetailsModal = ({
 
     try {
       console.log("Starting bulk return process...");
-      console.log("Selected serial numbers:", selectedItems);
+      console.log("Selected serial numbers:", selectedDESCRIPTIONs);
       console.log("Reference number:", request.refNo);
 
       // Get full details of selected items
-      const selectedItemDetails = request.items.filter((item) =>
-        selectedItems.includes(item.serialNo),
+      const selecteditemDetails = request.items.filter((item) =>
+        selectedDESCRIPTIONs.includes(item.serialNumber),
       );
 
-      console.log("Selected item details:", selectedItemDetails);
+      console.log("Selected item details:", selecteditemDetails);
 
       // Call backend to update DB
-      const response = await markItemsAsReturned(request.refNo, selectedItems);
+      const response = await markItemsAsReturned(request.refNo, selectedDESCRIPTIONs);
 
       console.log("Backend response:", response);
 
-      // Now send the email notification WITH ITEM DETAILS
+      // Now send the email notification WITH item DETAILS
       await sendReturnEmail(
         request,
-        "Items successfully returned by receiver.",
-        selectedItemDetails,
+        "items successfully returned by receiver.",
+        selecteditemDetails,
       );
 
       // Show success message
       showToast(
         `Successfully marked ${
-          response.updatedCount || selectedItems.length
+          response.updatedCount || selectedDESCRIPTIONs.length
         } item(s) as returned.`,
         "success",
       );
@@ -1580,7 +1580,7 @@ const RequestDetailsModal = ({
       console.log("Bulk return process completed successfully");
 
       // Clear selected items
-      setSelectedItems([]);
+      setSelectedDESCRIPTIONs([]);
 
       // Refresh / close modal
       onClose();
@@ -1597,15 +1597,15 @@ const RequestDetailsModal = ({
       setLoading(false);
     }
   };
-  const handleAddNewItem = async () => {
+  const handleAddnewItem = async () => {
     if (isSuper) {
       showToast("Super Admin has view-only access", "warning");
       return;
     }
 
-    if (!newItem.itemName || !newItem.serialNo || !newItem.itemCategory) {
+    if (!newItem.itemDescription || !newItem.serialNumber || !newItem.categoryDescription) {
       alert(
-        "Please fill in all required fields (Item Name, Serial No, Category)",
+        "Please fill in all required fields (item Name, Serial Number, Category)",
       );
       return;
     }
@@ -1613,7 +1613,7 @@ const RequestDetailsModal = ({
     try {
       await addReturnableItemToRequest(request.refNo, newItem);
       alert("Returnable item added successfully!");
-      setShowAddItemModal(false);
+      setShowAddDESCRIPTIONModal(false);
       window.location.reload();
       // optionally refresh data here
     } catch (error) {
@@ -1623,18 +1623,18 @@ const RequestDetailsModal = ({
   };
 
   /*const handleBulkReturn = async () => {
-  if (selectedItems.length === 0) return;
+  if (selectedDESCRIPTIONs.length === 0) return;
   
   setLoading(true);
   try {
-    for (const serialNo of selectedItems) {
-      const item = request.items.find(i => i.serialNo === serialNo);
+    for (const serialNo of selectedDESCRIPTIONs) {
+      const item = request.items.find(i => i.serialNumber === serialNo);
       if (item) {
-        await handleReturnSingleItem(item);
+        await handleReturnSingleDESCRIPTION(item);
       }
     }
-    setSelectedItems([]);
-    toast.success(`Successfully returned ${selectedItems.length} item(s)`);
+    setSelectedDESCRIPTIONs([]);
+    toast.success(`Successfully returned ${selectedDESCRIPTIONs.length} item(s)`);
   } catch (error) {
     console.error('Error returning items:', error);
     toast.error('Failed to return some items');
@@ -1643,22 +1643,22 @@ const RequestDetailsModal = ({
   }
 };*/
 
-  const handleReturnSingleItem = async (item) => {
+  const handleReturnSingleDESCRIPTION = async (item) => {
     try {
       setLoading(true);
 
-      const data = await markItemsAsReturned(request.refNo, [item.serialNo]);
+      const data = await markItemsAsReturned(request.refNo, [item.serialNumber]);
 
       toast.success(
-        data.message || `${item.itemName} marked as returned successfully`,
+        data.message || `${item.itemDescription} marked as returned successfully`,
       );
 
       setRequest((prev) => ({
         ...prev,
-        returnableItems: [
-          ...(prev.returnableItems || []),
+        returnableDESCRIPTIONs: [
+          ...(prev.returnableDESCRIPTIONs || []),
           {
-            serialNo: item.serialNo,
+            serialNo: item.serialNumber,
             returned: true,
             returnedDate: new Date().toISOString(),
           },
@@ -1687,11 +1687,11 @@ const RequestDetailsModal = ({
   };
 
   // Functions for returnable items editing
-  const handleEditReturnableItem = (item) => {
-    setEditingItemSerialNo(item.serialNo);
+  const handleEditReturnableDESCRIPTION = (item) => {
+    setEditingItemSerialNo(item.serialNumber);
     setEditValues({
-      itemModel: item.itemModel || "",
-      serialNo: item.serialNo || "",
+      itemCode: item.itemCode || "",
+      serialNo: item.serialNumber || "",
     });
   };
 
@@ -1699,21 +1699,21 @@ const RequestDetailsModal = ({
     try {
       // For pending requests, only update local state
       if (activeTab === "pending") {
-        // Update the selectedReturnableItems array locally only
-        setSelectedReturnableItems((prev) =>
+        // Update the selectedReturnableDESCRIPTIONs array locally only
+        setSelectedReturnableDESCRIPTIONs((prev) =>
           prev.map((item) =>
-            item.serialNo === originalSerialNo
+            item.serialNumber === originalSerialNo
               ? {
                   ...item,
-                  itemModel: editValues.itemModel,
-                  serialNo: editValues.serialNo,
+                  itemCode: editValues.itemCode,
+                  serialNo: editValues.serialNumber,
                 }
               : item,
           ),
         );
 
         setEditingItemSerialNo(null);
-        setEditValues({ itemModel: "", serialNo: "" });
+        setEditValues({ itemCode: "", serialNo: "" });
         showToast(
           "Returnable item updated locally. Changes will be saved when you approve the request.",
           "success",
@@ -1725,25 +1725,25 @@ const RequestDetailsModal = ({
       const response = await updateReturnableItem(
         request.refNo,
         originalSerialNo,
-        editValues.itemModel,
-        editValues.serialNo,
+        editValues.itemCode,
+        editValues.serialNumber,
       );
 
-      // Update the selectedReturnableItems array locally
-      setSelectedReturnableItems((prev) =>
+      // Update the selectedReturnableDESCRIPTIONs array locally
+      setSelectedReturnableDESCRIPTIONs((prev) =>
         prev.map((item) =>
-          item.serialNo === originalSerialNo
+          item.serialNumber === originalSerialNo
             ? {
                 ...item,
-                itemModel: editValues.itemModel,
-                serialNo: editValues.serialNo,
+                itemCode: editValues.itemCode,
+                serialNo: editValues.serialNumber,
               }
             : item,
         ),
       );
 
       setEditingItemSerialNo(null);
-      setEditValues({ itemModel: "", serialNo: "" });
+      setEditValues({ itemCode: "", serialNo: "" });
       showToast("Returnable item updated successfully in database", "success");
     } catch (error) {
       console.error("Error updating returnable item:", error);
@@ -1751,20 +1751,20 @@ const RequestDetailsModal = ({
       // Check if it's the specific error about not being approved yet
       if (error.message.includes("not been approved yet")) {
         // For this case, just update locally
-        setSelectedReturnableItems((prev) =>
+        setSelectedReturnableDESCRIPTIONs((prev) =>
           prev.map((item) =>
-            item.serialNo === originalSerialNo
+            item.serialNumber === originalSerialNo
               ? {
                   ...item,
-                  itemModel: editValues.itemModel,
-                  serialNo: editValues.serialNo,
+                  itemCode: editValues.itemCode,
+                  serialNo: editValues.serialNumber,
                 }
               : item,
           ),
         );
 
         setEditingItemSerialNo(null);
-        setEditValues({ itemModel: "", serialNo: "" });
+        setEditValues({ itemCode: "", serialNo: "" });
         showToast(
           "Returnable item updated locally. Changes will be saved when you approve the request.",
           "info",
@@ -1780,7 +1780,7 @@ const RequestDetailsModal = ({
 
   const handleCancelEdit = () => {
     setEditingItemSerialNo(null);
-    setEditValues({ itemModel: "", serialNo: "" });
+    setEditValues({ itemCode: "", serialNo: "" });
   };
 
   // Print function
@@ -1788,7 +1788,7 @@ const RequestDetailsModal = ({
     request,
     transporterDetails,
     loadingStaff,
-    selectedReturnableItems,
+    selectedReturnableDESCRIPTIONs,
   ) => {
     // Create a temporary iframe to hold the printable content
     const printFrame = document.createElement("iframe");
@@ -2042,7 +2042,7 @@ const RequestDetailsModal = ({
               }
             </div>
             <div class="item">
-              <span class="label">Vehicle Model:</span> ${
+              <span class="label">Vehicle Item Code:</span> ${
                 request?.requestDetails?.vehicleModel || "N/A"
               }
             </div>
@@ -2081,7 +2081,7 @@ const RequestDetailsModal = ({
               }
             </div>
             <div class="item">
-              <span class="label">Vehicle Model:</span> ${
+              <span class="label">Vehicle Item Code:</span> ${
                 request?.requestDetails?.vehicleModel || "N/A"
               }
             </div>
@@ -2447,15 +2447,15 @@ const RequestDetailsModal = ({
     </div>
 
         <div class="section">
-          <h2 class="section-title">Items</h2>
+          <h2 class="section-title">items</h2>
           <table>
             <thead>
               <tr>
-                <th>Item Name</th>
-                <th>Serial No</th>
+                <th>item Name</th>
+                <th>Serial Number</th>
                 <th>Category</th>
                 <th>Quantity</th>
-                <th>Model</th>
+                <th>Item Code</th>
               </tr>
             </thead>
             <tbody>
@@ -2463,11 +2463,11 @@ const RequestDetailsModal = ({
                 .map(
                   (item) => `
                 <tr>
-                  <td>${item?.itemName || "-"}</td>
-                  <td>${item?.serialNo || "-"}</td>
-                  <td>${item?.itemCategory || "-"}</td>
+                  <td>${item?.itemDescription || "-"}</td>
+                  <td>${item?.serialNumber || "-"}</td>
+                  <td>${item?.categoryDescription || "-"}</td>
                   <td>${item?.itemQuantity || "-"}</td>
-                  <td>${item?.itemModel || "-"}</td>
+                  <td>${item?.itemCode || "-"}</td>
                 </tr>
               `,
                 )
@@ -2477,29 +2477,29 @@ const RequestDetailsModal = ({
         </div>
         
         <div class="section">
-      <h2 class="section-title">Selected Returnable Items</h2>
+      <h2 class="section-title">Selected Returnable items</h2>
       ${
-        request?.requestDetails?.returnableItems || []
+        request?.requestDetails?.returnableDESCRIPTIONs || []
           ? `<table>
             <thead>
               <tr>
-                <th>Item Name</th>
-                <th>Serial No</th>
+                <th>item Name</th>
+                <th>Serial Number</th>
                 <th>Category</th>
                 <th>Return Quantity</th>
-                <th>Model</th>
+                <th>Item Code</th>
               </tr>
             </thead>
             <tbody>
-              ${(request?.requestDetails?.returnableItems || [])
+              ${(request?.requestDetails?.returnableDESCRIPTIONs || [])
                 .map(
                   (item) => `
                 <tr>
-                  <td>${item?.itemName || "-"}</td>
-                  <td>${item?.serialNo || "-"}</td>
-                  <td>${item?.itemCategory || "-"}</td>
+                  <td>${item?.itemDescription || "-"}</td>
+                  <td>${item?.serialNumber || "-"}</td>
+                  <td>${item?.categoryDescription || "-"}</td>
                   <td>${item?.returnQuantity || item?.itemQuantity || "-"}</td>
-                  <td>${item?.itemModel || "-"}</td>
+                  <td>${item?.itemCode || "-"}</td>
                 </tr>
               `,
                 )
@@ -2532,7 +2532,7 @@ const RequestDetailsModal = ({
     };
   };
 
-  const generateItemDetailsPDF = (items, refNo) => {
+  const generateitemDetailsPDF = (items, refNo) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
@@ -2547,7 +2547,7 @@ const RequestDetailsModal = ({
     // Header
     doc.setFontSize(18);
     doc.setTextColor(0, 51, 153); // SLT blue color
-    doc.text("SLT Gate Pass - Item Details", pageWidth / 2, 20, {
+    doc.text("SLT Gate Pass - item Details", pageWidth / 2, 20, {
       align: "center",
     });
 
@@ -2568,10 +2568,10 @@ const RequestDetailsModal = ({
     doc.setDrawColor(220, 220, 220);
     doc.line(margin, 35, pageWidth - margin, 35);
 
-    // Items Table
+    // items Table
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
-    doc.text("Item Details", margin, 45);
+    doc.text("item Details", margin, 45);
 
     // Table header
     let yPos = 55;
@@ -2580,8 +2580,8 @@ const RequestDetailsModal = ({
     doc.setDrawColor(200, 200, 200);
 
     // Define column widths
-    const col1Width = 60; // Item Name
-    const col2Width = 40; // Serial No
+    const col1Width = 60; // item Name
+    const col2Width = 40; // Serial Number
     const col3Width = 30; // Category
     const col4Width = 20; // Quantity
     const col5Width = 30; // Status
@@ -2596,12 +2596,12 @@ const RequestDetailsModal = ({
       "F",
     );
 
-    doc.text("Item Name", margin + 3, yPos + 5.5);
-    doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+    doc.text("item Name", margin + 3, yPos + 5.5);
+    doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
     doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
     doc.text("Qty", margin + col1Width + col2Width + col3Width + 3, yPos + 5.5);
     doc.text(
-      "Model",
+      "Item Code",
       margin + col1Width + col2Width + col3Width + col4Width + 3,
       yPos + 5.5,
     );
@@ -2625,8 +2625,8 @@ const RequestDetailsModal = ({
           "F",
         );
 
-        doc.text("Item Name", margin + 3, yPos + 5.5);
-        doc.text("Serial No", margin + col1Width + 3, yPos + 5.5);
+        doc.text("item Name", margin + 3, yPos + 5.5);
+        doc.text("Serial Number", margin + col1Width + 3, yPos + 5.5);
         doc.text("Category", margin + col1Width + col2Width + 3, yPos + 5.5);
         doc.text(
           "Qty",
@@ -2634,7 +2634,7 @@ const RequestDetailsModal = ({
           yPos + 5.5,
         );
         doc.text(
-          "Model",
+          "Item Code",
           margin + col1Width + col2Width + col3Width + col4Width + 3,
           yPos + 5.5,
         );
@@ -2663,17 +2663,17 @@ const RequestDetailsModal = ({
       };
 
       doc.text(
-        truncateText(item?.itemName || "N/A", 25),
+        truncateText(item?.itemDescription || "N/A", 25),
         margin + 3,
         yPos + 5.5,
       );
       doc.text(
-        truncateText(item?.serialNo || "N/A", 15),
+        truncateText(item?.serialNumber || "N/A", 15),
         margin + col1Width + 3,
         yPos + 5.5,
       );
       doc.text(
-        truncateText(item?.itemCategory || "N/A", 12),
+        truncateText(item?.categoryDescription || "N/A", 12),
         margin + col1Width + col2Width + 3,
         yPos + 5.5,
       );
@@ -2683,7 +2683,7 @@ const RequestDetailsModal = ({
         yPos + 5.5,
       );
       doc.text(
-        item?.itemModel || "N/A",
+        item?.itemCode || "N/A",
         margin + col1Width + col2Width + col3Width + col4Width + 3,
         yPos + 5.5,
       );
@@ -2713,7 +2713,7 @@ const RequestDetailsModal = ({
     );
 
     // Save the PDF
-    doc.save(`SLT_GatePass_Items_${request.refNo}.pdf`);
+    doc.save(`SLT_GatePass_DESCRIPTIONs_${request.refNo}.pdf`);
   };
 
   return (
@@ -2789,7 +2789,7 @@ const RequestDetailsModal = ({
             }`}
             onClick={() => setCurrentTab("returnable")}
           >
-            <FaClipboardCheck className="mr-2" /> Returnable Items
+            <FaClipboardCheck className="mr-2" /> Returnable items
           </button>
 
           <button
@@ -2865,17 +2865,17 @@ const RequestDetailsModal = ({
                   </div>
                 </div>
               </div>
-              {/* Items Table */}
+              {/* items Table */}
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
-                  <FaBoxOpen className="mr-2" /> Item Details
+                  <FaBoxOpen className="mr-2" /> item Details
                   <button
                     onClick={() =>
-                      generateItemDetailsPDF(request.items, request.refNo)
+                      generateitemDetailsPDF(request.items, request.refNo)
                     }
                     className="ml-auto px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center transition-colors"
                   >
-                    <FaFilePdf className="mr-2" /> Download Items PDF
+                    <FaFilePdf className="mr-2" /> Download items PDF
                   </button>
                 </h3>
                 <div className="overflow-x-auto rounded-xl border border-gray-200">
@@ -2883,10 +2883,9 @@ const RequestDetailsModal = ({
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Item
-                        </th>
+                          item </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Serial No
+                          Serial Number
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Category
@@ -2895,7 +2894,7 @@ const RequestDetailsModal = ({
                           Quantity
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Model
+                          Item Code
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Status
@@ -2908,11 +2907,11 @@ const RequestDetailsModal = ({
                     <tbody className="divide-y divide-gray-200">
                       {(request.items || []).map((item, index) => (
                         <tr key={index} className="hover:bg-gray-50">
-                          <td className="px-6 py-4">{item?.itemName}</td>
-                          <td className="px-6 py-4">{item?.serialNo}</td>
-                          <td className="px-6 py-4">{item?.itemCategory}</td>
+                          <td className="px-6 py-4">{item?.itemDescription}</td>
+                          <td className="px-6 py-4">{item?.serialNumber}</td>
+                          <td className="px-6 py-4">{item?.categoryDescription}</td>
                           <td className="px-6 py-4">{item?.itemQuantity}</td>
-                          <td className="px-6 py-4">{item?.itemModel}</td>
+                          <td className="px-6 py-4">{item?.itemCode}</td>
                           <td className="px-6 py-4">
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -2935,10 +2934,10 @@ const RequestDetailsModal = ({
                               <FaEye className="mr-2" /> View Images
                             </button>
                             <ImageViewerModal
-                              images={selectedItemImages}
+                              images={selectedDESCRIPTIONImages}
                               isOpen={isImageModalOpen}
                               onClose={() => setIsImageModalOpen(false)}
-                              itemName={selectedItemName}
+                              itemDescription={selecteditemDescription}
                             />
                           </td>
                         </tr>
@@ -3210,7 +3209,7 @@ const RequestDetailsModal = ({
                       </div>
                       <div>
                         <label className="text-sm font-medium text-gray-600">
-                          Vehicle Model
+                          Vehicle Item Code
                         </label>
                         <p className="text-gray-800">
                           {request?.requestDetails?.transport?.vehicleModel ||
@@ -3812,26 +3811,25 @@ const RequestDetailsModal = ({
             </div>
           )}
 
-          {/* Returnable Items Tab */}
-          {/* Returnable Items Tab */}
+          {/* Returnable items Tab */}
+          {/* Returnable items Tab */}
           {currentTab === "returnable" && (
             <div className="space-y-6">
               <div className="bg-gray-50 rounded-xl p-6">
                 {/* Header with Add Button */}
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-                    <FaClipboardCheck className="mr-2" /> Returnable Items
+                    <FaClipboardCheck className="mr-2" /> Returnable items
                   </h3>
 
-                  {/* Add New Item Button */}
+                  {/* Add New item Button */}
                   {!isSuper && (
                     <button
-                      onClick={() => setShowAddItemModal(true)}
+                      onClick={() => setShowAddDESCRIPTIONModal(true)}
                       className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium flex items-center transition-colors shadow-sm"
                     >
                       <FaPlus className="mr-2" />
-                      Add New Item
-                    </button>
+                      Add New item </button>
                   )}
                 </div>
 
@@ -3841,7 +3839,7 @@ const RequestDetailsModal = ({
                     button.
                     {activeTab === "pending" && (
                       <span className="block mt-1 text-xs">
-                        <strong>Note:</strong> Any edits to Model or Serial
+                        <strong>Note:</strong> Any edits to Item Code or Serial
                         Number will be saved locally and applied when you
                         approve the request.
                       </span>
@@ -3853,8 +3851,8 @@ const RequestDetailsModal = ({
                 {(request.items || []).filter(
                   (item) =>
                     item.status === "returnable" &&
-                    !(request.returnableItems || []).find(
-                      (ri) => ri.serialNo === item.serialNo,
+                    !(request.returnableDESCRIPTIONs || []).find(
+                      (ri) => ri.serialNumber === item.serialNumber,
                     )?.returned,
                 ).length > 0 && (
                   <div className="flex items-center justify-between mb-4">
@@ -3863,42 +3861,42 @@ const RequestDetailsModal = ({
                         type="checkbox"
                         disabled={isSuper}
                         checked={
-                          selectedItems.length > 0 &&
-                          selectedItems.length ===
+                          selectedDESCRIPTIONs.length > 0 &&
+                          selectedDESCRIPTIONs.length ===
                             (request.items || []).filter(
                               (item) =>
                                 item.status === "returnable" &&
-                                !(request.returnableItems || []).find(
-                                  (ri) => ri.serialNo === item.serialNo,
+                                !(request.returnableDESCRIPTIONs || []).find(
+                                  (ri) => ri.serialNumber === item.serialNumber,
                                 )?.returned,
                             ).length
                         }
                         onChange={(e) => {
                           if (e.target.checked) {
-                            const allUnreturnedItems = (request.items || [])
+                            const allUnreturnedDESCRIPTIONs = (request.items || [])
                               .filter(
                                 (item) =>
                                   item.status === "returnable" &&
-                                  !(request.returnableItems || []).find(
-                                    (ri) => ri.serialNo === item.serialNo,
+                                  !(request.returnableDESCRIPTIONs || []).find(
+                                    (ri) => ri.serialNumber === item.serialNumber,
                                   )?.returned,
                               )
-                              .map((item) => item.serialNo);
-                            setSelectedItems(allUnreturnedItems);
+                              .map((item) => item.serialNumber);
+                            setSelectedDESCRIPTIONs(allUnreturnedDESCRIPTIONs);
                           } else {
-                            setSelectedItems([]);
+                            setSelectedDESCRIPTIONs([]);
                           }
                         }}
                       />
                       <span className="text-sm text-gray-600">
-                        {selectedItems.length > 0
-                          ? `${selectedItems.length} item(s) selected`
+                        {selectedDESCRIPTIONs.length > 0
+                          ? `${selectedDESCRIPTIONs.length} item(s) selected`
                           : "Select all"}
                       </span>
                     </div>
                     <button
                       onClick={handleBulkReturn}
-                      disabled={selectedItems.length === 0 || loading}
+                      disabled={selectedDESCRIPTIONs.length === 0 || loading}
                       className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium flex items-center transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loading ? (
@@ -3909,7 +3907,7 @@ const RequestDetailsModal = ({
                       ) : (
                         <>
                           <FaCheck className="mr-2" />
-                          Return Selected ({selectedItems.length})
+                          Return Selected ({selectedDESCRIPTIONs.length})
                         </>
                       )}
                     </button>
@@ -3925,46 +3923,45 @@ const RequestDetailsModal = ({
                             type="checkbox"
                             disabled={isSuper}
                             checked={
-                              selectedItems.length > 0 &&
-                              selectedItems.length ===
+                              selectedDESCRIPTIONs.length > 0 &&
+                              selectedDESCRIPTIONs.length ===
                                 (request.items || []).filter(
                                   (item) =>
                                     item.status === "returnable" &&
-                                    !(request.returnableItems || []).find(
-                                      (ri) => ri.serialNo === item.serialNo,
+                                    !(request.returnableDESCRIPTIONs || []).find(
+                                      (ri) => ri.serialNumber === item.serialNumber,
                                     )?.returned,
                                 ).length
                             }
                             onChange={(e) => {
                               if (e.target.checked) {
-                                const allUnreturnedItems = (request.items || [])
+                                const allUnreturnedDESCRIPTIONs = (request.items || [])
                                   .filter(
                                     (item) =>
                                       item.status === "returnable" &&
-                                      !(request.returnableItems || []).find(
-                                        (ri) => ri.serialNo === item.serialNo,
+                                      !(request.returnableDESCRIPTIONs || []).find(
+                                        (ri) => ri.serialNumber === item.serialNumber,
                                       )?.returned,
                                   )
-                                  .map((item) => item.serialNo);
-                                setSelectedItems(allUnreturnedItems);
+                                  .map((item) => item.serialNumber);
+                                setSelectedDESCRIPTIONs(allUnreturnedDESCRIPTIONs);
                               } else {
-                                setSelectedItems([]);
+                                setSelectedDESCRIPTIONs([]);
                               }
                             }}
                             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Item
-                        </th>
+                          item </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Serial No
+                          Serial Number
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Category
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Model
+                          Item Code
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Quantity
@@ -3984,13 +3981,13 @@ const RequestDetailsModal = ({
                       {(request.items || [])
                         .filter((item) => item.status === "returnable")
                         .map((item, idx) => {
-                          const returnableItem = (
-                            request.returnableItems || []
-                          ).find((ri) => ri.serialNo === item.serialNo);
+                          const returnableDESCRIPTION = (
+                            request.returnableDESCRIPTIONs || []
+                          ).find((ri) => ri.serialNumber === item.serialNumber);
 
                           const isEditing =
-                            editingItemSerialNo === item.serialNo;
-                          const isReturned = !!returnableItem?.returned;
+                            editingItemSerialNo === item.serialNumber;
+                          const isReturned = !!returnableDESCRIPTION?.returned;
 
                           return (
                             <tr
@@ -4003,19 +4000,19 @@ const RequestDetailsModal = ({
                                 {!isReturned && (
                                   <input
                                     type="checkbox"
-                                    checked={selectedItems.includes(
-                                      item.serialNo,
+                                    checked={selectedDESCRIPTIONs.includes(
+                                      item.serialNumber,
                                     )}
                                     onChange={(e) => {
                                       if (e.target.checked) {
-                                        setSelectedItems([
-                                          ...selectedItems,
-                                          item.serialNo,
+                                        setSelectedDESCRIPTIONs([
+                                          ...selectedDESCRIPTIONs,
+                                          item.serialNumber,
                                         ]);
                                       } else {
-                                        setSelectedItems(
-                                          selectedItems.filter(
-                                            (s) => s !== item.serialNo,
+                                        setSelectedDESCRIPTIONs(
+                                          selectedDESCRIPTIONs.filter(
+                                            (s) => s !== item.serialNumber,
                                           ),
                                         );
                                       }
@@ -4025,13 +4022,13 @@ const RequestDetailsModal = ({
                                 )}
                               </td>
                               <td className="px-6 py-4 font-medium">
-                                {item.itemName}
+                                {item.itemDescription}
                               </td>
                               <td className="px-6 py-4">
                                 {isEditing ? (
                                   <input
                                     type="text"
-                                    value={editValues.serialNo}
+                                    value={editValues.serialNumber}
                                     onChange={(e) =>
                                       setEditValues({
                                         ...editValues,
@@ -4042,26 +4039,26 @@ const RequestDetailsModal = ({
                                     placeholder="Enter serial number"
                                   />
                                 ) : (
-                                  item.serialNo
+                                  item.serialNumber
                                 )}
                               </td>
-                              <td className="px-6 py-4">{item.itemCategory}</td>
+                              <td className="px-6 py-4">{item.categoryDescription}</td>
                               <td className="px-6 py-4">
                                 {isEditing ? (
                                   <input
                                     type="text"
-                                    value={editValues.itemModel}
+                                    value={editValues.itemCode}
                                     onChange={(e) =>
                                       setEditValues({
                                         ...editValues,
-                                        itemModel: e.target.value,
+                                        itemCode: e.target.value,
                                       })
                                     }
                                     className="w-full px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Enter model"
+                                    placeholder="Enter Item Code"
                                   />
                                 ) : (
-                                  item.itemModel || "N/A"
+                                  item.itemCode || "N/A"
                                 )}
                               </td>
                               <td className="px-6 py-4">{item.itemQuantity}</td>
@@ -4086,7 +4083,7 @@ const RequestDetailsModal = ({
                                           <button
                                             onClick={() =>
                                               handleSaveReturnableItem(
-                                                item.serialNo,
+                                                item.serialNumber,
                                               )
                                             }
                                             className="p-2 text-green-600 hover:text-green-800 transition-colors"
@@ -4105,10 +4102,10 @@ const RequestDetailsModal = ({
                                       ) : (
                                         <button
                                           onClick={() =>
-                                            handleEditReturnableItem(item)
+                                            handleEditReturnableDESCRIPTION(item)
                                           }
                                           className="p-2 text-blue-600 hover:text-blue-800 transition-colors"
-                                          title="Edit model and serial number"
+                                          title="Edit Item Code and serial number"
                                         >
                                           <FaEdit />
                                         </button>
@@ -4145,18 +4142,17 @@ const RequestDetailsModal = ({
             </div>
           )}
 
-          {/* Add New Item Modal */}
-          {showAddItemModal && (
+          {/* Add New item Modal */}
+          {showAddDESCRIPTIONModal && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
               <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl">
                 {/* Modal Header */}
                 <div className="bg-gradient-to-r from-blue-600 to-blue-800 p-6">
                   <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-white flex items-center">
-                      <FaPlus className="mr-3" /> Add New Returnable Item
-                    </h2>
+                      <FaPlus className="mr-3" /> Add New Returnable item </h2>
                     <button
-                      onClick={() => setShowAddItemModal(false)}
+                      onClick={() => setShowAddDESCRIPTIONModal(false)}
                       className="text-white/80 hover:text-white transition-colors"
                     >
                       <FaTimes className="text-xl" />
@@ -4169,13 +4165,13 @@ const RequestDetailsModal = ({
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Item Name <span className="text-red-500">*</span>
+                        item Name <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
-                        value={newItem.itemName}
+                        value={newItem.itemDescription}
                         onChange={(e) =>
-                          setNewItem({ ...newItem, itemName: e.target.value })
+                          setnewItem({ ...newItem, itemDescription: e.target.value })
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Enter item name"
@@ -4188,9 +4184,9 @@ const RequestDetailsModal = ({
                       </label>
                       <input
                         type="text"
-                        value={newItem.serialNo}
+                        value={newItem.serialNumber}
                         onChange={(e) =>
-                          setNewItem({ ...newItem, serialNo: e.target.value })
+                          setnewItem({ ...newItem, serialNo: e.target.value })
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Enter serial number"
@@ -4203,11 +4199,11 @@ const RequestDetailsModal = ({
                       </label>
                       <input
                         type="text"
-                        value={newItem.itemCategory}
+                        value={newItem.categoryDescription}
                         onChange={(e) =>
-                          setNewItem({
+                          setnewItem({
                             ...newItem,
-                            itemCategory: e.target.value,
+                            categoryDescription: e.target.value,
                           })
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -4217,16 +4213,16 @@ const RequestDetailsModal = ({
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Model
+                        Item Code
                       </label>
                       <input
                         type="text"
-                        value={newItem.itemModel}
+                        value={newItem.itemCode}
                         onChange={(e) =>
-                          setNewItem({ ...newItem, itemModel: e.target.value })
+                          setnewItem({ ...newItem, itemCode: e.target.value })
                         }
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Enter model"
+                        placeholder="Enter Item Code"
                       />
                     </div>
 
@@ -4239,7 +4235,7 @@ const RequestDetailsModal = ({
                         min="1"
                         value={newItem.itemQuantity}
                         onChange={(e) =>
-                          setNewItem({
+                          setnewItem({
                             ...newItem,
                             itemQuantity: parseInt(e.target.value) || 1,
                           })
@@ -4255,7 +4251,7 @@ const RequestDetailsModal = ({
                         <input
                           type="date"
                           value={newItem.returnDate}
-                          onChange={(e) => setNewItem({...newItem, returnDate: e.target.value})}
+                          onChange={(e) => setnewItem({...newItem, returnDate: e.target.value})}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>*/}
@@ -4274,18 +4270,17 @@ const RequestDetailsModal = ({
                 {/* Modal Footer */}
                 <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t border-gray-200">
                   <button
-                    onClick={() => setShowAddItemModal(false)}
+                    onClick={() => setShowAddDESCRIPTIONModal(false)}
                     className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleAddNewItem}
+                    onClick={handleAddnewItem}
                     className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors flex items-center"
                   >
                     <FaPlus className="mr-2" />
-                    Add Item
-                  </button>
+                    Add item </button>
                 </div>
               </div>
             </div>
@@ -4322,7 +4317,7 @@ const RequestDetailsModal = ({
                             request,
                             transporterDetails,
                             searchedEmployee,
-                            selectedReturnableItems,
+                            selectedReturnableDESCRIPTIONs,
                           )
                         }
                         className="px-4 py-2.5 bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-all flex items-center"
@@ -4346,7 +4341,7 @@ const RequestDetailsModal = ({
                       <ul className="list-disc list-inside space-y-1 text-gray-600">
                         <li>Reference: {request.refNo}</li>
                         <li>Sender: {request.senderDetails?.name}</li>
-                        <li>Items: {(request.items || []).length}</li>
+                        <li>items: {(request.items || []).length}</li>
                         <li>From: {request.outLocation}</li>
                         <li>To: {request.inLocation}</li>
                       </ul>
@@ -4413,7 +4408,7 @@ const RequestDetailsModal = ({
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-700 mb-2">
-                        Returnable Items
+                        Returnable items
                       </h4>
 
                       {request.items?.filter(
@@ -4438,7 +4433,7 @@ const RequestDetailsModal = ({
                             )
                             .map((item, index) => (
                               <li key={index}>
-                                {item.itemName} - {item.serialNo}
+                                {item.itemDescription} - {item.serialNumber}
                               </li>
                             ))}
                         </ul>
@@ -4571,7 +4566,7 @@ const RequestDetailsModal = ({
 };
 
 // In the ImageViewerModal component
-const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
+const ImageViewerModal = ({ images, isOpen, onClose, itemDescription }) => {
   const [imageUrls, setImageUrls] = useState([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -4612,7 +4607,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
             {imageUrls.length > 0 && (
               <img
                 src={imageUrls[activeIndex]}
-                alt={`${itemName} ${activeIndex + 1}`}
+                alt={`${itemDescription} ${activeIndex + 1}`}
                 className="w-full h-full object-contain"
               />
             )}
@@ -4667,7 +4662,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
           {/* Header with close button */}
           <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-semibold text-white">{itemName}</h3>
+              <h3 className="text-xl font-semibold text-white">{itemDescription}</h3>
               <button
                 onClick={onClose}
                 className="text-white hover:text-white/80 bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all"
@@ -4692,7 +4687,7 @@ const ImageViewerModal = ({ images, isOpen, onClose, itemName }) => {
             >
               <img
                 src={url}
-                alt={`${itemName} thumbnail ${index + 1}`}
+                alt={`${itemDescription} thumbnail ${index + 1}`}
                 className="w-full h-full object-cover"
               />
             </div>

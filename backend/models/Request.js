@@ -1,10 +1,11 @@
 const mongoose = require("mongoose");
 
 const ItemSchema = new mongoose.Schema({
-  itemName: { type: String, required: true },
-  serialNo: { type: String, required: true },
+  serialNumber: { type: String, required: true },
+  itemCode: { type: String },
+  itemDescription: { type: String, required: true },
   itemCategory: { type: String, required: true },
-  itemDescription: { type: String },
+  categoryDescription: { type: String, required: true },
   itemPhotos: [
     {
       url: { type: String },
@@ -12,7 +13,6 @@ const ItemSchema = new mongoose.Schema({
     },
   ],
   itemQuantity: { type: Number, required: true },
-  itemModel: { type: String },
   returnDate: { type: Date },
   //status:{ type: String },
   status: {
@@ -79,11 +79,12 @@ const UnLoadingSchema = new mongoose.Schema({
 });
 
 const ReturnableItemSchema = new mongoose.Schema({
-  itemName: { type: String, required: true },
-  serialNo: { type: String, required: true },
+  serialNumber: { type: String, required: true },
+  itemCode: { type: String },
+  itemDescription: { type: String, required: true },
   itemCategory: { type: String, required: true },
+  categoryDescription: { type: String, required: true },
   itemQuantity: { type: Number, required: true }, // Changed from returnQuantity
-  itemModel: { type: String },
   returnDate: { type: Date }, // Expected return date
   returned: { type: Boolean, default: false }, //  ADD THIS: Track if item has been returned
   returnedDate: { type: Date }, //  ADD THIS: Actual return date
@@ -147,7 +148,7 @@ const RequestSchema = new mongoose.Schema(
     show: { type: Boolean, default: true },
     createdAt: { type: Date, default: Date.now },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Request = mongoose.model("Request", RequestSchema);
