@@ -18,7 +18,7 @@ const intranetAxios = axios.create({
  */
 const getItemCategories = async (retryCount = 0) => {
   const MAX_RETRIES = 2;
-  
+
   try {
     console.log(
       "Fetching item categories from:",
@@ -39,18 +39,30 @@ const getItemCategories = async (retryCount = 0) => {
     return response.data;
   } catch (error) {
     // Retry on timeout errors
-    if ((error.code === "ECONNABORTED" || error.message.includes("timeout")) && retryCount < MAX_RETRIES) {
-      console.warn(`⚠️ Timeout on attempt ${retryCount + 1}. Retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+    if (
+      (error.code === "ECONNABORTED" || error.message.includes("timeout")) &&
+      retryCount < MAX_RETRIES
+    ) {
+      console.warn(
+        `⚠️ Timeout on attempt ${retryCount + 1}. Retrying... (${retryCount + 1}/${MAX_RETRIES})`,
+      );
       // Wait 2 seconds before retrying
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       return getItemCategories(retryCount + 1);
     }
 
     console.error("Error fetching item categories:", error.message);
     console.warn("⚠️ Intranet API not available, using fallback categories");
-    
+
     // Return hardcoded categories as fallback
-    return ["Laptop", "Desktop", "Monitor", "Printer", "Mobile Phone", "Tablet"];
+    return [
+      "Laptop",
+      "Desktop",
+      "Monitor",
+      "Printer",
+      "Mobile Phone",
+      "Tablet",
+    ];
   }
 };
 
@@ -61,7 +73,7 @@ const getItemCategories = async (retryCount = 0) => {
  */
 const getItemBySerialNumber = async (serialNumber, retryCount = 0) => {
   const MAX_RETRIES = 2;
-  
+
   try {
     console.log(
       `Fetching item ${serialNumber} from:`,
@@ -78,10 +90,15 @@ const getItemBySerialNumber = async (serialNumber, retryCount = 0) => {
     return response.data;
   } catch (error) {
     // Retry on timeout errors
-    if ((error.code === "ECONNABORTED" || error.message.includes("timeout")) && retryCount < MAX_RETRIES) {
-      console.warn(`⚠️ Timeout on attempt ${retryCount + 1}. Retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+    if (
+      (error.code === "ECONNABORTED" || error.message.includes("timeout")) &&
+      retryCount < MAX_RETRIES
+    ) {
+      console.warn(
+        `⚠️ Timeout on attempt ${retryCount + 1}. Retrying... (${retryCount + 1}/${MAX_RETRIES})`,
+      );
       // Wait 2 seconds before retrying
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       return getItemBySerialNumber(serialNumber, retryCount + 1);
     }
 

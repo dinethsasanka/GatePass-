@@ -48,7 +48,8 @@ const fetchItemBySerialNumber = async (req, res) => {
 
     if (error.message.includes("timeout")) {
       return res.status(504).json({
-        message: "Intranet API server is responding slowly. Please try again in a moment.",
+        message:
+          "Intranet API server is responding slowly. Please try again in a moment.",
         error: error.message,
         found: false,
       });
@@ -56,7 +57,8 @@ const fetchItemBySerialNumber = async (req, res) => {
 
     if (error.message.includes("not reachable")) {
       return res.status(503).json({
-        message: "Intranet API is temporarily unavailable. Please try again later.",
+        message:
+          "Intranet API is temporarily unavailable. Please try again later.",
         error: error.message,
         found: false,
       });
