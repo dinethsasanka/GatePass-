@@ -121,7 +121,7 @@ const NewRequest = () => {
         }
 
         const response = await fetch(
-          `http://localhost:5000/api/requests/${user.serviceNo}`,
+          `${import.meta.env.VITE_API_URL}/requests/${user.serviceNo}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
