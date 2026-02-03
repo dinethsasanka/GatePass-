@@ -3,9 +3,14 @@
  * Centralized configuration to ensure consistency across the application
  */
 
+// Validate required environment variables
+if (!import.meta.env.VITE_AZURE_CLIENT_ID) {
+  console.error("⚠️  VITE_AZURE_CLIENT_ID is not set - Azure login will not work");
+}
+
 export const msalConfig = {
   auth: {
-    clientId: import.meta.env.VITE_AZURE_CLIENT_ID || "fb3e75a7-554f-41f8-9da3-2b162c255349",
+    clientId: import.meta.env.VITE_AZURE_CLIENT_ID,
     authority: `https://login.microsoftonline.com/common`,
     redirectUri: import.meta.env.VITE_AZURE_REDIRECT_URI || 
                  (typeof window !== 'undefined' ? window.location.origin + "/callback" : "http://localhost:5173/callback"),
