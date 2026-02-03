@@ -3,12 +3,13 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const { ConfidentialClientApplication } = require("@azure/msal-node");
-const EMPLOYEE_API_BASE_URL = process.env.EMPLOYEE_API_BASE_URL;
+const EMPLOYEE_API_BASE_URL =
+  "https://employee-api-without-category-production.up.railway.app/api";
 let apiToken = null;
 
 const mapApiDataToUser = (apiData) => {
   return {
-    // Map API fields to your existing model fieldss
+    // Map API fields to your existing model fields
     serviceNo: apiData.EMPLOYEE_NUMBER,
     name: `${apiData.EMPLOYEE_TITLE} ${apiData.EMPLOYEE_FIRST_NAME} ${apiData.EMPLOYEE_SURNAME}`.trim(),
     designation: apiData.EMPLOYEE_DESIGNATION,
@@ -63,8 +64,8 @@ const mapApiDataToUser = (apiData) => {
 };
 
 const authenticateWithEmployeeAPI = async (
-  username = process.env.EMPLOYEE_API_USERNAME,
-  password = process.env.EMPLOYEE_API_PASSWORD,
+  username = "admin",
+  password = "password",
 ) => {
   try {
     const response = await axios.post(
@@ -159,7 +160,8 @@ const getEmployeeFromAPI = async (employeeNumber) => {
 // Azure AD configuration
 const msalConfig = {
   auth: {
-    clientId: process.env.AZURE_CLIENT_ID,
+    clientId:
+      process.env.AZURE_CLIENT_ID || "fb3e75a7-554f-41f8-9da3-2b162c255349",
     clientSecret: process.env.AZURE_CLIENT_SECRET,
     // Use 'common' to allow personal Microsoft accounts and work/school accounts
     authority: `https://login.microsoftonline.com/common`,
@@ -169,9 +171,9 @@ const msalConfig = {
 // Validate Azure configuration and create MSAL instance only if credentials are available
 let msalInstance = null;
 
-if (!process.env.AZURE_CLIENT_ID || !process.env.AZURE_CLIENT_SECRET) {
+if (!process.env.AZURE_CLIENT_SECRET) {
   console.warn(
-    "⚠️  AZURE_CLIENT_ID or AZURE_CLIENT_SECRET is not set - Azure login will not work",
+    "⚠️  AZURE_CLIENT_SECRET is not set - Azure login will not work",
   );
 } else {
   try {
@@ -702,7 +704,8 @@ const getAzureLoginUrl = async (req, res) => {
 
     const authCodeUrlParameters = {
       scopes: ["https://graph.microsoft.com/User.Read"],
-      redirectUri: process.env.AZURE_REDIRECT_URI,
+      redirectUri:
+        process.env.AZURE_REDIRECT_URI || "http://localhost:5173/callback",
     };
 
     const authUrl = await msalInstance.getAuthCodeUrl(authCodeUrlParameters);
