@@ -5,11 +5,26 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const http = require("http");
 const path = require("path");
+const helmet = require("helmet");
 const { Server } = require("socket.io");
 const connectDB = require("./config/db");
 
 // 1) Load env first
 dotenv.config();
+
+// Environment detection
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const isDevelopment = NODE_ENV === 'development';
+
+// Configure allowed origins based on environment
+// Production: Only https://gatepass.slt.lk
+// Development: Allow localhost for testing
+const ALLOWED_ORIGINS = isDevelopment 
+  ? ['http://localhost:5173', 'http://localhost:3000', 'https://gatepass.slt.lk']
+  : ['https://gatepass.slt.lk'];
+
+console.log(`🌍 Environment: ${NODE_ENV}`);
+console.log(`🔒 Allowed CORS origins:`, ALLOWED_ORIGINS);
 
 // 2) Mongoose config + DB connect
 mongoose.set("strictQuery", false);
@@ -17,31 +32,108 @@ connectDB();
 
 // 3) Init express BEFORE any app.use(...)
 const app = express();
+
+// Disable X-Powered-By header to prevent server fingerprinting
+app.disable("x-powered-by");
+
 const server = http.createServer(app);
 
-// 4) Setup Socket.IO with CORS
+// 4) Setup Socket.IO with hardened security configuration
+// Production: WebSocket only, single origin
+// Development: Allow polling fallback and localhost origins for testing
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: ALLOWED_ORIGINS,
+    methods: ["GET", "POST"],
     credentials: true,
   },
+  // Security: WebSocket-only in production, allow polling in development
+  transports: isDevelopment ? ["websocket", "polling"] : ["websocket"],
+  // Disable legacy Engine.IO protocol versions
+  allowEIO3: false,
 });
 
 // 5) Make io accessible to routes
 app.set("io", io);
 
-// 6) Middleware - ORDER MATTERS!
+// 6) Security Middleware - MUST BE APPLIED BEFORE ROUTES!
+// All security headers are configured here to ensure protection for all endpoints
+// This addresses OWASP ZAP findings for missing security headers
+
+// Configure Helmet with strict Content Security Policy
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
+        frameAncestors: ["'none'"],
+        formAction: ["'self'"],
+      },
+    },
+    // Enable HTTP Strict Transport Security (HSTS)
+    strictTransportSecurity: {
+      maxAge: 31536000, // 1 year in seconds
+      includeSubDomains: true,
+      preload: true,
+    },
+    // X-Frame-Options for anti-clickjacking (backup to CSP frameAncestors)
+    frameguard: {
+      action: "deny",
+    },
+    // X-Content-Type-Options: nosniff
+    noSniff: true,
+    // NOTE: xssFilter (X-XSS-Protection) is deprecated and removed
+    // Modern browsers rely on Content Security Policy (CSP) for XSS mitigation
+    // See: https://owasp.org/www-project-secure-headers/#x-xss-protection
+    hidePoweredBy: true,
+  })
+);
+
+// CORS configuration with environment-based origins
+// Production: Strict single origin (https://gatepass.slt.lk)
+// Development: Allow localhost for testing
+app.use(
+  cors({
+    origin: ALLOWED_ORIGINS,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// 7) Body parsing middleware
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // ADD THIS for form data
-app.use(cors());
+app.use(express.urlencoded({ extended: true }));
 
+// Cache-Control hardening for all API routes
+// Prevents sensitive data from being cached by browsers or proxies
+// Addresses OWASP ZAP findings for cache-control on sensitive endpoints
+app.use("/api", (req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  next();
+});
+
+// 8) Static file serving
 app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
-//console.log('📁 Static files serving from:', path.join(__dirname, 'uploads'));
 
-// 7) Route imports
+// Stricter CORS configuration specifically for authentication endpoints
+// Production: POST only, single origin
+// Development: Allow localhost for testing (still POST only)
+const authCorsOptions = {
+  origin: ALLOWED_ORIGINS,
+  methods: ["POST"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  maxAge: 600, // 10 minutes preflight cache
+};
 
-// 4) Route imports
+// 9) Route imports
 const executiveRoutes = require("./routes/executiveRoutes");
 
 const authRoutes = require("./routes/authRoutes");
@@ -59,8 +151,9 @@ const adminRequestRoutes = require("./routes/adminRequestRoutes");
 const erpRoutes = require("./routes/erpRoutes");
 const intranetRoutes = require("./routes/intranetRoutes");
 
-// 8) Mount routes (only ONCE each)
-app.use("/api/auth", authRoutes);
+// 10) Mount routes
+// Authentication routes have stricter CORS policy applied
+app.use("/api/auth", cors(authCorsOptions), authRoutes);
 const requestRoutes = require("./routes/requestRoutes");
 app.use("/api/executives", executiveRoutes);
 
@@ -81,10 +174,10 @@ app.use("/api/admin", adminRequestRoutes);
 app.use("/api/erp", erpRoutes);
 app.use("/api/intranet", intranetRoutes);
 
-// 9) Health check (optional)
+// 11) Health check (optional)
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-// 10) Socket.IO connection handling
+// 12) Socket.IO connection handling
 io.on("connection", (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
@@ -117,7 +210,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// 11) Error handling middleware (for multer and other errors)
+// 13) Error handling middleware (for multer and other errors)
 app.use((error, req, res, next) => {
   console.error("Error:", error);
 
