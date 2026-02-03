@@ -82,7 +82,7 @@ export const useItemCategories = () => {
         "Customer Premises Equipment.STB",
         "Customer Premises Equipment.PSTN",
         "Customer Premises Equipment.Cordless Phone",
-        "Customer Premises Equipment.PSTN Accessories"
+        "Customer Premises Equipment.PSTN Accessories",
       ]);
     } finally {
       setLoading(false);
