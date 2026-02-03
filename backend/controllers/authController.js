@@ -64,7 +64,7 @@ const mapApiDataToUser = (apiData) => {
 
 const authenticateWithEmployeeAPI = async (
   username = process.env.EMPLOYEE_API_USERNAME,
-  password = process.env.EMPLOYEE_API_PASSWORD
+  password = process.env.EMPLOYEE_API_PASSWORD,
 ) => {
   try {
     const response = await axios.post(
@@ -72,7 +72,7 @@ const authenticateWithEmployeeAPI = async (
       {
         username,
         password,
-      }
+      },
     );
 
     if (response.data.isSuccess) {
@@ -87,7 +87,9 @@ const authenticateWithEmployeeAPI = async (
     throw new Error("API authentication failed");
   } catch (error) {
     console.error("Employee API authentication error:", error);
-    console.warn("⚠️ Employee API is unavailable - will attempt local authentication");
+    console.warn(
+      "⚠️ Employee API is unavailable - will attempt local authentication",
+    );
     return {
       success: false,
       error: error.message,
@@ -111,7 +113,7 @@ const getEmployeeFromAPI = async (employeeNumber) => {
           queryParameter: "EMPLOYEE_NUMBER",
           queryValue: employeeNumber,
         },
-      }
+      },
     );
 
     if (response.data.isSuccess && response.data.dataBundle.length > 0) {
@@ -134,7 +136,7 @@ const getEmployeeFromAPI = async (employeeNumber) => {
               queryParameter: "EMPLOYEE_NUMBER",
               queryValue: employeeNumber,
             },
-          }
+          },
         );
 
         if (
@@ -147,7 +149,9 @@ const getEmployeeFromAPI = async (employeeNumber) => {
         console.error("Retry failed:", retryError);
       }
     }
-    console.warn("⚠️ Employee API unavailable, will use local database for authentication");
+    console.warn(
+      "⚠️ Employee API unavailable, will use local database for authentication",
+    );
     return null;
   }
 };
@@ -167,14 +171,17 @@ let msalInstance = null;
 
 if (!process.env.AZURE_CLIENT_ID || !process.env.AZURE_CLIENT_SECRET) {
   console.warn(
-    "⚠️  AZURE_CLIENT_ID or AZURE_CLIENT_SECRET is not set - Azure login will not work"
+    "⚠️  AZURE_CLIENT_ID or AZURE_CLIENT_SECRET is not set - Azure login will not work",
   );
 } else {
   try {
     msalInstance = new ConfidentialClientApplication(msalConfig);
     console.log("✅ Azure MSAL instance initialized successfully");
   } catch (error) {
-    console.error("❌ Failed to initialize Azure MSAL instance:", error.message);
+    console.error(
+      "❌ Failed to initialize Azure MSAL instance:",
+      error.message,
+    );
   }
 }
 
@@ -234,7 +241,6 @@ const registerUser = async (req, res) => {
   }
 };
 
-
 // Updated Login User Function with Employee API fallback
 
 const loginUser = async (req, res) => {
@@ -291,7 +297,7 @@ const loginUser = async (req, res) => {
 
     // User not found in local database - try Employee API authentication
     console.log(
-      "User not found in local database, trying Employee API authentication..."
+      "User not found in local database, trying Employee API authentication...",
     );
 
     // Authenticate with Employee API using provided credentials
@@ -392,12 +398,14 @@ const extractAzureEmail = (userInfo) => {
   let azureEmail = userInfo.mail || userInfo.userPrincipalName;
 
   // Handle Azure B2B external user format
-  if (azureEmail && azureEmail.includes('#EXT#')) {
-    const emailPart = azureEmail.split('#EXT#')[0];
-    const lastUnderscoreIndex = emailPart.lastIndexOf('_');
+  if (azureEmail && azureEmail.includes("#EXT#")) {
+    const emailPart = azureEmail.split("#EXT#")[0];
+    const lastUnderscoreIndex = emailPart.lastIndexOf("_");
     if (lastUnderscoreIndex !== -1) {
-      azureEmail = emailPart.substring(0, lastUnderscoreIndex) + '@' + 
-                   emailPart.substring(lastUnderscoreIndex + 1);
+      azureEmail =
+        emailPart.substring(0, lastUnderscoreIndex) +
+        "@" +
+        emailPart.substring(lastUnderscoreIndex + 1);
     }
   }
 
@@ -438,7 +446,7 @@ const fetchERPData = async (serviceNo) => {
   }
 
   try {
-    const { getAzureUserData } = require('../utils/azureUserCache');
+    const { getAzureUserData } = require("../utils/azureUserCache");
     const erpData = await getAzureUserData(serviceNo, true);
     return erpData;
   } catch (error) {
@@ -470,7 +478,7 @@ const buildUserData = ({ userInfo, azureEmail, erpData, hashedPassword }) => {
 
   if (erpData) {
     // Use ERP data (comprehensive employee details)
-    console.log('📊 Building user data from ERP');
+    console.log("📊 Building user data from ERP");
     return {
       ...baseData,
       name: erpData.name,
@@ -486,7 +494,7 @@ const buildUserData = ({ userInfo, azureEmail, erpData, hashedPassword }) => {
     };
   } else {
     // Fall back to Azure AD data (limited info)
-    console.log('📊 Building user data from Azure AD (no ERP data available)');
+    console.log("📊 Building user data from Azure AD (no ERP data available)");
     return {
       ...baseData,
       name: userInfo.displayName || "Azure User",
@@ -511,12 +519,15 @@ const buildUserData = ({ userInfo, azureEmail, erpData, hashedPassword }) => {
  * @returns {Promise<Object|null>} User document or null
  */
 const findExistingUser = async ({ azureEmail, azureId, userPrincipalName }) => {
-  console.log('🔍 Searching for existing user...');
+  console.log("🔍 Searching for existing user...");
 
   // PRIORITY 1: Email (case-insensitive)
-  const emailRegex = new RegExp(`^${azureEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+  const emailRegex = new RegExp(
+    `^${azureEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+    "i",
+  );
   let user = await User.findOne({ email: { $regex: emailRegex } });
-  
+
   if (user) {
     console.log(`✅ Found user by email: ${user.userId}`);
     return user;
@@ -540,7 +551,7 @@ const findExistingUser = async ({ azureEmail, azureId, userPrincipalName }) => {
     }
   }
 
-  console.log('ℹ️ No existing user found');
+  console.log("ℹ️ No existing user found");
   return null;
 };
 
@@ -571,7 +582,8 @@ const updateExistingUser = async (user, { erpData, userInfo, azureEmail }) => {
     user.group = erpData.group || user.group;
     user.contactNo = erpData.contactNo || user.contactNo;
     user.gradeName = erpData.gradeName || user.gradeName;
-    user.fingerScanLocation = erpData.fingerScanLocation || user.fingerScanLocation;
+    user.fingerScanLocation =
+      erpData.fingerScanLocation || user.fingerScanLocation;
     user.branches = erpData.branches || user.branches;
     user.role = erpData.role || user.role;
   } else {
@@ -592,7 +604,7 @@ const updateExistingUser = async (user, { erpData, userInfo, azureEmail }) => {
   user.lastAzureSync = new Date();
 
   await user.save();
-  
+
   return user;
 };
 
@@ -627,23 +639,23 @@ const azureLogin = async (req, res) => {
 
     // Step 4: Fetch ERP data (REQUIRED for Azure users)
     if (!serviceNo) {
-      return res.status(400).json({ 
-        message: "Service number not found in Azure profile" 
+      return res.status(400).json({
+        message: "Service number not found in Azure profile",
       });
     }
 
     const erpData = await fetchERPData(serviceNo);
-    
+
     if (!erpData) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         message: "Employee not found in ERP system",
-        serviceNo 
+        serviceNo,
       });
     }
 
     // Step 5: Build user data from ERP (No MongoDB involved!)
     const userData = {
-      _id: userInfo.id,                           // Use Azure ID (not MongoDB ID)
+      _id: userInfo.id, // Use Azure ID (not MongoDB ID)
       userType: "SLT",
       userId: userInfo.userPrincipalName,
       email: azureEmail,
@@ -658,7 +670,7 @@ const azureLogin = async (req, res) => {
       branches: erpData.branches || ["SLT HQ"],
       role: erpData.role || "User",
       isAzureUser: true,
-      hasERPData: true
+      hasERPData: true,
     };
 
     // Step 6: Generate JWT using Azure ID (not MongoDB ID)
@@ -667,25 +679,24 @@ const azureLogin = async (req, res) => {
     // Step 7: Return response
     res.json({
       ...userData,
-      token
+      token,
     });
-
   } catch (error) {
-    console.error('Azure login error:', error.message);
-    res.status(500).json({ 
-      message: "Azure authentication failed", 
-      error: error.message 
+    console.error("Azure login error:", error.message);
+    res.status(500).json({
+      message: "Azure authentication failed",
+      error: error.message,
     });
   }
 };
-
 
 // Get Azure login URL
 const getAzureLoginUrl = async (req, res) => {
   try {
     if (!msalInstance) {
-      return res.status(503).json({ 
-        message: "Azure AD is not configured on this server. Please contact the administrator or use local authentication." 
+      return res.status(503).json({
+        message:
+          "Azure AD is not configured on this server. Please contact the administrator or use local authentication.",
       });
     }
 
@@ -729,14 +740,14 @@ const generateToken = (id) => {
 const generateAzureToken = (azureId, userData) => {
   return jwt.sign(
     {
-      id: azureId,                    // Azure AD user ID
-      isAzureUser: true,              // Flag to identify Azure tokens
-      serviceNo: userData.serviceNo,  // For cache lookups
-      role: userData.role,            // User role
-      email: userData.email           // User email
+      id: azureId, // Azure AD user ID
+      isAzureUser: true, // Flag to identify Azure tokens
+      serviceNo: userData.serviceNo, // For cache lookups
+      role: userData.role, // User role
+      email: userData.email, // User email
     },
     process.env.JWT_SECRET,
-    { expiresIn: "30d" }
+    { expiresIn: "30d" },
   );
 };
 

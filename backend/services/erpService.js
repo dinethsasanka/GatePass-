@@ -14,7 +14,7 @@ console.log(
   "Password:",
   ERP_CREDENTIALS.password
     ? "***" + ERP_CREDENTIALS.password.slice(-3)
-    : "NOT SET"
+    : "NOT SET",
 );
 console.log("==============================");
 
@@ -38,7 +38,7 @@ const getOrganizationList = async () => {
   try {
     console.log(
       "Fetching organizations from:",
-      ERP_BASE_URL + "/GetOrganizationList"
+      ERP_BASE_URL + "/GetOrganizationList",
     );
     console.log("Headers:", {
       accept: "text/plain",
@@ -67,7 +67,7 @@ const getOrganizationList = async () => {
  */
 const getCostCentersForOrganization = async (
   organizationID,
-  costCenterCode = ""
+  costCenterCode = "",
 ) => {
   try {
     // Ensure organizationID is a string
@@ -80,17 +80,17 @@ const getCostCentersForOrganization = async (
     console.log("Fetching cost centers with payload:", payload);
     const response = await erpAxios.post(
       "/GetCostCentersforOrganizations",
-      payload
+      payload,
     );
     console.log("Cost centers response:", response.data);
     return response.data;
   } catch (error) {
     console.error(
       "Error fetching cost centers:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw new Error(
-      `Failed to fetch cost centers: ${error.response?.data || error.message}`
+      `Failed to fetch cost centers: ${error.response?.data || error.message}`,
     );
   }
 };
@@ -117,10 +117,10 @@ const getEmployeeList = async (organizationID, costCenterCode) => {
   } catch (error) {
     console.error(
       "Error fetching employee list:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw new Error(
-      `Failed to fetch employee list: ${error.response?.data || error.message}`
+      `Failed to fetch employee list: ${error.response?.data || error.message}`,
     );
   }
 };
@@ -135,7 +135,7 @@ const getEmployeeList = async (organizationID, costCenterCode) => {
 const getEmployeeDetailsHierarchy = async (
   organizationID = "string",
   costCenterCode = "string",
-  employeeNo
+  employeeNo,
 ) => {
   try {
     const response = await erpAxios.post("/GetEmployeeDetailsHierarchy", {
@@ -153,7 +153,7 @@ const getEmployeeDetailsHierarchy = async (
 const getEmployeeDetails = async (
   organizationID = "string",
   costCenterCode = "string",
-  employeeNo
+  employeeNo,
 ) => {
   try {
     const response = await erpAxios.post("/GetAllEmployeeDetailsForServiceNo", {
@@ -185,10 +185,10 @@ const compareGrades = (grade1, grade2) => {
 
   // Define specific S grade hierarchy
   const sGradeOrder = {
-    'S.1.1': 1,  // Super Admin - typically highest
-    'S.1': 2,    // Executive
-    'S.2': 5,    // Security Officer - can report to mid-level A grades
-    'S.3': 6,    // Pleader - can report to mid-level A grades
+    "S.1.1": 1, // Super Admin - typically highest
+    "S.1": 2, // Executive
+    "S.2": 5, // Security Officer - can report to mid-level A grades
+    "S.3": 6, // Pleader - can report to mid-level A grades
   };
 
   // Both are S grades with defined hierarchy
@@ -199,20 +199,20 @@ const compareGrades = (grade1, grade2) => {
   // S grade vs A grade: Compare based on actual levels
   // S.1.1 and S.1 are typically higher than most A grades
   // S.2 and S.3 can have A grade supervisors
-  if (sGradeOrder[g1] !== undefined && g2.startsWith('A.')) {
-    const g2Number = parseInt(g2.match(/A\.(\d+)/)?.[1] || '999', 10);
+  if (sGradeOrder[g1] !== undefined && g2.startsWith("A.")) {
+    const g2Number = parseInt(g2.match(/A\.(\d+)/)?.[1] || "999", 10);
     const s1Level = sGradeOrder[g1];
-    
+
     // S.1.1 (1) and S.1 (2) are higher than A.3+
     // S.2 (5) and S.3 (6) are at mid-level (similar to A.5-A.6)
     return s1Level - (g2Number + 2); // Adjust for comparison
   }
 
-  if (sGradeOrder[g2] !== undefined && g1.startsWith('A.')) {
-    const g1Number = parseInt(g1.match(/A\.(\d+)/)?.[1] || '999', 10);
+  if (sGradeOrder[g2] !== undefined && g1.startsWith("A.")) {
+    const g1Number = parseInt(g1.match(/A\.(\d+)/)?.[1] || "999", 10);
     const s2Level = sGradeOrder[g2];
-    
-    return (g1Number + 2) - s2Level; // Adjust for comparison
+
+    return g1Number + 2 - s2Level; // Adjust for comparison
   }
 
   // Both are A grades - extract numeric part
@@ -235,17 +235,16 @@ const compareGrades = (grade1, grade2) => {
  * 2. Identifies the immediate supervisor
  * 3. Filters to include only executives with HIGHER grades
  * 4. Returns normalized array suitable for frontend dropdown
- * 
+ *
  * @param {string} employeeNo - The logged-in employee's service number
  * @returns {Promise<Array>} Normalized array of executives with supervisor flag
  */
 const getExecutiveHierarchyForEmployee = async (employeeNo) => {
   try {
-
     const hierarchyData = await getEmployeeDetailsHierarchy(
       "string", // organizationID - optional
       "string", // costCenterCode - optional
-      employeeNo
+      employeeNo,
     );
 
     if (!hierarchyData) {
@@ -266,15 +265,17 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
     // Parse hierarchy response (structure may vary, handle both array and object)
     if (Array.isArray(dataArray)) {
       // If response is an array of hierarchy levels
-      dataArray.forEach(emp => {
+      dataArray.forEach((emp) => {
         if (!emp) return;
 
         const empNumber = emp.employeeNumber || emp.serviceNo || emp.employeeNo;
 
         // Identify logged-in employee to get their grade
         if (empNumber === employeeNo) {
-          loggedInEmployeeGrade = emp.employeeSalaryGrade || emp.grade || emp.gradeName;
-          immediateSupervisorNo = emp.employeeSupervisorNumber || emp.supervisorServiceNo;
+          loggedInEmployeeGrade =
+            emp.employeeSalaryGrade || emp.grade || emp.gradeName;
+          immediateSupervisorNo =
+            emp.employeeSupervisorNumber || emp.supervisorServiceNo;
         }
 
         // Add all employees to potential executives list
@@ -282,22 +283,31 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
           executives.push({
             employeeNo: empNumber,
             title: emp.employeeTitle || "MR.",
-            name: emp.employeeName || emp.name ||
-              `${emp.employeeFirstName || ''} ${emp.employeeSurname || ''}`.trim(),
+            name:
+              emp.employeeName ||
+              emp.name ||
+              `${emp.employeeFirstName || ""} ${emp.employeeSurname || ""}`.trim(),
             designation: emp.designation || emp.designationName || "Executive",
             grade: emp.employeeSalaryGrade || emp.grade || emp.gradeName,
             email: emp.employeeOfficialEmail || emp.email,
-            supervisorNo: emp.employeeSupervisorNumber || emp.supervisorServiceNo,
+            supervisorNo:
+              emp.employeeSupervisorNumber || emp.supervisorServiceNo,
           });
         }
       });
-    } else if (typeof dataArray === 'object') {
+    } else if (typeof dataArray === "object") {
       // If response is a single object with employee data
-      const empNumber = dataArray.employeeNumber || dataArray.serviceNo || dataArray.employeeNo;
+      const empNumber =
+        dataArray.employeeNumber || dataArray.serviceNo || dataArray.employeeNo;
 
       if (empNumber === employeeNo) {
-        loggedInEmployeeGrade = dataArray.employeeSalaryGrade || dataArray.grade || dataArray.gradeName;
-        immediateSupervisorNo = dataArray.employeeSupervisorNumber || dataArray.supervisorServiceNo ||
+        loggedInEmployeeGrade =
+          dataArray.employeeSalaryGrade ||
+          dataArray.grade ||
+          dataArray.gradeName;
+        immediateSupervisorNo =
+          dataArray.employeeSupervisorNumber ||
+          dataArray.supervisorServiceNo ||
           dataArray.employeeImmEsServiceNo;
       }
 
@@ -320,16 +330,16 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
     // 2. Include ALL hierarchy levels from ERP (no grade filtering)
     // Note: S grades can have A grade supervisors and vice versa - hierarchy comes from ERP
     const filteredExecutives = executives
-      .filter(exec => {
+      .filter((exec) => {
         // Exclude self
         if (exec.employeeNo === employeeNo) return false;
-        
+
         // Include all others - let ERP data determine hierarchy
-        // No grade-based filtering since organizational structure 
+        // No grade-based filtering since organizational structure
         // is more complex than simple grade comparison
         return true;
       })
-      .map(exec => ({
+      .map((exec) => ({
         employeeNo: exec.employeeNo,
         title: exec.title,
         name: exec.name,
@@ -341,7 +351,8 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
 
     // Remove duplicates based on employeeNo
     const uniqueExecutives = filteredExecutives.filter(
-      (exec, index, self) => index === self.findIndex(e => e.employeeNo === exec.employeeNo)
+      (exec, index, self) =>
+        index === self.findIndex((e) => e.employeeNo === exec.employeeNo),
     );
 
     // Sort: immediate supervisor first, then by grade (for display purposes)
@@ -357,30 +368,33 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
       // Auto-select the first executive (highest in hierarchy)
       autoSelectedSupervisor = uniqueExecutives[0].employeeNo;
       uniqueExecutives[0].isImmediateSupervisor = true;
-      console.log(`✨ Auto-selected immediate supervisor: ${autoSelectedSupervisor} (${uniqueExecutives[0].name}) - ERP did not provide supervisor`);
+      console.log(
+        `✨ Auto-selected immediate supervisor: ${autoSelectedSupervisor} (${uniqueExecutives[0].name}) - ERP did not provide supervisor`,
+      );
     }
 
     // Log if no executives found
     if (uniqueExecutives.length === 0) {
-      console.log(`ℹ️ No executives found in hierarchy for ${employeeNo} (may be top of organization or ERP data limited)`);
+      console.log(
+        `ℹ️ No executives found in hierarchy for ${employeeNo} (may be top of organization or ERP data limited)`,
+      );
     }
 
     return {
       executives: uniqueExecutives,
       loggedInEmployeeGrade,
-      immediateSupervisor: uniqueExecutives.find(e => e.isImmediateSupervisor) || null,
+      immediateSupervisor:
+        uniqueExecutives.find((e) => e.isImmediateSupervisor) || null,
       autoSelected: !immediateSupervisorNo && autoSelectedSupervisor !== null,
     };
   } catch (error) {
-    console.error("❌ Error in getExecutiveHierarchyForEmployee:", error.message);
+    console.error(
+      "❌ Error in getExecutiveHierarchyForEmployee:",
+      error.message,
+    );
     throw error;
   }
 };
-
-
-
-
-
 
 module.exports = {
   getOrganizationList,
