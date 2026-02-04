@@ -1,9 +1,6 @@
-name: 🧪 Build & Test GatePass (CI)
+name: Build & Test GatePass (CI)
 
-# ==================================================
-# CI TRIGGERS
-# - Runs on push & PR to main
-# ==================================================
+
 on:
   push:
     branches: [main]
@@ -14,50 +11,39 @@ jobs:
   build-and-test:
     name: Build and Test (MERN)
     runs-on: ubuntu-latest
-
-    # --------------------------------------------------
-    # PERMISSIONS
-    # Required for auto-tagging
-    # --------------------------------------------------
     permissions:
       contents: write
 
     steps:
-      # ==================================================
-      # CHECKOUT SOURCE CODE
-      # ==================================================
       - name: ⬇️ Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0   # required for git tags
 
-      # ==================================================
-      # BACKEND CI SECTION
-      # ==================================================
-      - name: 🛠️ Setup Node.js (Backend)
+      - name: Setup Node.js (Backend)
         uses: actions/setup-node@v4
         with:
           node-version: '20'   # DevOps Change 12/16/2025 : Updated Node.js version to 20
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: 📦 Install backend dependencies
+      - name: Install backend dependencies
         run: |
           cd backend
           npm ci
           
 
 
-      - name: 🧪 Run backend tests
+      - name: Run backend tests
         run: |
           cd backend
-          npm test || echo "⚠️ No tests found or skipped"
+          npm test || echo "No tests found or skipped"
 
       # --------------------------------------------------
       # BACKEND HEALTH CHECK
       # Ensures server can start correctly
       # --------------------------------------------------
-      - name: 🩺 Backend health check
+      - name: Backend health check
         env:
           MONGO_URI: ${{ secrets.MONGO_URI }}       // 12/18/25 12.27AM, 12.34AM
           PORT: 5000
@@ -72,36 +58,32 @@ jobs:
 
           
 
-      # ==================================================
-      # FRONTEND CI SECTION
-      # ==================================================
-      - name: 🛠️ Setup Node.js (Frontend)
+     
+      - name: Setup Node.js (Frontend)
         uses: actions/setup-node@v4
         with:
           node-version: '20'    # DevOps Change 12/18/2025 : Updated Node.js version to 20
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
-      - name: 📦 Install frontend dependencies
+      - name: Install frontend dependencies
         run: |
           cd frontend
           npm ci
           
 
-      - name: 🏗️ Build frontend (Vite)
+      - name: Build frontend (Vite)
         run: |
           cd frontend
           npm run build
 
-      - name: 🧹 Lint frontend
+      - name: Lint frontend
         run: |
           cd frontend
-          npm run lint || echo "⚠️ Lint warnings ignored"
+          npm run lint || echo "Lint warnings ignored"
 
-      # --------------------------------------------------
-      # VERIFY BUILD OUTPUT
-      # --------------------------------------------------
-      - name: 📂 Verify frontend build
+      
+      - name: Verify frontend build
         run: |
           if [ -d "frontend/dist" ]; then
            echo " Frontend build output exists: frontend/dist"
@@ -110,12 +92,7 @@ jobs:
            exit 1
           fi
 
-      # ==================================================
-      # AUTO-TAGGING FEATURE
-      # - Runs only on push to main
-      # - Increments PATCH version
-      # ==================================================
-      - name: 🏷️ Auto-tag release
+      - name: Auto-tag release
         if: github.event_name == 'push'
         run: |
           git fetch --tags
@@ -134,16 +111,11 @@ jobs:
           git tag $NEW_TAG
           git push origin $NEW_TAG
 
-      # ==================================================
-      # CI SUCCESS
-      # ==================================================
-      - name: ✅ CI completed successfully
-        run: echo "🎉 CI passed — build, test, and tagging successful"
+      
+      - name: CI completed successfully
+        run: echo "CI passed — build, test, and tagging successful"
 
 # Test 1
-      # ==================================================
-      # NOTIFY ON FAILURE
-      # ==================================================
       - name: ❌ Notify on failure
         if: failure()
         run: echo "🚨 CI failed — please check the logs"
