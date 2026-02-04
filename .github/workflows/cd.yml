@@ -1,8 +1,8 @@
-name: 🚀 Deploy GatePass to Production (CD)
+name: Deploy GatePass to Production (CD)
 
 on:
   workflow_run:
-    workflows: ["🧪 Build & Test GatePass (CI)"]
+    workflows: ["Build & Test GatePass (CI)"]
     branches: [main]
     types:
       - completed
@@ -16,61 +16,48 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      # ==================================================
-      # CHECKOUT
-      # ==================================================
-      - name: ⬇️ Checkout CI commit
+      - name: Checkout CI commit
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
 
-      # ==================================================
-      # NODE
-      # ==================================================
-      - name: 🛠️ Setup Node.js
+      
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # ==================================================
-      # FRONTEND ENV
-      # ==================================================
-      - name: 🔐 Create frontend .env from secret
+    
+      - name: Create frontend .env from secret
         working-directory: frontend
         run: |
           echo "${{ secrets.ENV_FILE }}" > .env
           echo "VITE_API_URL=https://gatepass.slt.lk/api" >> .env
 
-      # ==================================================
-      # FRONTEND BUILD
-      # ==================================================
-      - name: 🏗️ Build frontend
+     
+      - name: Build frontend
         working-directory: frontend
         run: |
           npm ci
           NODE_ENV=production npm run build
 
-      - name: 🔎 Verify API URL inside build
+      - name: Verify API URL inside build
         run: |
-          grep -R "gatepass.slt.lk/api" frontend/dist || (echo "❌ API URL missing in build" && exit 1)
+          grep -R "gatepass.slt.lk/api" frontend/dist || (echo "API URL missing in build" && exit 1)
 
-      # ==================================================
-      # VERIFY
-      # ==================================================
-      - name: ✅ Verify frontend build
+  
+      - name: Verify frontend build
         run: |
           test -d frontend/dist || exit 1
           test -f frontend/dist/index.html || exit 1
 
-      - name: ✅ Verify backend
+      - name: Verify backend
         run: |
           test -d backend || exit 1
           test -f backend/server.js || exit 1
 
-      # ==================================================
-      # UPLOAD
-      # ==================================================
-      - name: 🚚 Upload artifacts
+     
+      - name: Upload artifacts
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -81,10 +68,8 @@ jobs:
           target: /home/dpd/GatePass-deploy
           strip_components: 0
 
-      # ==================================================
-      # DEPLOY
-      # ==================================================
-      - name: 🔐 Deploy on production server
+   
+      - name: Deploy on production server
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -94,7 +79,7 @@ jobs:
           script: |
             set -euo pipefail
 
-            echo "🚀 Starting GatePass deployment"
+            echo "Starting GatePass deployment"
 
             RELEASE_TIME=$(date +"%Y%m%d-%H%M%S")
             RELEASE_DIR="/var/www/releases/release-$RELEASE_TIME"
@@ -108,13 +93,13 @@ jobs:
 
             mkdir -p "$RELEASE_DIR"
 
-            echo "📦 Copying deployment files..."
+            echo "Copying deployment files..."
             cp -r /home/dpd/GatePass-deploy/* "$RELEASE_DIR/"
 
-            # ==================================================
+           
             # RELEASE METADATA
-            # ==================================================
-            echo "📝 Writing release metadata..."
+           
+            echo "Writing release metadata..."
             cat <<EOF > "$RELEASE_DIR/RELEASE_INFO.txt"
             Release: release-$RELEASE_TIME
             Deployed at (UTC): $(date -u)
@@ -126,38 +111,38 @@ jobs:
 
             ln -sfn "$RELEASE_DIR" "$CURRENT_DIR"
 
-            # =====================
+            
             # PM2 STATUS (BEFORE)
-            # =====================
-            echo "📊 PM2 status BEFORE deployment"
+           
+            echo "PM2 status BEFORE deployment"
             pm2 list || true
 
-            # =====================
+           
             # Backend (FRESH START)
-            # =====================
+           
             cd "$CURRENT_DIR/backend"
             ln -sfn "$BACKEND_ENV" .env
 
             npm ci --omit=dev
 
-            echo "🛑 Removing old PM2 process (if exists)"
+            echo "Removing old PM2 process (if exists)"
             pm2 delete Gate-Pass || true
 
-            echo "▶️ Starting fresh PM2 process"
+            echo "Starting fresh PM2 process"
             pm2 start server.js --name Gate-Pass
 
-            # =====================
+        
             # PM2 STATUS (AFTER)
-            # =====================
-            echo "📊 PM2 status AFTER deployment"
+          
+            echo "PM2 status AFTER deployment"
             pm2 list
 
-            echo "🔍 PM2 process details"
+            echo "PM2 process details"
             pm2 describe Gate-Pass | grep -E "script path|cwd|status"
 
-            # =====================
+         
             # Frontend (Blue/Green)
-            # =====================
+         
             mkdir -p "$FRONTEND_GREEN"
             rm -rf "$FRONTEND_GREEN"/*
             cp -r "$CURRENT_DIR/frontend/dist/"* "$FRONTEND_GREEN/"
@@ -167,18 +152,18 @@ jobs:
             rm -rf "$FRONTEND_BLUE"
             cp -r "$FRONTEND_GREEN" "$FRONTEND_BLUE"
 
-            # =====================
+           
             # ACTIVE RELEASE CHECK
-            # =====================
-            echo "📌 Active release:"
+            
+            echo "Active release:"
             readlink -f /var/www/releases/current
             cat /var/www/releases/current/RELEASE_INFO.txt
 
-            # =====================
+
             # CLEANUP
-            # =====================
-            echo "🧹 Cleaning up old releases..."
+            
+            echo "Cleaning up old releases..."
             cd /var/www/releases
             ls -dt release-* | tail -n +6 | xargs -d '\n' rm -rf || true
 
-            echo "🎉 Deployment successful!"
+            echo "Deployment successful!"
