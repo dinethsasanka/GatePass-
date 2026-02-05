@@ -69,9 +69,9 @@ app.use(
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:"],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", "https://login.microsoftonline.com"], // Allow Azure AD OAuth
         frameAncestors: ["'none'"],
-        formAction: ["'self'"],
+        formAction: ["'self'", "https://login.microsoftonline.com"], // Allow Azure AD redirects
       },
     },
     // Enable HTTP Strict Transport Security (HSTS)
@@ -123,11 +123,11 @@ app.use("/api", (req, res, next) => {
 app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Stricter CORS configuration specifically for authentication endpoints
-// Production: POST only, single origin
-// Development: Allow localhost for testing (still POST only)
+// Allows POST for login/register and GET for Azure OAuth URL endpoint
+// Development: Allow localhost for testing
 const authCorsOptions = {
   origin: ALLOWED_ORIGINS,
-  methods: ["POST"],
+  methods: ["GET", "POST"], // GET needed for Azure login URL endpoint
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
   maxAge: 600, // 10 minutes preflight cache
