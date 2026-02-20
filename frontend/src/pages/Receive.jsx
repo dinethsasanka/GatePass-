@@ -3594,7 +3594,7 @@ const RequestDetailsModal = ({
                         )}
                         <input
                           type="text"
-                          // disabled={isSuper}
+                           disabled={isSuper}
                           value={nonSltStaffDetails.name}
                           onChange={(e) =>
                             handleNonSltFieldChange("name", e.target.value)
@@ -3618,7 +3618,7 @@ const RequestDetailsModal = ({
                         )}
                         <input
                           type="text"
-                          // disabled={isSuper}
+                          disabled={isSuper}
                           value={nonSltStaffDetails.companyName}
                           onChange={(e) =>
                             handleNonSltFieldChange(
@@ -3645,7 +3645,7 @@ const RequestDetailsModal = ({
                         )}
                         <input
                           type="text"
-                          // disabled={isSuper}
+                          disabled={isSuper}
                           value={nonSltStaffDetails.nic}
                           onChange={(e) =>
                             handleNonSltFieldChange("nic", e.target.value)
@@ -3669,7 +3669,7 @@ const RequestDetailsModal = ({
                         )}
                         <input
                           type="text"
-                          // disabled={isSuper}
+                          disabled={isSuper}
                           value={nonSltStaffDetails.contactNo}
                           onChange={(e) =>
                             handleNonSltFieldChange("contactNo", e.target.value)
@@ -3693,7 +3693,7 @@ const RequestDetailsModal = ({
                         )}
                         <input
                           type="email"
-                          // disabled={isSuper}
+                          disabled={isSuper}
                           value={nonSltStaffDetails.email}
                           onChange={(e) =>
                             handleNonSltFieldChange("email", e.target.value)
