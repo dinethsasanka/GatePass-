@@ -181,11 +181,103 @@ const Verify = () => {
     contactNo: "",
     email: "",
   });
+  const [formErrors, setFormErrors] = useState({
+    name: "",
+    companyName: "",
+    nic: "",
+    contactNo: "",
+    email: "",
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [companyTypeFilter, setCompanyTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+
+  // Validation function for non-SLT employee details
+  const validateField = (field, value) => {
+    let error = "";
+
+    switch (field) {
+      case "name":
+        if (!value.trim()) {
+          error = "Name is required";
+        } else if (value.trim().length < 2) {
+          error = "Name must be at least 2 characters";
+        } else {
+          // Only allow letters, spaces, hyphens, apostrophes, and dots - no numbers
+          const nameRegex = /^[a-zA-Z\s'.-]+$/;
+          if (!nameRegex.test(value.trim())) {
+            error =
+              "Name can only contain letters, spaces, hyphens, apostrophes, and dots";
+          }
+        }
+        break;
+
+      case "companyName":
+        if (!value.trim()) {
+          error = "Company name is required";
+        } else if (value.trim().length < 2) {
+          error = "Company name must be at least 2 characters";
+        }
+        break;
+
+      case "nic":
+        if (!value.trim()) {
+          error = "NIC is required";
+        } else {
+          // Sri Lankan NIC validation: 9 digits + V/X or 12 digits
+          const nicRegex = /^(\d{9}[VvXx]|\d{12})$/;
+          if (!nicRegex.test(value.trim())) {
+            error = "NIC must be 9 digits + V/X or 12 digits";
+          }
+        }
+        break;
+
+      case "contactNo":
+        if (!value.trim()) {
+          error = "Contact number is required";
+        } else {
+          // Phone number validation: at least 10 digits, allows + and spaces
+          const phoneRegex = /^[+]?[0-9\s-]{9,}$/;
+          if (!phoneRegex.test(value.trim())) {
+            error = "Contact number must be at least 10 digits";
+          }
+        }
+        break;
+
+      case "email":
+        if (!value.trim()) {
+          error = "Email is required";
+        } else {
+          // Email validation
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(value.trim())) {
+            error = "Please enter a valid email address";
+          }
+        }
+        break;
+
+      default:
+        break;
+    }
+
+    return error;
+  };
+
+  // Handle field change with real-time validation
+  const handleNonSltFieldChange = (field, value) => {
+    setNonSltStaffDetails({
+      ...nonSltStaffDetails,
+      [field]: value,
+    });
+
+    const error = validateField(field, value);
+    setFormErrors({
+      ...formErrors,
+      [field]: error,
+    });
+  };
 
   // Real-time updates for Verify page (status: 2 = Verifier Pending)
   useAutoRefetch(
@@ -2323,6 +2415,9 @@ const Verify = () => {
         sendReturnTOExecutiveEmail={sendReturnTOExecutiveEmail}
         setNonSltStaffDetails={setNonSltStaffDetails}
         isSuperAdmin={isSuperAdmin}
+        formErrors={formErrors}
+        handleNonSltFieldChange={handleNonSltFieldChange}
+        validateField={validateField}
       />
     </div>
   );
@@ -2353,6 +2448,9 @@ const RequestDetailsModal = ({
   nonSltStaffDetails,
   setNonSltStaffDetails,
   isSuperAdmin,
+  formErrors,
+  handleNonSltFieldChange,
+  validateField,
 }) => {
   // Initialize with the correct value from request
   const [selectedExecutive, setSelectedExecutive] = useState("");
@@ -4385,17 +4483,23 @@ const RequestDetailsModal = ({
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Name
                         </label>
+                        {formErrors.name && (
+                          <p className="text-red-500 text-xs mb-1">
+                            {formErrors.name}
+                          </p>
+                        )}
                         <input
                           type="text"
-                          disabled={isSuperAdmin}
+                          // disabled={isSuperAdmin}
                           value={nonSltStaffDetails.name}
                           onChange={(e) =>
-                            setNonSltStaffDetails({
-                              ...nonSltStaffDetails,
-                              name: e.target.value,
-                            })
+                            handleNonSltFieldChange("name", e.target.value)
                           }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className={`w-full px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                            formErrors.name
+                              ? "border-2 border-red-500 bg-red-50"
+                              : "border border-gray-300"
+                          }`}
                           placeholder="Enter name"
                         />
                       </div>
@@ -4403,17 +4507,26 @@ const RequestDetailsModal = ({
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Company Name
                         </label>
+                        {formErrors.companyName && (
+                          <p className="text-red-500 text-xs mb-1">
+                            {formErrors.companyName}
+                          </p>
+                        )}
                         <input
                           type="text"
-                          disabled={isSuperAdmin}
+                          // disabled={isSuperAdmin}
                           value={nonSltStaffDetails.companyName}
                           onChange={(e) =>
-                            setNonSltStaffDetails({
-                              ...nonSltStaffDetails,
-                              companyName: e.target.value,
-                            })
+                            handleNonSltFieldChange(
+                              "companyName",
+                              e.target.value,
+                            )
                           }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          className={`w-full px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                            formErrors.companyName
+                              ? "border-2 border-red-500 bg-red-50"
+                              : "border border-gray-300"
+                          }`}
                           placeholder="Enter company name"
                         />
                       </div>
@@ -4421,54 +4534,72 @@ const RequestDetailsModal = ({
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           NIC
                         </label>
+                        {formErrors.nic && (
+                          <p className="text-red-500 text-xs mb-1">
+                            {formErrors.nic}
+                          </p>
+                        )}
                         <input
                           type="text"
-                          disabled={isSuperAdmin}
+                          // disabled={isSuperAdmin}
                           value={nonSltStaffDetails.nic}
                           onChange={(e) =>
-                            setNonSltStaffDetails({
-                              ...nonSltStaffDetails,
-                              nic: e.target.value,
-                            })
+                            handleNonSltFieldChange("nic", e.target.value)
                           }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter NIC"
+                          className={`w-full px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                            formErrors.nic
+                              ? "border-2 border-red-500 bg-red-50"
+                              : "border border-gray-300"
+                          }`}
+                          placeholder="e.g., 123456789V or 123456789012345"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Contact Number
                         </label>
+                        {formErrors.contactNo && (
+                          <p className="text-red-500 text-xs mb-1">
+                            {formErrors.contactNo}
+                          </p>
+                        )}
                         <input
                           type="text"
-                          disabled={isSuperAdmin}
+                          // disabled={isSuperAdmin}
                           value={nonSltStaffDetails.contactNo}
                           onChange={(e) =>
-                            setNonSltStaffDetails({
-                              ...nonSltStaffDetails,
-                              contactNo: e.target.value,
-                            })
+                            handleNonSltFieldChange("contactNo", e.target.value)
                           }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter contact number"
+                          className={`w-full px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                            formErrors.contactNo
+                              ? "border-2 border-red-500 bg-red-50"
+                              : "border border-gray-300"
+                          }`}
+                          placeholder="e.g., +94701234567 or 0701234567"
                         />
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Email
                         </label>
+                        {formErrors.email && (
+                          <p className="text-red-500 text-xs mb-1">
+                            {formErrors.email}
+                          </p>
+                        )}
                         <input
                           type="email"
-                          disabled={isSuperAdmin}
+                          // disabled={isSuperAdmin}
                           value={nonSltStaffDetails.email}
                           onChange={(e) =>
-                            setNonSltStaffDetails({
-                              ...nonSltStaffDetails,
-                              email: e.target.value,
-                            })
+                            handleNonSltFieldChange("email", e.target.value)
                           }
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          placeholder="Enter email"
+                          className={`w-full px-4 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                            formErrors.email
+                              ? "border-2 border-red-500 bg-red-50"
+                              : "border border-gray-300"
+                          }`}
+                          placeholder="Enter email address"
                         />
                       </div>
                     </div>
