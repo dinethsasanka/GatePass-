@@ -61,35 +61,50 @@ app.set("io", io);
 // This addresses OWASP ZAP findings for missing security headers
 
 // Configure Helmet with strict Content Security Policy
+// Addresses OWASP ZAP Medium findings:
+//   - CSP: Failure to Define Directive with No Fallback (frame-ancestors, form-action)
+//   - Content Security Policy (CSP) Header Not Set
+//   - Missing Anti-clickjacking Header
+// Addresses OWASP ZAP Low findings:
+//   - Strict-Transport-Security Header Not Set
+//   - X-Content-Type-Options Header Missing
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
+        scriptSrcAttr: ["'none'"],       // Block inline event handlers
         styleSrc: ["'self'", "'unsafe-inline'"],
         imgSrc: ["'self'", "data:"],
-        connectSrc: ["'self'", "https://login.microsoftonline.com"], // Allow Azure AD OAuth
-        frameAncestors: ["'none'"],
-        formAction: ["'self'", "https://login.microsoftonline.com"], // Allow Azure AD redirects
+        fontSrc: ["'self'"],
+        connectSrc: ["'self'", "https://login.microsoftonline.com"],
+        objectSrc: ["'none'"],           // Block <object>, <embed>, <applet>
+        baseUri: ["'self'"],             // Restrict <base> tag
+        // These directives do NOT fall back to default-src and MUST be explicitly defined
+        frameAncestors: ["'none'"],      // Anti-clickjacking (replaces X-Frame-Options)
+        formAction: ["'self'", "https://login.microsoftonline.com"],
+        upgradeInsecureRequests: [],     // Auto-upgrade HTTP to HTTPS
       },
     },
-    // Enable HTTP Strict Transport Security (HSTS)
+    // HSTS: Force HTTPS for 1 year
     strictTransportSecurity: {
-      maxAge: 31536000, // 1 year in seconds
+      maxAge: 31536000,
       includeSubDomains: true,
       preload: true,
     },
-    // X-Frame-Options for anti-clickjacking (backup to CSP frameAncestors)
-    frameguard: {
-      action: "deny",
-    },
+    // X-Frame-Options: DENY (backup to CSP frame-ancestors)
+    frameguard: { action: "deny" },
     // X-Content-Type-Options: nosniff
     noSniff: true,
-    // NOTE: xssFilter (X-XSS-Protection) is deprecated and removed
-    // Modern browsers rely on Content Security Policy (CSP) for XSS mitigation
-    // See: https://owasp.org/www-project-secure-headers/#x-xss-protection
+    // Referrer-Policy
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    // X-DNS-Prefetch-Control
+    dnsPrefetchControl: { allow: false },
+    // Hide X-Powered-By
     hidePoweredBy: true,
+    // X-Permitted-Cross-Domain-Policies
+    permittedCrossDomainPolicies: { permittedPolicies: "none" },
   })
 );
 
@@ -109,13 +124,17 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Cache-Control hardening for all API routes
+// Cache-Control hardening for ALL routes
 // Prevents sensitive data from being cached by browsers or proxies
-// Addresses OWASP ZAP findings for cache-control on sensitive endpoints
-app.use("/api", (req, res, next) => {
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
+// Addresses OWASP ZAP Informational finding: Re-examine Cache-control Directives
+app.use((req, res, next) => {
+  // Static assets (JS/CSS/images) should be cached; everything else should not
+  const isStaticAsset = /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/i.test(req.path);
+  if (!isStaticAsset) {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, private");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
   next();
 });
 
