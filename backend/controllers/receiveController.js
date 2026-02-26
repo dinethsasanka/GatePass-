@@ -12,6 +12,63 @@ const {
 } = require("../utils/socketEmitter");
 const { getAzureUserData } = require("../utils/azureUserCache");
 
+// ✅ Validation utilities for non-SLT unloading staff
+const validateSLTNIC = (nic) => {
+  if (!nic) return false;
+  const nicStr = String(nic).trim();
+  // NIC format: 12 digits or 12 digits with V
+  return /^\d{12}V?$/i.test(nicStr);
+};
+
+const validateEmail = (email) => {
+  if (!email) return false;
+  const emailStr = String(email).trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailStr);
+};
+
+const validatePhoneNumber = (phone) => {
+  if (!phone) return false;
+  const phoneStr = String(phone).trim();
+  // Allow +94, 0, or direct digits, with hyphens/spaces
+  return /^(\+94|0)?[\d\s\-]{9,15}$/.test(phoneStr);
+};
+
+const validateNonEmptyString = (value) => {
+  if (!value) return false;
+  return String(value).trim().length > 0;
+};
+
+//  Validate non-SLT unloading staff fields
+const validateNonSLTUnloadingStaff = (data) => {
+  const errors = [];
+
+  if (!validateNonEmptyString(data.nonSLTStaffName)) {
+    errors.push("Unloading staff name is required for non-SLT staff");
+  }
+
+  if (!validateNonEmptyString(data.nonSLTStaffCompany)) {
+    errors.push("Unloading staff company name is required for non-SLT staff");
+  }
+
+  if (!validateSLTNIC(data.nonSLTStaffNIC)) {
+    errors.push(
+      "Invalid unloading staff NIC format. NIC should be 12 digits (optionally with V suffix)",
+    );
+  }
+
+  if (!validatePhoneNumber(data.nonSLTStaffContact)) {
+    errors.push(
+      "Invalid unloading staff contact number. Please provide a valid phone number",
+    );
+  }
+
+  if (!validateEmail(data.nonSLTStaffEmail)) {
+    errors.push("Invalid unloading staff email address");
+  }
+
+  return errors;
+};
+
 // ------------- helpers -------------
 const pick = (obj, path) =>
   path.split(".").reduce((v, k) => (v && v[k] != null ? v[k] : null), obj);
@@ -560,6 +617,35 @@ const updateApproved = async (req, res) => {
     });
     if (!reqDoc) return res.status(404).json({ message: "Request not found" });
 
+    // ✅ Validate non-SLT unloading staff if applicable
+    const validationErrors = [];
+    if (
+      unloadingDetails &&
+      unloadingDetails.staffType &&
+      unloadingDetails.staffType !== "SLT"
+    ) {
+      const nonSltErrors = validateNonSLTUnloadingStaff({
+        nonSLTStaffName: unloadingDetails.nonSLTStaffName,
+        nonSLTStaffCompany: unloadingDetails.nonSLTStaffCompany,
+        nonSLTStaffNIC: unloadingDetails.nonSLTStaffNIC,
+        nonSLTStaffContact: unloadingDetails.nonSLTStaffContact,
+        nonSLTStaffEmail: unloadingDetails.nonSLTStaffEmail,
+      });
+      validationErrors.push(...nonSltErrors);
+    }
+
+    // ✅ Return validation errors if any
+    if (validationErrors.length > 0) {
+      console.error(
+        "❌ Validation errors for unloading staff:",
+        validationErrors,
+      );
+      return res.status(400).json({
+        message: "Validation failed for non-SLT unloading staff inputs",
+        errors: validationErrors,
+      });
+    }
+
     // Update the Status using request ObjectId (not Status.referenceNumber)
     let statusDoc = await Status.findOneAndUpdate(
       { request: reqDoc._id, recieveOfficerStatus: { $in: [1, "1"] } },
@@ -586,11 +672,19 @@ const updateApproved = async (req, res) => {
           loadingTime: new Date(),
           staffType: unloadingDetails.staffType,
           staffServiceNo: unloadingDetails.staffServiceNo,
-          nonSLTStaffName: unloadingDetails.nonSLTStaffName,
-          nonSLTStaffCompany: unloadingDetails.nonSLTStaffCompany,
-          nonSLTStaffNIC: unloadingDetails.nonSLTStaffNIC,
-          nonSLTStaffContact: unloadingDetails.nonSLTStaffContact,
-          nonSLTStaffEmail: unloadingDetails.nonSLTStaffEmail,
+          nonSLTStaffName: String(
+            unloadingDetails.nonSLTStaffName || "",
+          ).trim(),
+          nonSLTStaffCompany: String(
+            unloadingDetails.nonSLTStaffCompany || "",
+          ).trim(),
+          nonSLTStaffNIC: String(unloadingDetails.nonSLTStaffNIC || "").trim(),
+          nonSLTStaffContact: String(
+            unloadingDetails.nonSLTStaffContact || "",
+          ).trim(),
+          nonSLTStaffEmail: String(
+            unloadingDetails.nonSLTStaffEmail || "",
+          ).trim(),
         };
       }
 
