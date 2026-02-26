@@ -15,7 +15,7 @@ const {
   emitRequestRejection,
 } = require("../utils/socketEmitter");
 
-//  Validation utilities for non-SLT loading staff
+// ✅ Validation utilities for non-SLT loading staff
 const validateSLTNIC = (nic) => {
   if (!nic) return false;
   const nicStr = String(nic).trim();
