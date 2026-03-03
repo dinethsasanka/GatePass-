@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const { safeErrorResponse } = require("../middleware/errorHandler");
 const erpService = require("../services/erpService");
 const { getAzureUserData } = require("../utils/azureUserCache");
 
@@ -72,7 +73,7 @@ const getUserByServiceNo = async (req, res) => {
     res.status(200).json(userData);
   } catch (error) {
     console.error(`❌ Error fetching user: ${error.message}`);
-    res.status(500).json({ message: "Server error", error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 
@@ -94,7 +95,7 @@ const getUserByRole = async (req, res) => {
 
     res.status(200).json(usersData);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 
@@ -119,7 +120,7 @@ const getUserByRoleAndBranch = async (req, res) => {
 
     res.status(200).json(usersData);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 
