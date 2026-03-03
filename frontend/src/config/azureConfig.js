@@ -5,9 +5,7 @@
 
 export const msalConfig = {
   auth: {
-    clientId:
-      import.meta.env.VITE_AZURE_CLIENT_ID ||
-      "fb3e75a7-554f-41f8-9da3-2b162c255349",
+    clientId: import.meta.env.VITE_AZURE_CLIENT_ID,
     authority: `https://login.microsoftonline.com/common`,
     redirectUri:
       import.meta.env.VITE_AZURE_REDIRECT_URI ||
