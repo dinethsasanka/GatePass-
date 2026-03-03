@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const { safeErrorResponse } = require('../middleware/errorHandler');
 
 // Email sending endpoint
 const EmailForm = async (req, res) => {
@@ -34,7 +35,7 @@ const EmailForm = async (req, res) => {
       res.status(200).json({ message: 'Email sent successfully', info });
     } catch (error) {
       console.error('Error sending email:', error);
-      res.status(500).json({ message: 'Failed to send email', error: error.message });
+      return safeErrorResponse(res, error, 500);
     }
 }
 
