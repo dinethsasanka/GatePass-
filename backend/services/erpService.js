@@ -1,21 +1,14 @@
 const axios = require("axios");
 
 // ERP API Configuration
-const ERP_BASE_URL = "https://oneidentitytest.slt.com.lk/ERPAPIs/api/ERPData";
+const ERP_BASE_URL = process.env.ERP_BASE_URL;
 const ERP_CREDENTIALS = {
-  username: process.env.ERP_USERNAME || "dpuser",
-  password: process.env.ERP_PASSWORD || "dp@123#",
+  username: process.env.ERP_USERNAME,
+  password: process.env.ERP_PASSWORD,
 };
 
 console.log("=== ERP Service Initialized ===");
-console.log("Base URL:", ERP_BASE_URL);
-console.log("Username:", ERP_CREDENTIALS.username);
-console.log(
-  "Password:",
-  ERP_CREDENTIALS.password
-    ? "***" + ERP_CREDENTIALS.password.slice(-3)
-    : "NOT SET",
-);
+console.log("ERP configured:", ERP_BASE_URL && ERP_CREDENTIALS.username && ERP_CREDENTIALS.password ? "✓" : "✗");
 console.log("==============================");
 
 // Create axios instance with default config
@@ -36,17 +29,6 @@ const erpAxios = axios.create({
  */
 const getOrganizationList = async () => {
   try {
-    console.log(
-      "Fetching organizations from:",
-      ERP_BASE_URL + "/GetOrganizationList",
-    );
-    console.log("Headers:", {
-      accept: "text/plain",
-      "Content-Type": "application/json",
-      UserName: ERP_CREDENTIALS.username,
-      Password: "***" + ERP_CREDENTIALS.password.slice(-3),
-    });
-
     const response = await erpAxios.get("/GetOrganizationList");
     console.log("Organizations response status:", response.status);
     console.log("Organizations response data type:", typeof response.data);
