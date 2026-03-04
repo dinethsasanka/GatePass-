@@ -8,10 +8,14 @@ const ERP_CREDENTIALS = {
 };
 
 const ERP_GATEPASS_URL = process.env.ERP_GATEPASS_URL;
+const ERP_GATEPASS_CREDENTIALS = {
+  username: process.env.ERP_GATEPASS_USERNAME,
+  password: process.env.ERP_GATEPASS_PASSWORD,
+};
 
 console.log("=== ERP Service Initialized ===");
 console.log("ERP (ERPData) configured:", ERP_BASE_URL && ERP_CREDENTIALS.username && ERP_CREDENTIALS.password ? "✓" : "✗");
-console.log("ERP (GatePassSystem) configured:", ERP_GATEPASS_URL ? "✓" : "✗");
+console.log("ERP (GatePassSystem) configured:", ERP_GATEPASS_URL && ERP_GATEPASS_CREDENTIALS.username && ERP_GATEPASS_CREDENTIALS.password ? "✓" : "✗");
 console.log("==============================");
 
 // Axios instance for ERPData endpoints (organizations, employees, cost centres)
@@ -32,8 +36,8 @@ const erpGatepassAxios = axios.create({
   headers: {
     accept: "text/plain",
     "Content-Type": "application/json",
-    UserName: ERP_CREDENTIALS.username,
-    Password: ERP_CREDENTIALS.password,
+    UserName: ERP_GATEPASS_CREDENTIALS.username,
+    Password: ERP_GATEPASS_CREDENTIALS.password,
   },
   timeout: 30000,
 });
