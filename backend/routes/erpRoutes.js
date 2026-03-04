@@ -7,6 +7,10 @@ const {
   getEmployees,
   getEmployeeHierarchy,
   getEmployeeDetails,
+  getHolidaysByYear,
+  getHolidaysByMonth,
+  getAllItemCategories,
+  getItemsBySerialNo,
 } = require("../controllers/erpController");
 const erpLocationController = require("../controllers/erpLocationController");
 
@@ -60,5 +64,36 @@ router.get("/erp-locations", erpLocationController.getErpLocations);
  * @param   locationId - Location ID like "L001"
  */
 router.get("/branch/:locationId", erpLocationController.getBranchNameByLocationId);
+
+/**
+ * @route   POST /api/erp/holidays-by-year
+ * @desc    Get SLT holidays for a full year
+ * @access  Private
+ * @body    { year: number }
+ */
+router.post("/holidays-by-year", getHolidaysByYear);
+
+/**
+ * @route   POST /api/erp/holidays-by-month
+ * @desc    Get SLT holidays for a specific year and month
+ * @access  Private
+ * @body    { year: number, month: number }
+ */
+router.post("/holidays-by-month", getHolidaysByMonth);
+
+/**
+ * @route   POST /api/erp/item-categories
+ * @desc    Get all SLT item categories
+ * @access  Private
+ */
+router.post("/item-categories", getAllItemCategories);
+
+/**
+ * @route   POST /api/erp/items-by-serial
+ * @desc    Get SLT items by serial number
+ * @access  Private
+ * @body    { serialNo: string }
+ */
+router.post("/items-by-serial", getItemsBySerialNo);
 
 module.exports = router;

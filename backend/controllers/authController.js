@@ -3,8 +3,9 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const { ConfidentialClientApplication } = require("@azure/msal-node");
+const { safeErrorResponse } = require("../middleware/errorHandler");
 const EMPLOYEE_API_BASE_URL =
-  "https://employee-api-without-category-production.up.railway.app/api";
+  process.env.EMPLOYEE_API_BASE_URL || "http://localhost:3001/api";
 let apiToken = null;
 
 const mapApiDataToUser = (apiData) => {
@@ -160,8 +161,7 @@ const getEmployeeFromAPI = async (employeeNumber) => {
 // Azure AD configuration
 const msalConfig = {
   auth: {
-    clientId:
-      process.env.AZURE_CLIENT_ID || "fb3e75a7-554f-41f8-9da3-2b162c255349",
+    clientId: process.env.AZURE_CLIENT_ID,
     clientSecret: process.env.AZURE_CLIENT_SECRET,
     // Use 'common' to allow personal Microsoft accounts and work/school accounts
     authority: `https://login.microsoftonline.com/common`,
@@ -171,9 +171,9 @@ const msalConfig = {
 // Validate Azure configuration and create MSAL instance only if credentials are available
 let msalInstance = null;
 
-if (!process.env.AZURE_CLIENT_SECRET) {
+if (!process.env.AZURE_CLIENT_ID || !process.env.AZURE_CLIENT_SECRET) {
   console.warn(
-    "⚠️  AZURE_CLIENT_SECRET is not set - Azure login will not work",
+    "⚠️  Azure credentials not configured - Azure login will not work",
   );
 } else {
   try {
@@ -181,8 +181,7 @@ if (!process.env.AZURE_CLIENT_SECRET) {
     console.log("✅ Azure MSAL instance initialized successfully");
   } catch (error) {
     console.error(
-      "❌ Failed to initialize Azure MSAL instance:",
-      error.message,
+      "❌ Failed to initialize Azure MSAL instance"
     );
   }
 }
@@ -249,7 +248,7 @@ const loginUser = async (req, res) => {
   try {
     const { userId, password, userType } = req.body;
 
-    console.log("Login attempt:", { userId, userType, password });
+    console.log("Login attempt:", { userId, userType });
 
     // First, try to find user in local database
     let user = await User.findOne({ userId, userType });
@@ -382,7 +381,7 @@ const loginUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 

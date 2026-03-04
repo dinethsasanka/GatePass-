@@ -1,24 +1,24 @@
 const axios = require("axios");
 
 // ERP API Configuration
-const ERP_BASE_URL = "https://oneidentitytest.slt.com.lk/ERPAPIs/api/ERPData";
+const ERP_BASE_URL = process.env.ERP_BASE_URL;
 const ERP_CREDENTIALS = {
-  username: process.env.ERP_USERNAME || "dpuser",
-  password: process.env.ERP_PASSWORD || "dp@123#",
+  username: process.env.ERP_USERNAME,
+  password: process.env.ERP_PASSWORD,
+};
+
+const ERP_GATEPASS_URL = process.env.ERP_GATEPASS_URL;
+const ERP_GATEPASS_CREDENTIALS = {
+  username: process.env.ERP_GATEPASS_USERNAME,
+  password: process.env.ERP_GATEPASS_PASSWORD,
 };
 
 console.log("=== ERP Service Initialized ===");
-console.log("Base URL:", ERP_BASE_URL);
-console.log("Username:", ERP_CREDENTIALS.username);
-console.log(
-  "Password:",
-  ERP_CREDENTIALS.password
-    ? "***" + ERP_CREDENTIALS.password.slice(-3)
-    : "NOT SET",
-);
+console.log("ERP (ERPData) configured:", ERP_BASE_URL && ERP_CREDENTIALS.username && ERP_CREDENTIALS.password ? "✓" : "✗");
+console.log("ERP (GatePassSystem) configured:", ERP_GATEPASS_URL && ERP_GATEPASS_CREDENTIALS.username && ERP_GATEPASS_CREDENTIALS.password ? "✓" : "✗");
 console.log("==============================");
 
-// Create axios instance with default config
+// Axios instance for ERPData endpoints (organizations, employees, cost centres)
 const erpAxios = axios.create({
   baseURL: ERP_BASE_URL,
   headers: {
@@ -27,7 +27,19 @@ const erpAxios = axios.create({
     UserName: ERP_CREDENTIALS.username,
     Password: ERP_CREDENTIALS.password,
   },
-  timeout: 30000, // 30 seconds timeout
+  timeout: 30000,
+});
+
+// Axios instance for GatePassSystem endpoints (holidays, item categories, items by serial)
+const erpGatepassAxios = axios.create({
+  baseURL: ERP_GATEPASS_URL,
+  headers: {
+    accept: "text/plain",
+    "Content-Type": "application/json",
+    UserName: ERP_GATEPASS_CREDENTIALS.username,
+    Password: ERP_GATEPASS_CREDENTIALS.password,
+  },
+  timeout: 30000,
 });
 
 /**
@@ -36,17 +48,6 @@ const erpAxios = axios.create({
  */
 const getOrganizationList = async () => {
   try {
-    console.log(
-      "Fetching organizations from:",
-      ERP_BASE_URL + "/GetOrganizationList",
-    );
-    console.log("Headers:", {
-      accept: "text/plain",
-      "Content-Type": "application/json",
-      UserName: ERP_CREDENTIALS.username,
-      Password: "***" + ERP_CREDENTIALS.password.slice(-3),
-    });
-
     const response = await erpAxios.get("/GetOrganizationList");
     console.log("Organizations response status:", response.status);
     console.log("Organizations response data type:", typeof response.data);
@@ -396,6 +397,73 @@ const getExecutiveHierarchyForEmployee = async (employeeNo) => {
   }
 };
 
+/**
+ * Get SLT holidays for a specific year (all months).
+ * Calls: POST /GetSLTHolidayDaysByYear
+ * @param {number} year  - e.g. 2025
+ * @returns {Promise<Array>} List of holiday records
+ */
+const getHolidaysByYear = async (year) => {
+  try {
+    const payload = { year, month: 0, serialNo: "string" };
+    const response = await erpGatepassAxios.post("/GetSLTHolidayDaysByYear", payload);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching holidays by year:", error.response?.data || error.message);
+    throw new Error(`Failed to fetch holidays by year: ${error.response?.data || error.message}`);
+  }
+};
+
+/**
+ * Get SLT holidays for a specific year AND month.
+ * Calls: POST /GetSLTHolidayDaysByMonth
+ * @param {number} year  - e.g. 2025
+ * @param {number} month - e.g. 3 (March)
+ * @returns {Promise<Array>} List of holiday records
+ */
+const getHolidaysByMonth = async (year, month) => {
+  try {
+    const payload = { year, month, serialNo: "string" };
+    const response = await erpGatepassAxios.post("/GetSLTHolidayDaysByMonth", payload);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching holidays by month:", error.response?.data || error.message);
+    throw new Error(`Failed to fetch holidays by month: ${error.response?.data || error.message}`);
+  }
+};
+
+/**
+ * Get all SLT item categories.
+ * Calls: POST /GetSLTAllItemCategories
+ * @returns {Promise<Array>} List of item categories
+ */
+const getAllItemCategories = async () => {
+  try {
+    const response = await erpGatepassAxios.post("/GetSLTAllItemCategories");
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching item categories:", error.response?.data || error.message);
+    throw new Error(`Failed to fetch item categories: ${error.response?.data || error.message}`);
+  }
+};
+
+/**
+ * Get SLT items by serial number.
+ * Calls: POST /GetSLTItemsListBySerialNo
+ * @param {string} serialNo - e.g. "100514015"
+ * @returns {Promise<Array>} List of items matching the serial number
+ */
+const getItemsBySerialNo = async (serialNo) => {
+  try {
+    const payload = { serialNo };
+    const response = await erpGatepassAxios.post("/GetSLTItemsListBySerialNo", payload);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching items by serial no:", error.response?.data || error.message);
+    throw new Error(`Failed to fetch items by serial no: ${error.response?.data || error.message}`);
+  }
+};
+
 module.exports = {
   getOrganizationList,
   getCostCentersForOrganization,
@@ -403,4 +471,8 @@ module.exports = {
   getEmployeeDetailsHierarchy,
   getEmployeeDetails,
   getExecutiveHierarchyForEmployee,
+  getHolidaysByYear,
+  getHolidaysByMonth,
+  getAllItemCategories,
+  getItemsBySerialNo,
 };
