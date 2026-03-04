@@ -164,10 +164,132 @@ const getEmployeeDetails = async (req, res) => {
     });
   }
 };
+/**
+ * @desc    Get SLT holidays for a full year
+ * @route   POST /api/erp/holidays-by-year
+ * @access  Private
+ * @body    { year: number }
+ */
+const getHolidaysByYear = async (req, res) => {
+  try {
+    const { year } = req.body;
+
+    if (!year) {
+      return res.status(400).json({
+        success: false,
+        message: "year is required",
+      });
+    }
+
+    const holidays = await erpService.getHolidaysByYear(Number(year));
+    res.status(200).json({
+      success: true,
+      data: holidays,
+    });
+  } catch (error) {
+    console.error("Get Holidays By Year Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch holidays by year",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get SLT holidays for a specific year and month
+ * @route   POST /api/erp/holidays-by-month
+ * @access  Private
+ * @body    { year: number, month: number }
+ */
+const getHolidaysByMonth = async (req, res) => {
+  try {
+    const { year, month } = req.body;
+
+    if (!year || !month) {
+      return res.status(400).json({
+        success: false,
+        message: "Both year and month are required",
+      });
+    }
+
+    const holidays = await erpService.getHolidaysByMonth(Number(year), Number(month));
+    res.status(200).json({
+      success: true,
+      data: holidays,
+    });
+  } catch (error) {
+    console.error("Get Holidays By Month Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch holidays by month",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get all SLT item categories
+ * @route   POST /api/erp/item-categories
+ * @access  Private
+ */
+const getAllItemCategories = async (req, res) => {
+  try {
+    const categories = await erpService.getAllItemCategories();
+    res.status(200).json({
+      success: true,
+      data: categories,
+    });
+  } catch (error) {
+    console.error("Get All Item Categories Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch item categories",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get SLT items by serial number
+ * @route   POST /api/erp/items-by-serial
+ * @access  Private
+ * @body    { serialNo: string }
+ */
+const getItemsBySerialNo = async (req, res) => {
+  try {
+    const { serialNo } = req.body;
+
+    if (!serialNo) {
+      return res.status(400).json({
+        success: false,
+        message: "serialNo is required",
+      });
+    }
+
+    const items = await erpService.getItemsBySerialNo(serialNo);
+    res.status(200).json({
+      success: true,
+      data: items,
+    });
+  } catch (error) {
+    console.error("Get Items By Serial No Error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch items by serial number",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   getOrganizations,
   getCostCenters,
   getEmployees,
   getEmployeeHierarchy,
   getEmployeeDetails,
+  getHolidaysByYear,
+  getHolidaysByMonth,
+  getAllItemCategories,
+  getItemsBySerialNo,
 };
