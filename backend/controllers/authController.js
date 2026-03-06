@@ -4,8 +4,29 @@ const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const { ConfidentialClientApplication } = require("@azure/msal-node");
 const { safeErrorResponse } = require("../middleware/errorHandler");
-const EMPLOYEE_API_BASE_URL =
-  process.env.EMPLOYEE_API_BASE_URL || "http://localhost:3001/api";
+
+const normalizeBaseUrl = (url) =>
+  String(url || "")
+    .trim()
+    .replace(/`/g, "")
+    .replace(/\/+$/, "");
+
+const EMPLOYEE_API_BASE_URL = normalizeBaseUrl(
+  process.env.EMPLOYEE_API_BASE_URL,
+);
+const HAS_EMPLOYEE_API_BASE_URL = EMPLOYEE_API_BASE_URL.length > 0;
+
+const buildEmployeeApiUrl = (path) => {
+  if (!HAS_EMPLOYEE_API_BASE_URL) {
+    return null;
+  }
+
+  const normalizedPath = String(path || "").startsWith("/")
+    ? path
+    : `/${path}`;
+  return `${EMPLOYEE_API_BASE_URL}${normalizedPath}`;
+};
+
 let apiToken = null;
 
 const mapApiDataToUser = (apiData) => {
@@ -69,8 +90,15 @@ const authenticateWithEmployeeAPI = async (
   password = "password",
 ) => {
   try {
+    if (!HAS_EMPLOYEE_API_BASE_URL) {
+      return {
+        success: false,
+        error: "EMPLOYEE_API_BASE_URL is not configured",
+      };
+    }
+
     const response = await axios.post(
-      `${EMPLOYEE_API_BASE_URL}/common/authenticate`,
+      buildEmployeeApiUrl("/common/authenticate"),
       {
         username,
         password,
@@ -101,16 +129,21 @@ const authenticateWithEmployeeAPI = async (
 
 const getEmployeeFromAPI = async (employeeNumber) => {
   try {
+    if (!HAS_EMPLOYEE_API_BASE_URL) {
+      return null;
+    }
+
     if (!apiToken) {
-      await authenticateWithEmployeeAPI();
+      const authResult = await authenticateWithEmployeeAPI();
+      if (!authResult.success || !apiToken) {
+        return null;
+      }
     }
 
     const response = await axios.get(
-      `${EMPLOYEE_API_BASE_URL}/employees/GetEmployeeDetails`,
+      buildEmployeeApiUrl("/employees/GetEmployeeDetails"),
       {
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-        },
+        headers: apiToken ? { Authorization: `Bearer ${apiToken}` } : {},
         params: {
           queryParameter: "EMPLOYEE_NUMBER",
           queryValue: employeeNumber,
@@ -127,13 +160,15 @@ const getEmployeeFromAPI = async (employeeNumber) => {
     // If token expired, try to re-authenticate
     if (error.response && error.response.status === 401) {
       try {
-        await authenticateWithEmployeeAPI();
+        const authResult = await authenticateWithEmployeeAPI();
+        if (!authResult.success || !apiToken) {
+          return null;
+        }
+
         const retryResponse = await axios.get(
-          `${EMPLOYEE_API_BASE_URL}/employees/GetEmployeeDetails`,
+          buildEmployeeApiUrl("/employees/GetEmployeeDetails"),
           {
-            headers: {
-              Authorization: `Bearer ${apiToken}`,
-            },
+            headers: apiToken ? { Authorization: `Bearer ${apiToken}` } : {},
             params: {
               queryParameter: "EMPLOYEE_NUMBER",
               queryValue: employeeNumber,
