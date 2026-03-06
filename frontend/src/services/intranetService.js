@@ -1,14 +1,7 @@
-import axios from "axios";
+import axiosInstance from "./axiosConfig";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-};
 
 const unwrapData = (payload) => {
   if (payload && payload.success === true && payload.data !== undefined) {
@@ -114,12 +107,9 @@ const normalizeHolidays = (payload) => {
  */
 export const getItemCategories = async () => {
   try {
-    const response = await axios.post(
+    const response = await axiosInstance.post(
       `${API_BASE_URL}/erp/item-categories`,
       {},
-      {
-        headers: getAuthHeaders(),
-      },
     );
 
     return normalizeCategories(response.data);
@@ -136,12 +126,9 @@ export const getItemCategories = async () => {
  */
 export const getItemBySerialNumber = async (serialNumber) => {
   try {
-    const response = await axios.post(
+    const response = await axiosInstance.post(
       `${API_BASE_URL}/erp/items-by-serial`,
       { serialNo: serialNumber },
-      {
-        headers: getAuthHeaders(),
-      },
     );
 
     const normalizedItem = normalizeItem(response.data);
@@ -165,25 +152,30 @@ export const getItemBySerialNumber = async (serialNumber) => {
  * @returns {Promise<Array>} List of holidays
  */
 export const getHolidays = async (year, month) => {
-  try {
-    const currentYear = year || new Date().getFullYear();
-    const hasValidMonth = Number.isInteger(month) && month >= 1 && month <= 12;
+  const targetYear = year ?? new Date().getFullYear();
+  const hasValidMonth = Number.isInteger(month) && month >= 1 && month <= 12;
 
+  try {
     const endpoint = hasValidMonth
       ? `${API_BASE_URL}/erp/holidays-by-month`
       : `${API_BASE_URL}/erp/holidays-by-year`;
 
     const payload = hasValidMonth
-      ? { year: currentYear, month }
-      : { year: currentYear };
+      ? { year: targetYear, month }
+      : { year: targetYear };
 
-    const response = await axios.post(endpoint, payload, {
-      headers: getAuthHeaders(),
-    });
+    const response = await axiosInstance.post(endpoint, payload);
 
     return normalizeHolidays(response.data);
   } catch (error) {
-    console.error(`Error fetching holidays for ${year}:`, error);
+    if (hasValidMonth) {
+      console.error(
+        `Error fetching holidays for year ${targetYear}, month ${month}:`,
+        error,
+      );
+    } else {
+      console.error(`Error fetching holidays for year ${targetYear}:`, error);
+    }
     throw error;
   }
 };
@@ -195,24 +187,26 @@ export const getHolidays = async (year, month) => {
  * @returns {Promise<Array>} List of holidays
  */
 export const getHolidaysByMonth = async (year, month) => {
-  try {
-    const currentYear = year || new Date().getFullYear();
-    const currentMonth = month || new Date().getMonth() + 1;
+  const targetYear = year ?? new Date().getFullYear();
+  const targetMonth = month ?? new Date().getMonth() + 1;
 
-    const response = await axios.post(
-      `${API_BASE_URL}/erp/holidays-by-month`,
-      {
-        year: currentYear,
-        month: currentMonth,
-      },
-      {
-        headers: getAuthHeaders(),
-      },
+  if (
+    !Number.isInteger(targetMonth) ||
+    targetMonth < 1 ||
+    targetMonth > 12
+  ) {
+    throw new Error(
+      `Invalid month "${targetMonth}". Month must be an integer between 1 and 12.`,
     );
+  }
 
-    return normalizeHolidays(response.data);
+  try {
+    return await getHolidays(targetYear, targetMonth);
   } catch (error) {
-    console.error(`Error fetching holidays for ${year}/${month}:`, error);
+    console.error(
+      `Error fetching holidays for year ${targetYear}, month ${targetMonth}:`,
+      error,
+    );
     throw error;
   }
 };
@@ -224,15 +218,11 @@ export const getHolidaysByMonth = async (year, month) => {
  */
 export const syncHolidays = async (year) => {
   try {
-    const token = localStorage.getItem("token");
     const currentYear = year || new Date().getFullYear();
-    const response = await axios.post(
+    const response = await axiosInstance.post(
       `${API_BASE_URL}/intranet/holidays/sync`,
       {},
       {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         params: {
           year: currentYear,
         },
