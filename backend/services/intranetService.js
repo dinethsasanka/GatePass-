@@ -2,6 +2,8 @@ const axios = require("axios");
 
 // Intranet API Configuration
 const INTRANET_BASE_URL = process.env.INTRANET_BASE_URL;
+const HAS_INTRANET_BASE_URL =
+  typeof INTRANET_BASE_URL === "string" && INTRANET_BASE_URL.trim().length > 0;
 
 // Create axios instance with default config
 const intranetAxios = axios.create({
@@ -18,6 +20,13 @@ const intranetAxios = axios.create({
  */
 const getItemCategories = async () => {
   try {
+    if (!HAS_INTRANET_BASE_URL) {
+      console.warn(
+        "⚠️ INTRANET_BASE_URL is not configured - using fallback categories",
+      );
+      throw new Error("INTRANET_BASE_URL is not configured");
+    }
+
     console.log(
       "Fetching item categories from:",
       INTRANET_BASE_URL + "/items/categories",
@@ -106,6 +115,10 @@ const getItemCategories = async () => {
  */
 const getItemBySerialNumber = async (serialNumber) => {
   try {
+    if (!HAS_INTRANET_BASE_URL) {
+      throw new Error("INTRANET_BASE_URL is not configured");
+    }
+
     console.log(
       `Fetching item ${serialNumber} from:`,
       INTRANET_BASE_URL + `/items/${serialNumber}`,
@@ -140,6 +153,13 @@ const getItemBySerialNumber = async (serialNumber) => {
  */
 const getHolidays = async (year = new Date().getFullYear()) => {
   try {
+    if (!HAS_INTRANET_BASE_URL) {
+      console.warn(
+        "⚠️ INTRANET_BASE_URL is not configured - skipping intranet holiday lookup",
+      );
+      return [];
+    }
+
     console.log(
       `Fetching holidays for year ${year} from:`,
       INTRANET_BASE_URL + `/holidays?year=${year}`,
