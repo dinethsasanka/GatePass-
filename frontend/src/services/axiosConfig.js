@@ -5,7 +5,10 @@ const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 });
 
-console.log("Axios configured with baseURL:", import.meta.env.VITE_API_URL);
+// DEBUG: verify the API base URL on app load
+console.log("--- [DEBUG] Frontend Axios Base URL ---");
+console.log("  VITE_API_URL :", import.meta.env.VITE_API_URL || "(not set — check .env)");
+console.log("---------------------------------------");
 
 // Request interceptor to add token
 axiosInstance.interceptors.request.use(
