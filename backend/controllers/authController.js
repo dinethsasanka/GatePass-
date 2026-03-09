@@ -682,41 +682,56 @@ const azureLogin = async (req, res) => {
 
     const erpData = await fetchERPData(serviceNo);
 
-    if (!erpData) {
-      return res.status(404).json({
-        message: "Employee not found in ERP system",
-        serviceNo,
-      });
+    // Step 5a: If ERP data not available, use Azure AD data as fallback
+    let userData;
+    if (erpData) {
+      // Full data from ERP
+      userData = {
+        _id: userInfo.id,
+        userType: "SLT",
+        userId: userInfo.userPrincipalName,
+        email: azureEmail,
+        serviceNo: erpData.serviceNo,
+        name: erpData.name,
+        designation: erpData.designation,
+        section: erpData.section || "N/A",
+        group: erpData.group || "N/A",
+        contactNo: erpData.contactNo || "N/A",
+        gradeName: erpData.gradeName || "N/A",
+        fingerScanLocation: erpData.fingerScanLocation,
+        branches: erpData.branches || ["SLT HQ"],
+        role: erpData.role || "User",
+        isAzureUser: true,
+        hasERPData: true,
+      };
+      console.log("✅ Azure login with full ERP data:", userData.name);
+    } else {
+      // Fallback: Use Azure AD data only
+      console.warn(`⚠️  ERP data not available for ${serviceNo}, using Azure AD data only`);
+      userData = {
+        _id: userInfo.id,
+        userType: "SLT",
+        userId: userInfo.userPrincipalName,
+        email: azureEmail,
+        serviceNo: serviceNo,
+        name: userInfo.displayName || "Azure User",
+        designation: userInfo.jobTitle || "N/A",
+        section: userInfo.department || "N/A",
+        group: userInfo.companyName || "N/A",
+        contactNo: userInfo.mobilePhone || userInfo.businessPhones?.[0] || "N/A",
+        gradeName: "N/A",
+        fingerScanLocation: "N/A",
+        branches: ["SLT HQ"],
+        role: "User",
+        isAzureUser: true,
+        hasERPData: false,
+        _warning: "Limited data - ERP unavailable",
+      };
+      console.log("⚠️  Azure login with Azure AD data only:", userData.name);
     }
-
-    // Step 5: Build user data from ERP (No MongoDB involved!)
-    const userData = {
-      _id: userInfo.id, // Use Azure ID (not MongoDB ID)
-      userType: "SLT",
-      userId: userInfo.userPrincipalName,
-      email: azureEmail,
-      serviceNo: erpData.serviceNo,
-      name: erpData.name,
-      designation: erpData.designation,
-      section: erpData.section || "N/A",
-      group: erpData.group || "N/A",
-      contactNo: erpData.contactNo || "N/A",
-      gradeName: erpData.gradeName || "N/A",
-      fingerScanLocation: erpData.fingerScanLocation,
-      branches: erpData.branches || ["SLT HQ"],
-      role: erpData.role || "User",
-      isAzureUser: true,
-      hasERPData: true,
-    };
 
     // Step 6: Generate JWT using Azure ID (not MongoDB ID)
     const token = generateAzureToken(userInfo.id, userData);
-
-    // Step 7: Return response
-    res.json({
-      ...userData,
-      token,
-    });
   } catch (error) {
     console.error("Azure login error:", error.message);
     res.status(500).json({
