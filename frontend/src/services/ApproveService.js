@@ -1,11 +1,4 @@
-import axios from "axios";
 import axiosInstance from "./axiosConfig";
-
-export const API_BASE_URL = import.meta.env.VITE_API_URL;
-
-const authHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-});
 
 // Create a new status
 export const createStatus = async (statusData) => {
@@ -100,19 +93,13 @@ export const markItemsAsReturned = async (
     }
 
     console.log(
-      `Calling API: ${API_BASE_URL}/approve/${referenceNumber}/mark-returned`
+      `Calling API: /approve/${referenceNumber}/mark-returned`
     );
     console.log("Payload:", payload);
 
-    const response = await axios.put(
-      `${API_BASE_URL}/approve/${referenceNumber}/mark-returned`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-      }
+    const response = await axiosInstance.put(
+      `/approve/${referenceNumber}/mark-returned`,
+      payload
     );
 
     console.log("API Response:", response.data);
