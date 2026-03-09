@@ -16,6 +16,8 @@ const ERP_GATEPASS_CREDENTIALS = {
 console.log("=== ERP Service Initialized ===");
 console.log("ERP (ERPData) configured:", ERP_BASE_URL && ERP_CREDENTIALS.username && ERP_CREDENTIALS.password ? "✓" : "✗");
 console.log("ERP (GatePassSystem) configured:", ERP_GATEPASS_URL && ERP_GATEPASS_CREDENTIALS.username && ERP_GATEPASS_CREDENTIALS.password ? "✓" : "✗");
+console.log("ERP URL:", ERP_BASE_URL);
+console.log("ERP Username:", ERP_CREDENTIALS.username);
 console.log("==============================");
 
 // Axios instance for ERPData endpoints (organizations, employees, cost centres)
@@ -40,6 +42,30 @@ const erpGatepassAxios = axios.create({
     Password: ERP_GATEPASS_CREDENTIALS.password,
   },
   timeout: 30000,
+});
+
+// Add request/response interceptors for debugging (AFTER axios instances are created)
+erpAxios.interceptors.request.use((config) => {
+  console.log(`📤 ERP Request: ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`);
+  console.log("   Headers:", {
+    UserName: config.headers.UserName,
+    Password: config.headers.Password.substring(0, 3) + "***", // Hide password
+    ContentType: config.headers["Content-Type"]
+  });
+  return config;
+}, (error) => {
+  console.error("❌ ERP Request error:", error.message);
+  return Promise.reject(error);
+});
+
+erpAxios.interceptors.response.use((response) => {
+  console.log(`✅ ERP Response: ${response.status}`);
+  return response;
+}, (error) => {
+  console.error(`❌ ERP Error Response: ${error.response?.status}`);
+  console.error("   Message:", error.response?.data?.message || error.message);
+  console.error("   URL:", error.config?.url);
+  return Promise.reject(error);
 });
 
 /**
@@ -139,14 +165,28 @@ const getEmployeeDetailsHierarchy = async (
   employeeNo,
 ) => {
   try {
+    console.log("🔄 getEmployeeDetailsHierarchy called:", {
+      organizationID,
+      costCenterCode,
+      employeeNo,
+      endpoint: "/GetEmployeeDetailsHierarchy"
+    });
+    
     const response = await erpAxios.post("/GetEmployeeDetailsHierarchy", {
       organizationID,
       costCenterCode,
       employeeNo,
     });
+    
+    console.log("✅ getEmployeeDetailsHierarchy response received");
     return response.data;
   } catch (error) {
-    console.error("Error fetching employee hierarchy:", error.message);
+    console.error("❌ Error fetching employee hierarchy:");
+    console.error("   Status:", error.response?.status);
+    console.error("   Message:", error.message);
+    console.error("   Response data:", error.response?.data);
+    console.error("   URL:", error.config?.url);
+    console.error("   Method:", error.config?.method);
     throw new Error(`Failed to fetch employee hierarchy: ${error.message}`);
   }
 };
