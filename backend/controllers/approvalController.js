@@ -10,6 +10,7 @@ const {
   emitRequestApproval,
   emitRequestRejection,
 } = require("../utils/socketEmitter");
+const { validateApprovalAction } = require("../utils/validators");
 
 // If your project exposes a different path/helper for email, adjust this import:
 const { sendEmail } = require("../utils/sendMail"); // async (to, subject, html) => Promise<void>
@@ -249,6 +250,15 @@ exports.updateApproved = async (req, res) => {
     const { referenceNumber } = req.params;
     const { comment } = req.body;
 
+    // ✅ VALIDATION: Validate approval action
+    const validation = validateApprovalAction({ comment }, "approve");
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: "Validation failed",
+        details: validation.errors,
+      });
+    }
+
     const status = await Status.findOne({ referenceNumber })
       .populate("request")
       .sort({ updatedAt: -1 });
@@ -371,10 +381,13 @@ exports.updateRejected = async (req, res) => {
       req.user?.branches,
     );
 
-    if (!comment || !comment.trim()) {
-      return res
-        .status(400)
-        .json({ message: "Rejection comment is required." });
+    // ✅ VALIDATION: Validate rejection action
+    const validation = validateApprovalAction({ comment }, "reject");
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: "Validation failed",
+        details: validation.errors,
+      });
     }
 
     const status = await Status.findOne({ referenceNumber })

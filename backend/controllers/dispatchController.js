@@ -7,6 +7,7 @@ const {
   emitRequestApproval,
   emitRequestRejection,
 } = require("../utils/socketEmitter");
+const { validateApprovalAction, validateSerialNumbers } = require("../utils/validators");
 
 // Helper to find receiver/dispatcher for a location
 async function findReceiverForInLocation(inLocation) {
@@ -404,10 +405,13 @@ const updateRejected = async (req, res) => {
     const { referenceNumber } = req.params;
     const { comment } = req.body;
 
-    if (!comment || !comment.trim()) {
-      return res
-        .status(400)
-        .json({ message: "Rejection comment is required." });
+    // ✅ VALIDATION: Validate rejection action
+    const validation = validateApprovalAction({ comment }, "reject");
+    if (!validation.isValid) {
+      return res.status(400).json({
+        error: "Validation failed",
+        details: validation.errors,
+      });
     }
 
     const latest = await Status.findOne({ referenceNumber })
@@ -493,15 +497,12 @@ const markItemsAsReturned = async (req, res) => {
       remarks,
     });
 
-    // Validation
-    if (
-      !serialNumbers ||
-      !Array.isArray(serialNumbers) ||
-      serialNumbers.length === 0
-    ) {
+    // ✅ VALIDATION: Validate serial numbers
+    const validation = validateSerialNumbers(serialNumbers);
+    if (!validation.isValid) {
       return res.status(400).json({
-        success: false,
-        message: "Serial numbers are required and must be a non-empty array",
+        error: "Validation failed",
+        details: validation.errors,
       });
     }
 
