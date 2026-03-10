@@ -1,11 +1,5 @@
 // src/services/ReceiveService.js
-import axios from "axios";
 import axiosInstance from "./axiosConfig";
-
-export const API_BASE_URL = import.meta.env.VITE_API_URL;
-const authHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-});
 
 // Helper: GET with optional query params
 const getWithParams = async (url, params) => {
@@ -27,7 +21,6 @@ export const createStatus = async (statusData) => {
 export const getPendingStatuses = async (serviceNo) => {
   const response = await axiosInstance.get(`/receive/pending`, {
     params: serviceNo ? { serviceNo } : undefined,
-    headers: authHeaders(),
   });
   return response.data;
 };

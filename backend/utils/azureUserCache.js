@@ -101,7 +101,15 @@ async function getAzureUserData(serviceNo, useCache = true) {
     return userData;
 
   } catch (error) {
-    console.error(`❌ Error fetching Azure user ${serviceNo}:`, error.message);
+    console.error(`❌ Error fetching Azure user ${serviceNo}:`);
+    console.error("   Message:", error.message);
+    console.error("   Error:", error);
+    
+    // Provide more helpful error messages
+    if (error.message.includes("401") || error.message.includes("Unauthorized")) {
+      console.error("   > ERP API authentication failed - check ERP_USERNAME and ERP_PASSWORD in .env");
+    }
+    
     throw error;
   }
 }

@@ -1,28 +1,16 @@
-import axios from "axios";
 import axiosInstance from "./axiosConfig";
-
-export const API_BASE_URL = import.meta.env.VITE_API_URL;
-const authHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
-});
 
 export const getVerifyPending = async () =>
   (
-    await axios.get(`${API_BASE_URL}/verify/pending`, {
-      headers: authHeaders(),
-    })
+    await axiosInstance.get(`/verify/pending`)
   ).data;
 export const getVerifyApproved = async () =>
   (
-    await axios.get(`${API_BASE_URL}/verify/approved`, {
-      headers: authHeaders(),
-    })
+    await axiosInstance.get(`/verify/approved`)
   ).data;
 export const getVerifyRejected = async () =>
   (
-    await axios.get(`${API_BASE_URL}/verify/rejected`, {
-      headers: authHeaders(),
-    })
+    await axiosInstance.get(`/verify/rejected`)
   ).data;
 
 
@@ -103,11 +91,8 @@ export const rejectStatus = async (referenceNumber, comment) => {
 export const searchUserByServiceNo = async (serviceNo) => {
   if (!serviceNo) return null; // no input => no lookup
   try {
-    const response = await axios.get(
-      `${API_BASE_URL}/users/${encodeURIComponent(serviceNo)}`,
-      { headers: authHeaders() } // <-- always send token
-    );
-    return response.data || null; // if API returns empty, treat as null
+    const response = await axiosInstance.get(`/users/${encodeURIComponent(serviceNo)}`);
+    return response.data || null;
   } catch (error) {
     if (error?.response?.status === 404) return null; // non-fatal: no user doc
     console.warn(
@@ -131,20 +116,12 @@ export const markItemsAsReturned = async (
       payload.remarks = remarks;
     }
 
-    console.log(
-      `Calling API: ${API_BASE_URL}/verify/${referenceNumber}/mark-returned`
-    );
+    console.log(`Calling API: /verify/${referenceNumber}/mark-returned`);
     console.log("Payload:", payload);
 
-    const response = await axios.put(
-      `${API_BASE_URL}/verify/${referenceNumber}/mark-returned`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-      }
+    const response = await axiosInstance.put(
+      `/verify/${referenceNumber}/mark-returned`,
+      payload
     );
 
     console.log("API Response:", response.data);
@@ -160,7 +137,7 @@ export const markItemsAsReturned = async (
 };
 
 export const addReturnableItemToRequest = async (referenceNumber, itemData) => {
-  const response = await axios.post(`${API_BASE_URL}/receive/${referenceNumber}/items`, itemData);
+  const response = await axiosInstance.post(`/receive/${referenceNumber}/items`, itemData);
   return response.data;
 };
   

@@ -1,6 +1,4 @@
-import axios from "axios";
-
-export const API_BASE_URL = import.meta.env.VITE_API_URL;
+import axiosInstance from "./axiosConfig";
 
 export const markItemsAsReturned = async (referenceNumber, serialNumbers, remarks = null) => {
   try {
@@ -10,18 +8,12 @@ export const markItemsAsReturned = async (referenceNumber, serialNumbers, remark
       payload.remarks = remarks;
     }
 
-    console.log(`Calling API: ${API_BASE_URL}/myRequest/${referenceNumber}/mark-returned`);
+    console.log(`Calling API: /myRequest/${referenceNumber}/mark-returned`);
     console.log('Payload:', payload);
 
-    const response = await axios.put(
-      `${API_BASE_URL}/myRequest/${referenceNumber}/mark-returned`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-      }
+    const response = await axiosInstance.put(
+      `/myRequest/${referenceNumber}/mark-returned`,
+      payload
     );
 
     console.log('API Response:', response.data);
@@ -46,8 +38,7 @@ export const getImageUrl = async (imageData) => {
 
     // If it's an object with a url property (your schema structure)
     if (typeof imageData === 'object' && imageData.url) {
-      // ⭐ Return the full URL by prepending the backend URL
-      return `${API_BASE_URL}${imageData.url}`;
+      return `${import.meta.env.VITE_API_URL}${imageData.url}`;
     }
 
     // If it's just a string path
@@ -59,11 +50,11 @@ export const getImageUrl = async (imageData) => {
       
       // If it starts with /uploads, prepend the backend URL
       if (imageData.startsWith('/uploads')) {
-        return `${API_BASE_URL}${imageData}`;
+        return `${import.meta.env.VITE_API_URL}${imageData}`;
       }
       
       // Otherwise, assume it's a relative path
-      return `${API_BASE_URL}/uploads/images/${imageData}`;
+      return `${import.meta.env.VITE_API_URL}/uploads/images/${imageData}`;
     }
 
     console.warn('Invalid image data format:', imageData);
@@ -81,7 +72,7 @@ export const getImageUrlSync = (imageData) => {
   }
 
   if (typeof imageData === 'object' && imageData.url) {
-    return `${API_BASE_URL}${imageData.url}`;
+    return `${import.meta.env.VITE_API_URL}${imageData.url}`;
   }
 
   if (typeof imageData === 'string') {
@@ -89,9 +80,9 @@ export const getImageUrlSync = (imageData) => {
       return imageData;
     }
     if (imageData.startsWith('/uploads')) {
-      return `${API_BASE_URL}${imageData}`;
+      return `${import.meta.env.VITE_API_URL}${imageData}`;
     }
-    return `${API_BASE_URL}/uploads/images/${imageData}`;
+    return `${import.meta.env.VITE_API_URL}/uploads/images/${imageData}`;
   }
 
   return null;
