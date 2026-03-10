@@ -1,0 +1,98 @@
+import axios from "axios";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+/**
+ * Get all item categories from ERP GatePass API
+ * @returns {Promise<Array>} List of item categories
+ */
+export const getItemCategories = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.get(`${API_BASE_URL}/item-holiday/categories`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching item categories:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get item details by serial number from ERP GatePass API
+ * @param {string} serialNumber - The serial number of the item
+ * @returns {Promise<Object>} Item details
+ */
+export const getItemBySerialNumber = async (serialNumber) => {
+  try {
+    const token = localStorage.getItem("token");
+    const response = await axios.get(
+      `${API_BASE_URL}/item-holiday/items/${serialNumber}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching item ${serialNumber}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Get holidays for a specific year from ERP GatePass API
+ * @param {number} year - The year to get holidays for (default: current year)
+ * @returns {Promise<Array>} List of holidays
+ */
+export const getHolidays = async (year) => {
+  try {
+    const token = localStorage.getItem("token");
+    const currentYear = year || new Date().getFullYear();
+    const response = await axios.get(`${API_BASE_URL}/item-holiday/holidays`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      params: {
+        year: currentYear,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching holidays for ${year}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Sync holidays from ERP GatePass API to database
+ * @param {number} year - The year to sync holidays for (default: current year)
+ * @returns {Promise<Object>} Sync result
+ */
+export const syncHolidays = async (year) => {
+  try {
+    const token = localStorage.getItem("token");
+    const currentYear = year || new Date().getFullYear();
+    const response = await axios.post(
+      `${API_BASE_URL}/item-holiday/holidays/sync`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        params: {
+          year: currentYear,
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    console.error(`Error syncing holidays for ${year}:`, error);
+    throw error;
+  }
+};
