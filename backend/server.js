@@ -168,7 +168,7 @@ const emailRoutes = require("./routes/emailRoutes");
 const superAdminRoutes = require("./routes/superAdminRoutes");
 const adminRequestRoutes = require("./routes/adminRequestRoutes");
 const erpRoutes = require("./routes/erpRoutes");
-const intranetRoutes = require("./routes/intranetRoutes");
+const itemHolidayApiRoutes = require("./routes/itemHolidayApiRoutes");
 
 // 10) Mount routes
 // Authentication routes have stricter CORS policy applied
@@ -191,7 +191,7 @@ app.use("/api/receive", receiveRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/admin", adminRequestRoutes);
 app.use("/api/erp", erpRoutes);
-app.use("/api/intranet", intranetRoutes);
+app.use("/api/item-holiday", itemHolidayApiRoutes);
 
 // 11) Health check (optional)
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
