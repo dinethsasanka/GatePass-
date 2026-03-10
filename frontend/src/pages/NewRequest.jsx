@@ -28,7 +28,7 @@ import { FileSpreadsheet } from "lucide-react";
 import {
   useItemCategories,
   useItemBySerialNumber,
-} from "../hooks/useIntranetData.js";
+} from "../hooks/useItemHolidayApiData.js";
 import {
   validateVehicleNumber,
   validateCompanyName,
@@ -61,8 +61,8 @@ const NewRequest = () => {
   const [erpLocations, setErpLocations] = useState([]);
   const { showToast } = useToast();
 
-  // Use intranet API for categories
-  const { categories: intranetCategories, loading: categoriesLoading } =
+  // Use ERP GatePass API for categories
+  const { categories: apiCategories, loading: categoriesLoading } =
     useItemCategories();
 
   const [currentItem, setCurrentItem] = useState({
@@ -333,22 +333,32 @@ const NewRequest = () => {
     setIsSearchingItem(true);
     try {
       const { getItemBySerialNumber } =
-        await import("../services/intranetService.js");
+        await import("../services/itemHolidayApiService.js");
       const itemData = await getItemBySerialNumber(serialNumber);
+
+      console.log("Item data received in frontend:", itemData);
 
       // Populate form with API data
       setCurrentItem((prev) => ({
         ...prev,
         serialNumber: serialNumber,
-        itemCode: itemData.itemCode,
-        itemDescription: itemData.itemDescription,
-        itemCategory: itemData.itemCategory,
-        categoryDescription: itemData.categoryDescription,
+        itemCode: itemData.itemCode || "",
+        itemDescription: itemData.itemDescription || "",
+        itemCategory: itemData.itemCategory || "",
+        categoryDescription: itemData.categoryDescription || itemData.itemCategory || "",
         qty: prev.qty || 1,
         returnable: prev.returnable || "No",
         images: prev.images || [],
         returnDate: prev.returnDate || "",
       }));
+
+      console.log("Current item after update:", {
+        serialNumber: serialNumber,
+        itemCode: itemData.itemCode,
+        itemDescription: itemData.itemDescription,
+        itemCategory: itemData.itemCategory,
+        categoryDescription: itemData.categoryDescription,
+      });
 
       showToast("Item found and auto-filled", "success");
     } catch (error) {
@@ -1886,8 +1896,9 @@ const NewRequest = () => {
                         <option value="">Select category</option>
                         {categoriesLoading ? (
                           <option disabled>Loading categories...</option>
-                        ) : intranetCategories.length > 0 ? (
-                          intranetCategories
+                        ) : apiCategories.length > 0 ? (
+                          apiCategories
+                            .filter((cat) => cat && typeof cat === "string")
                             .sort((a, b) => a.localeCompare(b))
                             .map((category, idx) => (
                               <option key={idx} value={category}>
