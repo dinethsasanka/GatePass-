@@ -7,7 +7,10 @@ const {
   emitRequestApproval,
   emitRequestRejection,
 } = require("../utils/socketEmitter");
-const { validateApprovalAction, validateSerialNumbers } = require("../utils/validators");
+const {
+  validateApprovalAction,
+  validateSerialNumbers,
+} = require("../utils/validators");
 
 // Helper to find receiver/dispatcher for a location
 async function findReceiverForInLocation(inLocation) {
@@ -102,7 +105,9 @@ const getLatestDispatchStatuses = async () => {
     }
 
     if (r2 === r1) {
-      const t1 = new Date(current.updatedAt || current.createdAt || 0).getTime();
+      const t1 = new Date(
+        current.updatedAt || current.createdAt || 0,
+      ).getTime();
       const t2 = new Date(s.updatedAt || s.createdAt || 0).getTime();
       if (t2 > t1) pickByRef.set(key, s);
     }
