@@ -25,6 +25,7 @@ import axiosInstance from "../services/axiosConfig.js";
 import { useToast } from "../components/ToastProvider.jsx";
 import { emailSent } from "../services/emailService.js";
 import { FileSpreadsheet } from "lucide-react";
+import { useSocket } from "../contexts/SocketContext.jsx";
 import {
   useItemCategories,
   useItemBySerialNumber,
@@ -60,6 +61,7 @@ const NewRequest = () => {
   const [outLocations, setOutLocations] = useState([]);
   const [erpLocations, setErpLocations] = useState([]);
   const { showToast } = useToast();
+  const { socket, isConnected } = useSocket();
 
   // Use intranet API for categories
   const { categories: intranetCategories, loading: categoriesLoading } =
@@ -196,6 +198,78 @@ const NewRequest = () => {
       fetchUserStats();
     }
   }, [user]);
+
+  // Socket listener for real-time stats updates
+  useEffect(() => {
+    if (!socket || !user) return;
+
+    const handleRequestUpdate = () => {
+      const fetchUserStats = async () => {
+        try {
+          const token = localStorage.getItem("token");
+          if (!token || !user) return;
+
+          const response = await fetch(
+            `${import.meta.env.VITE_API_URL}/requests/${user.serviceNo}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            },
+          );
+
+          if (response.ok) {
+            const requests = await response.json();
+
+            let totalItems = 0;
+            let returnableItems = 0;
+            let nonReturnableItems = 0;
+
+            requests.forEach((request) => {
+              if (request.items && Array.isArray(request.items)) {
+                request.items.forEach((item) => {
+                  const quantity = item.itemQuantity || 1;
+                  totalItems += quantity;
+
+                  if (item.itemReturnable) {
+                    returnableItems += quantity;
+                  } else {
+                    nonReturnableItems += quantity;
+                  }
+                });
+              }
+            });
+
+            setUserStats({
+              totalItems,
+              returnableItems,
+              nonReturnableItems,
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching stats:", error);
+        }
+      };
+
+      fetchUserStats();
+    };
+
+    // Listen to various socket events
+    socket.on("request-updated", handleRequestUpdate);
+    socket.on("request-approved", handleRequestUpdate);
+    socket.on("request-rejected", handleRequestUpdate);
+    socket.on("request-completed", handleRequestUpdate);
+    socket.on("new-request", handleRequestUpdate);
+
+    return () => {
+      socket.off("request-updated", handleRequestUpdate);
+      socket.off("request-approved", handleRequestUpdate);
+      socket.off("request-rejected", handleRequestUpdate);
+      socket.off("request-completed", handleRequestUpdate);
+      socket.off("new-request", handleRequestUpdate);
+    };
+  }, [socket, user]);
 
   useEffect(() => {
     if (!user?.serviceNo) return;
@@ -363,28 +437,108 @@ const NewRequest = () => {
     }
   };
   const handleItemSubmit = () => {
-    // Validate required fields
-    if (
-      !currentItem.serialNumber ||
-      !currentItem.itemDescription ||
-      !currentItem.categoryDescription
-    ) {
+    // Trim whitespace from text fields
+    const serialNumber = currentItem.serialNumber?.trim();
+    const itemDescription = currentItem.itemDescription?.trim();
+    const categoryDescription = currentItem.categoryDescription?.trim();
+    const qty = parseInt(currentItem.qty) || 0;
+
+    // ⭐ VALIDATION 1: Check serial number
+    if (!serialNumber || serialNumber.length < 2) {
       showToast(
-        "Please fill in all required fields (Serial Number, Description, Category)",
+        "Serial Number is required and must be at least 2 characters",
         "warning",
       );
       return;
     }
 
-    // Validate return date if returnable is Yes
-    if (currentItem.returnable === "Yes" && !currentItem.returnDate) {
-      showToast("Please select a return date for returnable items", "warning");
+    // ⭐ VALIDATION 2: Check item description
+    if (!itemDescription || itemDescription.length < 3) {
+      showToast(
+        "Item Description is required and must be at least 3 characters",
+        "warning",
+      );
       return;
     }
 
-    // Create item object with new structure
+    // ⭐ VALIDATION 3: Check category
+    if (!categoryDescription) {
+      showToast("Please select an item category", "warning");
+      return;
+    }
+
+    // ⭐ VALIDATION 4: Check quantity
+    if (!qty || qty < 1) {
+      showToast(
+        "Quantity must be at least 1",
+        "warning",
+      );
+      return;
+    }
+
+    if (qty > 10000) {
+      showToast(
+        "Quantity cannot exceed 10,000. Please verify the amount.",
+        "warning",
+      );
+      return;
+    }
+
+    // ⭐ VALIDATION 5: Check return date if returnable is Yes
+    if (currentItem.returnable === "Yes") {
+      if (!currentItem.returnDate) {
+        showToast("Please select a return date for returnable items", "warning");
+        return;
+      }
+
+      // Validate return date is in the future
+      const returnDate = new Date(currentItem.returnDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (returnDate <= today) {
+        showToast(
+          "Return date must be a future date",
+          "warning",
+        );
+        return;
+      }
+
+      // Check if return date is too far in the future (more than 1 year)
+      const oneYearFromNow = new Date();
+      oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
+
+      if (returnDate > oneYearFromNow) {
+        showToast(
+          "Return date cannot be more than 1 year in the future",
+          "warning",
+        );
+        return;
+      }
+    }
+
+    // ⭐ VALIDATION 6: Check for duplicate serial numbers
+    const isDuplicate = items.some(
+      (item) =>
+        item.serialNumber.trim().toLowerCase() === serialNumber.toLowerCase() &&
+        item.id !== currentItem.id
+    );
+
+    if (isDuplicate) {
+      showToast(
+        "An item with this serial number already exists in the list",
+        "warning",
+      );
+      return;
+    }
+
+    // Create item object with trimmed and validated data
     const itemToSave = {
       ...currentItem,
+      serialNumber: serialNumber,
+      itemDescription: itemDescription,
+      categoryDescription: categoryDescription,
+      qty: qty,
       returnable: currentItem.returnable || "No",
       returnDate:
         currentItem.returnable === "Yes" ? currentItem.returnDate : null,
@@ -1076,23 +1230,27 @@ const NewRequest = () => {
     }
   };
 
-  // Stats cards data
+  // Stats cards data - Calculate total quantities, not just item count
   const statsData = [
     {
       title: "Total Items",
-      value: items.length,
+      value: items.reduce((sum, item) => sum + (parseInt(item.qty) || 1), 0),
       icon: Package,
       color: "from-amber-500 to-orange-500",
     },
     {
       title: "Returnable Items",
-      value: items.filter((item) => item.returnable === "Yes").length,
+      value: items
+        .filter((item) => item.returnable === "Yes")
+        .reduce((sum, item) => sum + (parseInt(item.qty) || 1), 0),
       icon: UserCheck,
       color: "from-emerald-500 to-green-500",
     },
     {
       title: "Non-Returnable",
-      value: items.filter((item) => item.returnable === "No").length,
+      value: items
+        .filter((item) => item.returnable === "No")
+        .reduce((sum, item) => sum + (parseInt(item.qty) || 1), 0),
       icon: Info,
       color: "from-rose-500 to-red-500",
     },
@@ -1862,7 +2020,9 @@ const NewRequest = () => {
                             itemDescription: e.target.value,
                           })
                         }
-                        placeholder="Enter item description"
+                        placeholder="Enter item description (min 3 characters)"
+                        minLength="3"
+                        required
                       />
                     </div>
                     <div>
@@ -1907,14 +2067,17 @@ const NewRequest = () => {
                         className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
                         type="number"
                         value={currentItem.qty}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 1;
                           setCurrentItem({
                             ...currentItem,
-                            qty: e.target.value,
-                          })
-                        }
-                        placeholder="Enter quantity"
+                            qty: value > 0 ? value : 1,
+                          });
+                        }}
+                        placeholder="Enter quantity (1-10000)"
                         min="1"
+                        max="10000"
+                        required
                       />
                     </div>
                     {/* <div>
@@ -1964,7 +2127,7 @@ const NewRequest = () => {
                       {currentItem.returnable === "Yes" && (
                         <div className="mt-3">
                           <label className="block text-sm font-medium text-gray-600 mb-2">
-                            Return Date
+                            Return Date <span className="text-red-500">*</span>
                           </label>
                           <input
                             type="date"
@@ -1975,7 +2138,9 @@ const NewRequest = () => {
                                 returnDate: e.target.value,
                               })
                             }
+                            min={new Date().toISOString().split('T')[0]}
                             className="block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            required
                           />
                         </div>
                       )}

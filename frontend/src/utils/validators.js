@@ -330,8 +330,8 @@ export const validateAddress = (address) => {
   if (!address || !address.trim()) {
     return "Address is required";
   }
-  if (address.trim().length < 10) {
-    return "Address must be at least 10 characters";
+  if (address.trim().length < 3) {
+    return "Address must be at least 3 characters";
   }
   return "";
 };
