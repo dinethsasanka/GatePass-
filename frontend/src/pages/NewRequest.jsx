@@ -917,19 +917,19 @@ const NewRequest = () => {
   const statsData = [
     {
       title: "Total Items",
-      value: items.length,
+      value: userStats.totalItems,
       icon: Package,
       color: "from-amber-500 to-orange-500",
     },
     {
       title: "Returnable Items",
-      value: items.filter((item) => item.returnable === "Yes").length,
+      value: userStats.returnableItems,
       icon: UserCheck,
       color: "from-emerald-500 to-green-500",
     },
     {
       title: "Non-Returnable",
-      value: items.filter((item) => item.returnable === "No").length,
+      value: userStats.nonReturnableItems,
       icon: Info,
       color: "from-rose-500 to-red-500",
     },
