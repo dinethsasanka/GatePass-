@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const PLeader = require("../models/PLeader");
+const { safeErrorResponse } = require("../middleware/errorHandler");
 
 // Import user enrichment helpers
 const { 
@@ -76,7 +77,7 @@ const getAllUsers = async (req, res) => {
     const enrichedUsers = await getAllUsersWithERPData({}, true);
     res.json(enrichedUsers);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 
@@ -132,7 +133,7 @@ const createUser = async (req, res) => {
     const newUser = await User.findById(user._id).select("-password");
     res.status(201).json(newUser);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 
@@ -192,7 +193,7 @@ const updateUser = async (req, res) => {
     const updatedUser = await User.findById(id).select("-password");
     res.status(200).json(updatedUser);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 
@@ -213,7 +214,7 @@ const deleteUser = async (req, res) => {
     }
     res.status(200).json({ message: "User deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 
@@ -229,7 +230,7 @@ const getUserById = async (req, res) => {
 
     res.status(200).json(user);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 
@@ -241,7 +242,7 @@ const getUsersByType = async (req, res) => {
     const enrichedUsers = await getAllUsersWithERPData({ userType }, true);
     res.json(enrichedUsers);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 

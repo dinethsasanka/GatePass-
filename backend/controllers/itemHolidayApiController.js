@@ -2,7 +2,7 @@ const {
   getItemCategories,
   getItemBySerialNumber,
   getHolidays,
-} = require("../services/intranetService");
+} = require("../services/itemHolidayApiService");
 const Holiday = require("../models/Holiday");
 
 /**
@@ -80,7 +80,7 @@ const fetchHolidays = async (req, res) => {
 };
 
 /**
- * Sync holidays from intranet API to database
+ * Sync holidays from ERP GatePass API to database
  */
 const syncHolidays = async (req, res) => {
   try {

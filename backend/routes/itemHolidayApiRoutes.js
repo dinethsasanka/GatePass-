@@ -6,7 +6,7 @@ const {
   fetchItemBySerialNumber,
   fetchHolidays,
   syncHolidays,
-} = require("../controllers/intranetController");
+} = require("../controllers/itemHolidayApiController");
 
 // Item categories route
 router.get("/categories", protect, fetchItemCategories);

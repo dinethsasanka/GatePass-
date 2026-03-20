@@ -1,7 +1,4 @@
 import axiosInstance from "./axiosConfig";
-import axios from "axios";
-
-export const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 export const searchSenderByServiceNo = async (serviceNo) => {
   if (!serviceNo) throw new Error("Service number is required");

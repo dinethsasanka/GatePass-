@@ -1,13 +1,5 @@
 // src/services/userManagementService.js
-import axios from "axios";
-
-export const API_BASE_URL = import.meta.env.VITE_API_URL;
 import axiosInstance from "./axiosConfig";
-
-const authHeaders = () => {
-  const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
 
 const handleAxios = async (fn, fallbackMessage = "Request failed") => {
   try {
@@ -24,8 +16,7 @@ const handleAxios = async (fn, fallbackMessage = "Request failed") => {
 export const getAllUsers = async (params = {}) =>
   handleAxios(
     () =>
-      axios.get(`${API_BASE_URL}/super-admin/users`, {
-        headers: authHeaders(),
+      axiosInstance.get(`/super-admin/users`, {
         params,
       }),
     "Failed to fetch users"
@@ -35,9 +26,7 @@ export const getAllUsers = async (params = {}) =>
 export const createUser = async (payload) =>
   handleAxios(
     () =>
-      axios.post(`${API_BASE_URL}/super-admin/users`, payload, {
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
-      }),
+      axiosInstance.post(`/super-admin/users`, payload),
     "Failed to create user"
   );
 
@@ -45,9 +34,7 @@ export const createUser = async (payload) =>
 export const updateUser = async (userId, payload) =>
   handleAxios(
     () =>
-      axios.put(`${API_BASE_URL}/super-admin/users/${userId}`, payload, {
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
-      }),
+      axiosInstance.put(`/super-admin/users/${userId}`, payload),
     "Failed to update user"
   );
 
@@ -55,9 +42,7 @@ export const updateUser = async (userId, payload) =>
 export const deleteUser = async (userId) =>
   handleAxios(
     () =>
-      axios.delete(`${API_BASE_URL}/super-admin/users/${userId}`, {
-        headers: authHeaders(),
-      }),
+      axiosInstance.delete(`/super-admin/users/${userId}`),
     "Failed to delete user"
   );
 
@@ -65,9 +50,7 @@ export const deleteUser = async (userId) =>
 export const getUserById = async (userId) =>
   handleAxios(
     () =>
-      axios.get(`${API_BASE_URL}/super-admin/users/${userId}`, {
-        headers: authHeaders(),
-      }),
+      axiosInstance.get(`/super-admin/users/${userId}`),
     "Failed to fetch user"
   );
 
@@ -75,8 +58,7 @@ export const getUserById = async (userId) =>
 export const getUsersByType = async (userType) =>
   handleAxios(
     () =>
-      axios.get(`${API_BASE_URL}/super-admin/users`, {
-        headers: authHeaders(),
+      axiosInstance.get(`/super-admin/users`, {
         params: { userType },
       }),
     "Failed to fetch users by type"
@@ -86,8 +68,7 @@ export const getUsersByType = async (userType) =>
 export const getUserByRoleAndBranch = async (role, branch) =>
   handleAxios(
     () =>
-      axios.get(`${API_BASE_URL}/super-admin/users`, {
-        headers: authHeaders(),
+      axiosInstance.get(`/super-admin/users`, {
         params: { role, branch },
       }),
     "Failed to fetch users by role/branch"
@@ -102,9 +83,7 @@ export const getUserByServiceNo = async (serviceNo) => {
   if (!serviceNo) throw new Error("serviceNo is required");
   return handleAxios(
     () =>
-      axios.get(`${API_BASE_URL}/users/${encodeURIComponent(serviceNo)}`, {
-        headers: authHeaders(),
-      }),
+      axiosInstance.get(`/users/${encodeURIComponent(serviceNo)}`),
     "Failed to fetch user by service number"
   );
 };
@@ -118,9 +97,7 @@ export const updateUserRole = async (userId, { role, branches } = {}) => {
 
   return handleAxios(
     () =>
-      axios.put(`${API_BASE_URL}/super-admin/users/${userId}`, body, {
-        headers: { ...authHeaders(), "Content-Type": "application/json" },
-      }),
+      axiosInstance.put(`/super-admin/users/${userId}`, body),
     "Failed to update user role"
   );
 };
@@ -128,9 +105,7 @@ export const updateUserRole = async (userId, { role, branches } = {}) => {
 export const assignRoleFromERP = async (payload) =>
   handleAxios(
     () =>
-      axios.post(`${API_BASE_URL}/super-admin/users/assign-role`, payload, {
-        headers: authHeaders(),
-      }),
+      axiosInstance.post(`/super-admin/users/assign-role`, payload),
     "Failed to assign role"
   );
 

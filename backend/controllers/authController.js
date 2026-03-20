@@ -3,8 +3,30 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
 const { ConfidentialClientApplication } = require("@azure/msal-node");
-const EMPLOYEE_API_BASE_URL =
-  "https://employee-api-without-category-production.up.railway.app/api";
+const { safeErrorResponse } = require("../middleware/errorHandler");
+
+const normalizeBaseUrl = (url) =>
+  String(url || "")
+    .trim()
+    .replace(/`/g, "")
+    .replace(/\/+$/, "");
+
+const EMPLOYEE_API_BASE_URL = normalizeBaseUrl(
+  process.env.EMPLOYEE_API_BASE_URL,
+);
+const HAS_EMPLOYEE_API_BASE_URL = EMPLOYEE_API_BASE_URL.length > 0;
+
+const buildEmployeeApiUrl = (path) => {
+  if (!HAS_EMPLOYEE_API_BASE_URL) {
+    return null;
+  }
+
+  const normalizedPath = String(path || "").startsWith("/")
+    ? path
+    : `/${path}`;
+  return `${EMPLOYEE_API_BASE_URL}${normalizedPath}`;
+};
+
 let apiToken = null;
 
 const mapApiDataToUser = (apiData) => {
@@ -68,8 +90,15 @@ const authenticateWithEmployeeAPI = async (
   password = "password",
 ) => {
   try {
+    if (!HAS_EMPLOYEE_API_BASE_URL) {
+      return {
+        success: false,
+        error: "EMPLOYEE_API_BASE_URL is not configured",
+      };
+    }
+
     const response = await axios.post(
-      `${EMPLOYEE_API_BASE_URL}/common/authenticate`,
+      buildEmployeeApiUrl("/common/authenticate"),
       {
         username,
         password,
@@ -100,16 +129,21 @@ const authenticateWithEmployeeAPI = async (
 
 const getEmployeeFromAPI = async (employeeNumber) => {
   try {
+    if (!HAS_EMPLOYEE_API_BASE_URL) {
+      return null;
+    }
+
     if (!apiToken) {
-      await authenticateWithEmployeeAPI();
+      const authResult = await authenticateWithEmployeeAPI();
+      if (!authResult.success || !apiToken) {
+        return null;
+      }
     }
 
     const response = await axios.get(
-      `${EMPLOYEE_API_BASE_URL}/employees/GetEmployeeDetails`,
+      buildEmployeeApiUrl("/employees/GetEmployeeDetails"),
       {
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-        },
+        headers: apiToken ? { Authorization: `Bearer ${apiToken}` } : {},
         params: {
           queryParameter: "EMPLOYEE_NUMBER",
           queryValue: employeeNumber,
@@ -126,13 +160,15 @@ const getEmployeeFromAPI = async (employeeNumber) => {
     // If token expired, try to re-authenticate
     if (error.response && error.response.status === 401) {
       try {
-        await authenticateWithEmployeeAPI();
+        const authResult = await authenticateWithEmployeeAPI();
+        if (!authResult.success || !apiToken) {
+          return null;
+        }
+
         const retryResponse = await axios.get(
-          `${EMPLOYEE_API_BASE_URL}/employees/GetEmployeeDetails`,
+          buildEmployeeApiUrl("/employees/GetEmployeeDetails"),
           {
-            headers: {
-              Authorization: `Bearer ${apiToken}`,
-            },
+            headers: apiToken ? { Authorization: `Bearer ${apiToken}` } : {},
             params: {
               queryParameter: "EMPLOYEE_NUMBER",
               queryValue: employeeNumber,
@@ -160,8 +196,7 @@ const getEmployeeFromAPI = async (employeeNumber) => {
 // Azure AD configuration
 const msalConfig = {
   auth: {
-    clientId:
-      process.env.AZURE_CLIENT_ID || "fb3e75a7-554f-41f8-9da3-2b162c255349",
+    clientId: process.env.AZURE_CLIENT_ID,
     clientSecret: process.env.AZURE_CLIENT_SECRET,
     // Use 'common' to allow personal Microsoft accounts and work/school accounts
     authority: `https://login.microsoftonline.com/common`,
@@ -171,9 +206,9 @@ const msalConfig = {
 // Validate Azure configuration and create MSAL instance only if credentials are available
 let msalInstance = null;
 
-if (!process.env.AZURE_CLIENT_SECRET) {
+if (!process.env.AZURE_CLIENT_ID || !process.env.AZURE_CLIENT_SECRET) {
   console.warn(
-    "⚠️  AZURE_CLIENT_SECRET is not set - Azure login will not work",
+    "⚠️  Azure credentials not configured - Azure login will not work",
   );
 } else {
   try {
@@ -181,8 +216,7 @@ if (!process.env.AZURE_CLIENT_SECRET) {
     console.log("✅ Azure MSAL instance initialized successfully");
   } catch (error) {
     console.error(
-      "❌ Failed to initialize Azure MSAL instance:",
-      error.message,
+      "❌ Failed to initialize Azure MSAL instance"
     );
   }
 }
@@ -249,7 +283,7 @@ const loginUser = async (req, res) => {
   try {
     const { userId, password, userType } = req.body;
 
-    console.log("Login attempt:", { userId, userType, password });
+    console.log("Login attempt:", { userId, userType });
 
     // First, try to find user in local database
     let user = await User.findOne({ userId, userType });
@@ -382,7 +416,7 @@ const loginUser = async (req, res) => {
     });
   } catch (error) {
     console.error("Login error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 
@@ -648,41 +682,56 @@ const azureLogin = async (req, res) => {
 
     const erpData = await fetchERPData(serviceNo);
 
-    if (!erpData) {
-      return res.status(404).json({
-        message: "Employee not found in ERP system",
-        serviceNo,
-      });
+    // Step 5a: If ERP data not available, use Azure AD data as fallback
+    let userData;
+    if (erpData) {
+      // Full data from ERP
+      userData = {
+        _id: userInfo.id,
+        userType: "SLT",
+        userId: userInfo.userPrincipalName,
+        email: azureEmail,
+        serviceNo: erpData.serviceNo,
+        name: erpData.name,
+        designation: erpData.designation,
+        section: erpData.section || "N/A",
+        group: erpData.group || "N/A",
+        contactNo: erpData.contactNo || "N/A",
+        gradeName: erpData.gradeName || "N/A",
+        fingerScanLocation: erpData.fingerScanLocation,
+        branches: erpData.branches || ["SLT HQ"],
+        role: erpData.role || "User",
+        isAzureUser: true,
+        hasERPData: true,
+      };
+      console.log("✅ Azure login with full ERP data:", userData.name);
+    } else {
+      // Fallback: Use Azure AD data only
+      console.warn(`⚠️  ERP data not available for ${serviceNo}, using Azure AD data only`);
+      userData = {
+        _id: userInfo.id,
+        userType: "SLT",
+        userId: userInfo.userPrincipalName,
+        email: azureEmail,
+        serviceNo: serviceNo,
+        name: userInfo.displayName || "Azure User",
+        designation: userInfo.jobTitle || "N/A",
+        section: userInfo.department || "N/A",
+        group: userInfo.companyName || "N/A",
+        contactNo: userInfo.mobilePhone || userInfo.businessPhones?.[0] || "N/A",
+        gradeName: "N/A",
+        fingerScanLocation: "N/A",
+        branches: ["SLT HQ"],
+        role: "User",
+        isAzureUser: true,
+        hasERPData: false,
+        _warning: "Limited data - ERP unavailable",
+      };
+      console.log("⚠️  Azure login with Azure AD data only:", userData.name);
     }
-
-    // Step 5: Build user data from ERP (No MongoDB involved!)
-    const userData = {
-      _id: userInfo.id, // Use Azure ID (not MongoDB ID)
-      userType: "SLT",
-      userId: userInfo.userPrincipalName,
-      email: azureEmail,
-      serviceNo: erpData.serviceNo,
-      name: erpData.name,
-      designation: erpData.designation,
-      section: erpData.section || "N/A",
-      group: erpData.group || "N/A",
-      contactNo: erpData.contactNo || "N/A",
-      gradeName: erpData.gradeName || "N/A",
-      fingerScanLocation: erpData.fingerScanLocation,
-      branches: erpData.branches || ["SLT HQ"],
-      role: erpData.role || "User",
-      isAzureUser: true,
-      hasERPData: true,
-    };
 
     // Step 6: Generate JWT using Azure ID (not MongoDB ID)
     const token = generateAzureToken(userInfo.id, userData);
-
-    // Step 7: Return response
-    res.json({
-      ...userData,
-      token,
-    });
   } catch (error) {
     console.error("Azure login error:", error.message);
     res.status(500).json({

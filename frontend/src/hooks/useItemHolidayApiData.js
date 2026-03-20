@@ -3,10 +3,10 @@ import {
   getItemCategories,
   getItemBySerialNumber,
   getHolidays,
-} from "../services/intranetService";
+} from "../services/itemHolidayApiService";
 
 /**
- * Custom hook to fetch item categories
+ * Custom hook to fetch item categories from ERP GatePass API
  * @returns {Object} { categories, loading, error, refetch }
  */
 export const useItemCategories = () => {
@@ -19,9 +19,18 @@ export const useItemCategories = () => {
     setError(null);
     try {
       const data = await getItemCategories();
-      setCategories(data);
+      console.log("Categories received from API:", data);
+      console.log("Categories type check:", Array.isArray(data), typeof data);
+      
+      // Ensure we have an array of strings
+      const validCategories = Array.isArray(data)
+        ? data.filter((cat) => cat && typeof cat === "string")
+        : [];
+      
+      console.log("Valid categories after filtering:", validCategories);
+      setCategories(validCategories.length > 0 ? validCategories : []);
     } catch (err) {
-      console.error("Failed to fetch categories from API:", err);
+      console.error("Failed to fetch categories from ERP API:", err);
       setError(
         err.response?.data?.message ||
           err.message ||
@@ -97,7 +106,7 @@ export const useItemCategories = () => {
 };
 
 /**
- * Custom hook to fetch item by serial number
+ * Custom hook to fetch item by serial number from ERP GatePass API
  * @param {string} serialNumber - The serial number to fetch
  * @param {boolean} shouldFetch - Whether to fetch automatically
  * @returns {Object} { item, loading, error, found, fetchItem }
@@ -144,7 +153,7 @@ export const useItemBySerialNumber = (serialNumber, shouldFetch = false) => {
 };
 
 /**
- * Custom hook to fetch holidays
+ * Custom hook to fetch holidays from ERP GatePass API
  * @param {number} year - The year to fetch holidays for
  * @returns {Object} { holidays, loading, error, refetch }
  */

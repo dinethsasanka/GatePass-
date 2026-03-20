@@ -4,6 +4,8 @@ const { uploadImage, getImage } = require("../utils/imageUpload");
 const { emitNewRequest } = require("../utils/socketEmitter");
 const ErpLocation = require("../models/ErpLocation");
 const { resolveLocationName } = require("../utils/locationResolver");
+const { validateRequestCreation } = require("../utils/validators");
+const { safeErrorResponse } = require("../middleware/errorHandler");
 
 async function toLocationName(raw) {
   if (!raw) return raw;
@@ -49,6 +51,16 @@ const createRequest = async (req, res) => {
       vehicleNumber,
       vehicleModel,
     } = req.body;
+
+    // ✅ VALIDATION: Validate request data
+    const validation = validateRequestCreation(req.body);
+    if (!validation.isValid) {
+      console.log("❌ Validation failed:", validation.errors);
+      return res.status(400).json({
+        error: "Validation failed",
+        details: validation.errors,
+      });
+    }
 
     const referenceNumber = `REQ-${Date.now()}-${Math.floor(
       Math.random() * 1000,
@@ -269,7 +281,7 @@ const getRequests = async (req, res) => {
     const requests = await Request.find();
     res.json(requests);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return safeErrorResponse(res, error, 500);
   }
 };
 

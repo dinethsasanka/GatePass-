@@ -31,6 +31,14 @@ import {
 } from "../utils/userCache.js";
 import { useAutoRefetch } from "../hooks/useRealtimeUpdates.js";
 import {
+  validateRequired,
+  validateName,
+  validateNIC,
+  validatePhone,
+  validateEmail,
+  validateCompanyName,
+} from "../utils/validators.js";
+import {
   FaClock,
   FaEye,
   FaUser,
@@ -214,62 +222,23 @@ const Receive = () => {
 
     switch (field) {
       case "name":
-        if (!value.trim()) {
-          error = "Name is required";
-        } else if (value.trim().length < 2) {
-          error = "Name must be at least 2 characters";
-        } else {
-          // Only allow letters, spaces, hyphens, apostrophes, and dots - no numbers
-          const nameRegex = /^[a-zA-Z\s'.-]+$/;
-          if (!nameRegex.test(value.trim())) {
-            error =
-              "Name can only contain letters, spaces, hyphens, apostrophes, and dots";
-          }
-        }
+        error = validateName(value);
         break;
 
       case "companyName":
-        if (!value.trim()) {
-          error = "Company name is required";
-        } else if (value.trim().length < 2) {
-          error = "Company name must be at least 2 characters";
-        }
+        error = validateCompanyName(value);
         break;
 
       case "nic":
-        if (!value.trim()) {
-          error = "NIC is required";
-        } else {
-          // Sri Lankan NIC validation: 9 digits + V/X or 12 digits
-          const nicRegex = /^(\d{9}[VvXx]|\d{12})$/;
-          if (!nicRegex.test(value.trim())) {
-            error = "NIC must be 9 digits + V/X or 12 digits";
-          }
-        }
+        error = validateNIC(value);
         break;
 
       case "contactNo":
-        if (!value.trim()) {
-          error = "Contact number is required";
-        } else {
-          // Phone number validation: at least 10 digits, allows + and spaces
-          const phoneRegex = /^[+]?[0-9\s-]{9,}$/;
-          if (!phoneRegex.test(value.trim())) {
-            error = "Contact number must be at least 10 digits";
-          }
-        }
+        error = validatePhone(value);
         break;
 
       case "email":
-        if (!value.trim()) {
-          error = "Email is required";
-        } else {
-          // Email validation
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(value.trim())) {
-            error = "Please enter a valid email address";
-          }
-        }
+        error = validateEmail(value);
         break;
 
       default:

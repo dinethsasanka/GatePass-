@@ -1,4 +1,4 @@
-const { getHolidays } = require("../services/intranetService");
+const { getHolidays } = require("../services/itemHolidayApiService");
 
 const DEV_TIME_OVERRIDE = {
   enable: false,
