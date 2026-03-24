@@ -21,7 +21,9 @@ const buildEmployeeApiUrl = (path) => {
     return null;
   }
 
-  const normalizedPath = String(path || "").startsWith("/") ? path : `/${path}`;
+  const normalizedPath = String(path || "").startsWith("/")
+    ? path
+    : `/${path}`;
   return `${EMPLOYEE_API_BASE_URL}${normalizedPath}`;
 };
 
@@ -213,7 +215,9 @@ if (!process.env.AZURE_CLIENT_ID || !process.env.AZURE_CLIENT_SECRET) {
     msalInstance = new ConfidentialClientApplication(msalConfig);
     console.log("✅ Azure MSAL instance initialized successfully");
   } catch (error) {
-    console.error("❌ Failed to initialize Azure MSAL instance");
+    console.error(
+      "❌ Failed to initialize Azure MSAL instance"
+    );
   }
 }
 
@@ -703,9 +707,7 @@ const azureLogin = async (req, res) => {
       console.log("✅ Azure login with full ERP data:", userData.name);
     } else {
       // Fallback: Use Azure AD data only
-      console.warn(
-        `⚠️  ERP data not available for ${serviceNo}, using Azure AD data only`,
-      );
+      console.warn(`⚠️  ERP data not available for ${serviceNo}, using Azure AD data only`);
       userData = {
         _id: userInfo.id,
         userType: "SLT",
@@ -716,8 +718,7 @@ const azureLogin = async (req, res) => {
         designation: userInfo.jobTitle || "N/A",
         section: userInfo.department || "N/A",
         group: userInfo.companyName || "N/A",
-        contactNo:
-          userInfo.mobilePhone || userInfo.businessPhones?.[0] || "N/A",
+        contactNo: userInfo.mobilePhone || userInfo.businessPhones?.[0] || "N/A",
         gradeName: "N/A",
         fingerScanLocation: "N/A",
         branches: ["SLT HQ"],
@@ -731,6 +732,13 @@ const azureLogin = async (req, res) => {
 
     // Step 6: Generate JWT using Azure ID (not MongoDB ID)
     const token = generateAzureToken(userInfo.id, userData);
+    
+    // Step 7: Return token + user data to the frontend
+    res.json({
+      token,
+      ...userData,
+    });
+    
   } catch (error) {
     console.error("Azure login error:", error.message);
     res.status(500).json({
@@ -738,11 +746,6 @@ const azureLogin = async (req, res) => {
       error: error.message,
     });
   }
-  // Step 7: Return token + user data to the frontend
-  res.json({
-    token,
-    ...userData,
-  });
 };
 
 // Get Azure login URL
