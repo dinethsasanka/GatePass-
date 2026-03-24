@@ -1,39 +1,54 @@
 const axios = require("axios");
 
-// Item & Holiday API Configuration
-const ITEM_HOLIDAY_API_BASE_URL = process.env.ITEM_HOLIDAY_API_BASE_URL;
-const ITEM_HOLIDAY_API_USERNAME = process.env.ITEM_HOLIDAY_API_USERNAME;
-const ITEM_HOLIDAY_API_PASSWORD = process.env.ITEM_HOLIDAY_API_PASSWORD;
-const ITEM_HOLIDAY_API_TIMEOUT = parseInt(process.env.ITEM_HOLIDAY_API_TIMEOUT) || 30000;
-
 // API Endpoints
 const ENDPOINT_GET_CATEGORIES = process.env.ITEM_HOLIDAY_API_GET_CATEGORIES;
 const ENDPOINT_GET_ITEM_BY_SERIAL = process.env.ITEM_HOLIDAY_API_GET_ITEM_BY_SERIAL;
 const ENDPOINT_GET_HOLIDAYS_BY_YEAR = process.env.ITEM_HOLIDAY_API_GET_HOLIDAYS_BY_YEAR;
 const ENDPOINT_GET_HOLIDAYS_BY_MONTH = process.env.ITEM_HOLIDAY_API_GET_HOLIDAYS_BY_MONTH;
 
-// Validate required environment variables
-if (!ITEM_HOLIDAY_API_BASE_URL) {
-  throw new Error("ITEM_HOLIDAY_API_BASE_URL is not defined in environment variables");
-}
-if (!ITEM_HOLIDAY_API_USERNAME) {
-  throw new Error("ITEM_HOLIDAY_API_USERNAME is not defined in environment variables");
-}
-if (!ITEM_HOLIDAY_API_PASSWORD) {
-  throw new Error("ITEM_HOLIDAY_API_PASSWORD is not defined in environment variables");
-}
+const getItemHolidayApiConfig = () => {
+  const baseURL = process.env.ITEM_HOLIDAY_API_BASE_URL;
+  const username = process.env.ITEM_HOLIDAY_API_USERNAME;
+  const password = process.env.ITEM_HOLIDAY_API_PASSWORD;
+  const timeout = parseInt(process.env.ITEM_HOLIDAY_API_TIMEOUT, 10) || 30000;
 
-// Create axios instance with default config
-const itemHolidayApiAxios = axios.create({
-  baseURL: ITEM_HOLIDAY_API_BASE_URL,
-  timeout: ITEM_HOLIDAY_API_TIMEOUT,
-  headers: {
-    accept: "text/plain",
-    "Content-Type": "application/json",
-    UserName: ITEM_HOLIDAY_API_USERNAME,
-    Password: ITEM_HOLIDAY_API_PASSWORD,
-  },
-});
+  const missingVars = [];
+  if (!baseURL) missingVars.push("ITEM_HOLIDAY_API_BASE_URL");
+  if (!username) missingVars.push("ITEM_HOLIDAY_API_USERNAME");
+  if (!password) missingVars.push("ITEM_HOLIDAY_API_PASSWORD");
+
+  if (missingVars.length > 0) {
+    throw new Error(
+      `Item & Holiday API configuration missing: ${missingVars.join(", ")}`,
+    );
+  }
+
+  return {
+    baseURL,
+    username,
+    password,
+    timeout,
+  };
+};
+
+const createItemHolidayApiClient = () => {
+  const config = getItemHolidayApiConfig();
+  const client = axios.create({
+    baseURL: config.baseURL,
+    timeout: config.timeout,
+    headers: {
+      accept: "text/plain",
+      "Content-Type": "application/json",
+      UserName: config.username,
+      Password: config.password,
+    },
+  });
+
+  return {
+    client,
+    config,
+  };
+};
 
 /**
  * Get all item categories
@@ -41,9 +56,11 @@ const itemHolidayApiAxios = axios.create({
  */
 const getItemCategories = async () => {
   try {
+    const { client: itemHolidayApiAxios, config } = createItemHolidayApiClient();
+
     console.log(
       "Fetching item categories from:",
-      ITEM_HOLIDAY_API_BASE_URL + ENDPOINT_GET_CATEGORIES,
+      config.baseURL + ENDPOINT_GET_CATEGORIES,
     );
     const response = await itemHolidayApiAxios.post(ENDPOINT_GET_CATEGORIES);
 
@@ -174,9 +191,11 @@ const getItemCategories = async () => {
  */
 const getItemBySerialNumber = async (serialNumber) => {
   try {
+    const { client: itemHolidayApiAxios, config } = createItemHolidayApiClient();
+
     console.log(
       `Fetching item ${serialNumber} from:`,
-      ITEM_HOLIDAY_API_BASE_URL + ENDPOINT_GET_ITEM_BY_SERIAL,
+      config.baseURL + ENDPOINT_GET_ITEM_BY_SERIAL,
     );
     const response = await itemHolidayApiAxios.post(
       ENDPOINT_GET_ITEM_BY_SERIAL,
@@ -264,9 +283,11 @@ const getItemBySerialNumber = async (serialNumber) => {
  */
 const getHolidaysByYear = async (year = new Date().getFullYear()) => {
   try {
+    const { client: itemHolidayApiAxios, config } = createItemHolidayApiClient();
+
     console.log(
       `Fetching holidays for year ${year} from:`,
-      ITEM_HOLIDAY_API_BASE_URL + ENDPOINT_GET_HOLIDAYS_BY_YEAR,
+      config.baseURL + ENDPOINT_GET_HOLIDAYS_BY_YEAR,
     );
     const response = await itemHolidayApiAxios.post(ENDPOINT_GET_HOLIDAYS_BY_YEAR, {
       year: year,
@@ -400,9 +421,11 @@ const getHolidaysByMonth = async (
   month = new Date().getMonth() + 1,
 ) => {
   try {
+    const { client: itemHolidayApiAxios, config } = createItemHolidayApiClient();
+
     console.log(
       `Fetching holidays for ${year}-${month} from:`,
-      ITEM_HOLIDAY_API_BASE_URL + ENDPOINT_GET_HOLIDAYS_BY_MONTH,
+      config.baseURL + ENDPOINT_GET_HOLIDAYS_BY_MONTH,
     );
     const response = await itemHolidayApiAxios.post(ENDPOINT_GET_HOLIDAYS_BY_MONTH, {
       year: year,
