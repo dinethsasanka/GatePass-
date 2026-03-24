@@ -32,18 +32,24 @@ jobs:
         working-directory: frontend
         run: |
           echo "${{ secrets.ENV_FILE }}" > .env
-          echo "VITE_API_URL=https://gatepass.slt.lk/api" >> .env
+          if grep -q '^VITE_API_URL=' .env; then
+            sed -i 's|^VITE_API_URL=.*|VITE_API_URL=https://gatepass.slt.lk/api|' .env
+          else
+            echo "VITE_API_URL=https://gatepass.slt.lk/api" >> .env
+          fi
 
      
       - name: Build frontend
         working-directory: frontend
+        env:
+          VITE_API_URL: https://gatepass.slt.lk/api
         run: |
           npm ci
           NODE_ENV=production npm run build
 
       - name: Verify API URL inside build
         run: |
-          grep -R "gatepass.slt.lk/api" frontend/dist || (echo "API URL missing in build" && exit 1)
+          grep -R -q "gatepass.slt.lk/api" frontend/dist || (echo "API URL missing in build" && exit 1)
 
   
       - name: Verify frontend build
@@ -88,6 +94,8 @@ jobs:
             FRONTEND_ROOT="/opt/Gate_Pass"
             FRONTEND_BLUE="/opt/Gate_Pass_blue"
             FRONTEND_GREEN="/opt/Gate_Pass_green"
+            FRONTEND_RELEASE_BASE="/opt/Gate_Pass_releases"
+            FRONTEND_RELEASE_DIR="$FRONTEND_RELEASE_BASE/release-$RELEASE_TIME"
 
             BACKEND_ENV="/var/www/env/backend.env"
 
@@ -142,15 +150,13 @@ jobs:
 
          
             # Frontend (Blue/Green)
-         
-            mkdir -p "$FRONTEND_GREEN"
-            rm -rf "$FRONTEND_GREEN"/*
-            cp -r "$CURRENT_DIR/frontend/dist/"* "$FRONTEND_GREEN/"
 
-            ln -sfn "$FRONTEND_GREEN" "$FRONTEND_ROOT"
+            mkdir -p "$FRONTEND_RELEASE_DIR"
+            cp -r "$CURRENT_DIR/frontend/dist/"* "$FRONTEND_RELEASE_DIR/"
 
-            rm -rf "$FRONTEND_BLUE"
-            cp -r "$FRONTEND_GREEN" "$FRONTEND_BLUE"
+            ln -sfn "$FRONTEND_RELEASE_DIR" "$FRONTEND_ROOT"
+            ln -sfn "$FRONTEND_RELEASE_DIR" "$FRONTEND_GREEN"
+            ln -sfn "$FRONTEND_RELEASE_DIR" "$FRONTEND_BLUE"
 
            
             # ACTIVE RELEASE CHECK
