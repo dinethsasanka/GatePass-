@@ -3,10 +3,12 @@
  * Centralized configuration to ensure consistency across the application
  */
 
+const azureTenantId = import.meta.env.VITE_AZURE_TENANT_ID?.trim() || "common";
+
 export const msalConfig = {
   auth: {
     clientId: import.meta.env.VITE_AZURE_CLIENT_ID,
-    authority: `https://login.microsoftonline.com/${import.meta.env.VITE_AZURE_TENANT_ID}`,
+    authority: `https://login.microsoftonline.com/${azureTenantId}`,
     redirectUri:
       import.meta.env.VITE_AZURE_REDIRECT_URI?.trim() ||
       (typeof window !== "undefined"
