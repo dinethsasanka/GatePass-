@@ -37,12 +37,19 @@ jobs:
           else
             echo "VITE_API_URL=https://gatepass.slt.lk/api" >> .env
           fi
+          # Dynamically inject Azure config variables from GitHub vars
+          echo "VITE_AZURE_CLIENT_ID=${{ vars.VITE_AZURE_CLIENT_ID }}" >> .env
+          echo "VITE_AZURE_TENANT_ID=${{ vars.VITE_AZURE_TENANT_ID }}" >> .env
+          echo "VITE_AZURE_REDIRECT_URI=${{ vars.VITE_AZURE_REDIRECT_URI }}" >> .env
 
      
       - name: Build frontend
         working-directory: frontend
         env:
           VITE_API_URL: https://gatepass.slt.lk/api
+          VITE_AZURE_CLIENT_ID: ${{ vars.VITE_AZURE_CLIENT_ID }}
+          VITE_AZURE_TENANT_ID: ${{ vars.VITE_AZURE_TENANT_ID }}
+          VITE_AZURE_REDIRECT_URI: ${{ vars.VITE_AZURE_REDIRECT_URI }}
         run: |
           npm ci
           NODE_ENV=production npm run build
