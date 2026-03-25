@@ -1,6 +1,6 @@
 import axiosInstance from "./axiosConfig";
 import { PublicClientApplication } from "@azure/msal-browser";
-import { msalConfig, loginRequest } from "../config/azureConfig";
+import { msalConfig, loginRequest, getAzureConfigIssues } from "../config/azureConfig";
 
 const msalInstance = new PublicClientApplication(msalConfig);
 
@@ -34,6 +34,11 @@ export const authService = {
 
   azureLogin: async () => {
     try {
+      const configIssues = getAzureConfigIssues();
+      if (configIssues.length > 0) {
+        throw new Error(`Azure configuration error: ${configIssues.join(", ")}`);
+      }
+
       // Initialize MSAL before using it
       await initializeMsal();
 
