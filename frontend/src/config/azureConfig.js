@@ -4,11 +4,14 @@
  */
 
 const azureTenantId = import.meta.env.VITE_AZURE_TENANT_ID?.trim() || "common";
+const azureAuthority =
+  import.meta.env.VITE_AZURE_AUTHORITY?.trim().replace(/\/$/, "") ||
+  `https://login.microsoftonline.com/${azureTenantId}`;
 
 export const msalConfig = {
   auth: {
     clientId: import.meta.env.VITE_AZURE_CLIENT_ID,
-    authority: `https://login.microsoftonline.com/${azureTenantId}`,
+    authority: azureAuthority,
     redirectUri:
       import.meta.env.VITE_AZURE_REDIRECT_URI?.trim() ||
       (typeof window !== "undefined"
