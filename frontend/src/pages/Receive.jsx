@@ -250,6 +250,70 @@ const Receive = () => {
 
   // Handle field change with real-time validation
   const handleNonSltFieldChange = (field, value) => {
+    if (field === "name" && /\d/.test(value) && value.length > nonSltStaffDetails.name.length) {
+      setFormErrors({ ...formErrors, name: "Numbers are not allowed in the name field." });
+      return;
+    }
+
+    if (field === "contactNo" && value.length > nonSltStaffDetails.contactNo.length) {
+      const currentContact = nonSltStaffDetails.contactNo;
+      const newChar = value.slice(currentContact.length);
+      if (/[^0-9+]/.test(newChar)) {
+        setFormErrors({ ...formErrors, contactNo: "Only numbers and + are allowed." });
+        return;
+      }
+      if (newChar === "+" && currentContact.length > 0) {
+        setFormErrors({ ...formErrors, contactNo: "+ is only allowed at the beginning." });
+        return;
+      }
+      if (currentContact.length === 0 && newChar !== "0" && newChar !== "+") {
+        setFormErrors({ ...formErrors, contactNo: "Number must start with 0 or +94." });
+        return;
+      }
+      if (currentContact === "+" && newChar !== "9") {
+        setFormErrors({ ...formErrors, contactNo: "Sri Lankan numbers start with +94." });
+        return;
+      }
+      if (currentContact === "+9" && newChar !== "4") {
+        setFormErrors({ ...formErrors, contactNo: "Sri Lankan numbers start with +94." });
+        return;
+      }
+      if (currentContact.startsWith("+") && currentContact.length >= 12) {
+        setFormErrors({ ...formErrors, contactNo: "Number is complete (+94 followed by 9 digits)." });
+        return;
+      }
+      if (currentContact.startsWith("0") && currentContact.length >= 10) {
+        setFormErrors({ ...formErrors, contactNo: "Number is complete (10 digits)." });
+        return;
+      }
+    }
+
+    if (field === "nic" && value.length > nonSltStaffDetails.nic.length) {
+      const currentNic = nonSltStaffDetails.nic;
+      const newChar = value.slice(currentNic.length);
+      if (/[^0-9Vv]/.test(newChar)) {
+        setFormErrors({ ...formErrors, nic: "Only numbers and the letter V are allowed." });
+        return;
+      }
+      if (/[Vv]/.test(newChar) && currentNic.length !== 9) {
+        setFormErrors({ ...formErrors, nic: "V can only be entered after 9 digits." });
+        return;
+      }
+      if (/[Vv]/.test(newChar) && /[Vv]/.test(currentNic)) {
+        setFormErrors({ ...formErrors, nic: "Only one V is allowed in the NIC." });
+        return;
+      }
+      if (/[Vv]/.test(currentNic)) {
+        setFormErrors({ ...formErrors, nic: "NIC is complete (9 digits + V)." });
+        return;
+      }
+      if (!/[Vv]/.test(currentNic) && !/[Vv]/.test(newChar) && currentNic.length >= 12) {
+        setFormErrors({ ...formErrors, nic: "NIC is complete (12 digits)." });
+        return;
+      }
+    }
+
+
     setNonSltStaffDetails({
       ...nonSltStaffDetails,
       [field]: value,
