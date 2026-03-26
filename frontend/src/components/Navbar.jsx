@@ -110,6 +110,7 @@ const Navbar = () => {
   }, []);
 
   const isLoginPage = location.pathname === "/";
+  const logoTargetPath = isLoginPage ? "/" : "/myrequests";
 
   const handleLogout = () => {
     localStorage.removeItem("user");
@@ -215,7 +216,7 @@ const Navbar = () => {
       <div className="max-w-screen-xl mx-auto p-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center group">
+          <Link to={logoTargetPath} className="flex items-center group">
             <div className="relative">
               <img
                 src={loginImage}
