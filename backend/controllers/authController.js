@@ -283,10 +283,20 @@ const loginUser = async (req, res) => {
   try {
     const { userId, password, userType } = req.body;
 
+    if (!userId || !password) {
+      return res.status(400).json({ message: "User ID and password are required" });
+    }
+
     console.log("Login attempt:", { userId, userType });
 
-    // First, try to find user in local database
-    let user = await User.findOne({ userId, userType });
+    // First, find by unique userId. userType is validated softly to avoid false negatives from client-side mismatch.
+    let user = await User.findOne({ userId });
+
+    if (user && userType && user.userType !== userType) {
+      console.warn(
+        `Login userType mismatch for ${userId}. Request: ${userType}, DB: ${user.userType}. Proceeding with userId match.`
+      );
+    }
 
     if (user) {
       // User exists in local database - verify password
@@ -344,7 +354,7 @@ const loginUser = async (req, res) => {
     }
 
     // Try to get employee details from API using userId as employee number
-    let employeeData = await getEmployeeFromAPI("12345");
+    let employeeData = await getEmployeeFromAPI(userId);
 
     // If not found by userId, try to search by email
     if (!employeeData) {
