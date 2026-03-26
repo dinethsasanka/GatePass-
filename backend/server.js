@@ -252,8 +252,25 @@ app.use((error, req, res, next) => {
   });
 });
 
-const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 Socket.IO ready for real-time updates`);
-});
+const DEFAULT_PORT = Number(process.env.PORT) || 5000;
+
+function startServer(port) {
+  server.once("error", (error) => {
+    if (error.code === "EADDRINUSE" && isDevelopment) {
+      const nextPort = Number(port) + 1;
+      console.warn(`⚠️  Port ${port} is already in use. Retrying on port ${nextPort}...`);
+      startServer(nextPort);
+      return;
+    }
+
+    console.error("Server startup error:", error);
+    process.exit(1);
+  });
+
+  server.listen(port, () => {
+    console.log(`🚀 Server running on port ${port}`);
+    console.log(`📡 Socket.IO ready for real-time updates`);
+  });
+}
+
+startServer(DEFAULT_PORT);
