@@ -35,6 +35,47 @@ export const validateNIC = (nic) => {
 };
 
 /**
+ * Keep NIC input limited to digits and V/v only.
+ * @param {string} value - Raw input
+ * @returns {string} - Sanitized NIC input
+ */
+export const sanitizeNICInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/[^0-9vV]/g, "");
+};
+
+/**
+ * Keep numeric inputs limited to digits only.
+ * @param {string} value - Raw input
+ * @returns {string} - Digits-only input
+ */
+export const sanitizeIntegerInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/\D/g, "");
+};
+
+/**
+ * Keep name input limited to letters and spaces only.
+ * @param {string} value - Raw input
+ * @returns {string} - Letters-and-spaces-only input
+ */
+export const sanitizeLettersOnlyInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/[^A-Za-z\s]/g, "");
+};
+
+/**
+ * Keep serial number input limited to supported characters.
+ * Allowed: letters, numbers, hyphen, underscore, slash.
+ * @param {string} value - Raw input
+ * @returns {string} - Sanitized serial number input
+ */
+export const sanitizeSerialNumberInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/[^A-Za-z0-9\-_/]/g, "");
+};
+
+/**
  * Validate phone number
  * @param {string} phone - Phone number to validate
  * @returns {string} - Error message or empty string if valid
@@ -310,9 +351,6 @@ export const validateSerialNumber = (serialNumber) => {
     return "Serial number is required";
   }
   const trimmed = serialNumber.trim();
-  if (trimmed.length < 3) {
-    return "Serial number must be at least 3 characters";
-  }
   // Allow alphanumeric, hyphens, underscores, and slashes
   const serialRegex = /^[a-zA-Z0-9\-_/]+$/;
   if (!serialRegex.test(trimmed)) {
