@@ -105,6 +105,8 @@ app.use(
     hidePoweredBy: true,
     // X-Permitted-Cross-Domain-Policies
     permittedCrossDomainPolicies: { permittedPolicies: "none" },
+    // Allow frontend app (different origin/port in dev) to load static images from backend.
+    crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
 
@@ -140,6 +142,7 @@ app.use((req, res, next) => {
 
 // 8) Static file serving
 app.use("/api/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Stricter CORS configuration specifically for authentication endpoints
 // Allows POST for login/register and GET for Azure OAuth URL endpoint
