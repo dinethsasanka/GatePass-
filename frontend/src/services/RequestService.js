@@ -1,5 +1,60 @@
 import axiosInstance from "./axiosConfig";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || axiosInstance.defaults.baseURL || "";
+
+const normalizeBaseUrl = (baseUrl) => String(baseUrl || "").replace(/\/+$/, "");
+
+const getApiBaseUrl = () => normalizeBaseUrl(API_BASE_URL);
+
+const getApiOrigin = () => getApiBaseUrl().replace(/\/api$/, "");
+
+const getUploadsBaseUrl = () => {
+  const base = getApiBaseUrl();
+  if (base.endsWith("/api")) {
+    return base;
+  }
+
+  return `${getApiOrigin()}/api`;
+};
+
+const buildImageUrl = (rawPath) => {
+  const imagePath = String(rawPath || "").trim();
+  if (!imagePath) {
+    return null;
+  }
+
+  const normalizedPath = imagePath.replace(/\\/g, "/");
+
+  // Handle absolute local filesystem paths by extracting uploads-relative segment.
+  const uploadsSegmentIndex = normalizedPath.toLowerCase().indexOf("/uploads/");
+  if (uploadsSegmentIndex >= 0) {
+    const uploadsRelativePath = normalizedPath.slice(uploadsSegmentIndex);
+    if (uploadsRelativePath.startsWith("/api/uploads")) {
+      return `${getApiOrigin()}${uploadsRelativePath}`;
+    }
+    return `${getUploadsBaseUrl()}${uploadsRelativePath}`;
+  }
+
+  if (normalizedPath.startsWith("http")) {
+    return normalizedPath;
+  }
+
+  if (normalizedPath.startsWith("/api/uploads")) {
+    return `${getApiOrigin()}${normalizedPath}`;
+  }
+
+  if (normalizedPath.startsWith("/uploads")) {
+    return `${getUploadsBaseUrl()}${normalizedPath}`;
+  }
+
+  if (normalizedPath.startsWith("/backend/uploads")) {
+    return `${getApiOrigin()}${normalizedPath}`;
+  }
+
+  return `${getUploadsBaseUrl()}/uploads/images/${normalizedPath}`;
+};
+
 export const searchSenderByServiceNo = async (serviceNo) => {
   if (!serviceNo) throw new Error("Service number is required");
 
@@ -127,25 +182,13 @@ export const getImageUrl = async (imageData) => {
     }
 
     // If it's an object with a url property (your schema structure)
-    if (typeof imageData === "object" && imageData.url) {
-      // Return the full URL by prepending the backend URL
-      return `${API_BASE_URL}${imageData.url}`;
+    if (typeof imageData === "object") {
+      return buildImageUrl(imageData.url || imageData.path || imageData.filePath);
     }
 
     // If it's just a string path
     if (typeof imageData === "string") {
-      // If it already starts with http, return as is
-      if (imageData.startsWith("http")) {
-        return imageData;
-      }
-
-      // If it starts with /uploads, prepend the backend URL
-      if (imageData.startsWith("/uploads")) {
-        return `${API_BASE_URL}${imageData}`;
-      }
-
-      // Otherwise, assume it's a relative path
-      return `${API_BASE_URL}/uploads/images/${imageData}`;
+      return buildImageUrl(imageData);
     }
 
     console.warn("Invalid image data format:", imageData);
@@ -227,26 +270,14 @@ export const getImageUrlSync = (imageData) => {
   }
 
   // If it's an object with a url property (your schema structure)
-  if (typeof imageData === "object" && imageData.url) {
-    return `${API_BASE_URL}${imageData.url}`;
+  if (typeof imageData === "object") {
+    return buildImageUrl(imageData.url || imageData.path || imageData.filePath);
   }
 
   // If it's just a string path
-    if (typeof imageData === "string") {
-      if (imageData.startsWith("http")) {
-        return imageData;
-      }
-
-      if (imageData.startsWith("/uploads")) {
-        return `${API_BASE_URL}${imageData}`;
-      }
-
-      if (imageData.startsWith("/backend/uploads")) {
-        return `${API_BASE_URL}${imageData}`;
-      }
-
-      return `${API_BASE_URL}/uploads/images/${imageData}`;
-    }
+  if (typeof imageData === "string") {
+    return buildImageUrl(imageData);
+  }
 
   return null;
 };
