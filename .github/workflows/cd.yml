@@ -97,6 +97,10 @@ jobs:
             RELEASE_TIME=$(date +"%Y%m%d-%H%M%S")
             RELEASE_DIR="/var/www/releases/release-$RELEASE_TIME"
             CURRENT_DIR="/var/www/releases/current"
+            PREVIOUS_CURRENT=""
+            if [ -L "$CURRENT_DIR" ] || [ -d "$CURRENT_DIR" ]; then
+              PREVIOUS_CURRENT=$(readlink -f "$CURRENT_DIR" || true)
+            fi
 
             FRONTEND_ROOT="/opt/Gate_Pass"
             FRONTEND_BLUE="/opt/Gate_Pass_blue"
@@ -105,8 +109,10 @@ jobs:
             FRONTEND_RELEASE_DIR="$FRONTEND_RELEASE_BASE/release-$RELEASE_TIME"
 
             BACKEND_ENV="/var/www/env/backend.env"
+            SHARED_UPLOADS_DIR="/var/www/shared/gatepass/uploads/images"
 
             mkdir -p "$RELEASE_DIR"
+            mkdir -p "$SHARED_UPLOADS_DIR"
 
             echo "Copying deployment files..."
             cp -r /home/dpd/GatePass-deploy/* "$RELEASE_DIR/"
@@ -124,6 +130,12 @@ jobs:
             Branch: main
             EOF
 
+            # One-time migration: seed shared uploads from previous release if shared folder is empty.
+            if [ -n "$PREVIOUS_CURRENT" ] && [ -d "$PREVIOUS_CURRENT/backend/uploads/images" ] && [ -z "$(ls -A "$SHARED_UPLOADS_DIR" 2>/dev/null)" ]; then
+              echo "Seeding shared uploads from previous release"
+              cp -an "$PREVIOUS_CURRENT/backend/uploads/images/." "$SHARED_UPLOADS_DIR/" || true
+            fi
+
             ln -sfn "$RELEASE_DIR" "$CURRENT_DIR"
 
             
@@ -137,6 +149,11 @@ jobs:
            
             cd "$CURRENT_DIR/backend"
             ln -sfn "$BACKEND_ENV" .env
+
+            # Persist uploads across releases: backend/uploads/images -> shared storage
+            mkdir -p "$CURRENT_DIR/backend/uploads"
+            rm -rf "$CURRENT_DIR/backend/uploads/images"
+            ln -sfn "$SHARED_UPLOADS_DIR" "$CURRENT_DIR/backend/uploads/images"
 
             npm ci --omit=dev
 
