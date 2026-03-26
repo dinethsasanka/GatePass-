@@ -96,7 +96,7 @@ const Login = () => {
       }
     } catch (error) {
       setLoginError(true);
-      showToast("Login failed. Please try again.", "error");
+      showToast(error.message || "Login failed. Please try again.", "error");
     } finally {
       setIsLoading(false);
     }
