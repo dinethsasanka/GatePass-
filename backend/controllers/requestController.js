@@ -200,11 +200,14 @@ const processCSVItems = async (csvItems, files) => {
   const fileMap = {};
   if (files && files.length > 0) {
     files.forEach((file) => {
-      fileMap[file.originalname] = file;
+      if (!fileMap[file.originalname]) {
+        fileMap[file.originalname] = [];
+      }
+      fileMap[file.originalname].push(file);
     });
     console.log(
       "📎 File map created with",
-      Object.keys(fileMap).length,
+      files.length,
       "files",
     );
   }
@@ -220,7 +223,8 @@ const processCSVItems = async (csvItems, files) => {
         );
 
         for (const fileName of item.originalFileNames) {
-          const file = fileMap[fileName];
+          const fileQueue = fileMap[fileName];
+          const file = Array.isArray(fileQueue) ? fileQueue.shift() : null;
           if (file) {
             try {
               // uploadImage returns { url: '...', path: '...' }
