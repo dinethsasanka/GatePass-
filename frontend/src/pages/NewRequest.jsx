@@ -964,7 +964,24 @@ const NewRequest = () => {
         }
       }
 
-      const itemsWithFileNames = items.map((item) => ({
+      const itemUploadBatches = items.map((item, itemIndex) => {
+        const imageUploads = (item.images || []).map((image, imageIndex) => {
+          const extIndex = image.name.lastIndexOf(".");
+          const ext = extIndex >= 0 ? image.name.slice(extIndex) : "";
+          const uploadKey = `item-${itemIndex}-${imageIndex}-${Date.now()}-${Math.floor(Math.random() * 1e6)}${ext}`;
+          return {
+            image,
+            uploadKey,
+          };
+        });
+
+        return {
+          item,
+          imageUploads,
+        };
+      });
+
+      const itemsWithFileNames = itemUploadBatches.map(({ item, imageUploads }) => ({
         serialNumber: item.serialNumber,
         itemCode: item.itemCode || "",
         itemDescription: item.itemDescription,
@@ -973,15 +990,15 @@ const NewRequest = () => {
         itemReturnable: item.returnable === "Yes",
         itemQuantity: parseInt(item.qty) || 1,
         returnDate: item.returnDate || null,
-        originalFileNames: item.images.map((img) => img.name),
+        originalFileNames: imageUploads.map(({ uploadKey }) => uploadKey),
       }));
 
       formData.append("items", JSON.stringify(itemsWithFileNames));
 
-      // ⭐ Add images in order per item
-      items.forEach((item) => {
-        item.images.forEach((image) => {
-          formData.append("itemPhotos", image);
+      // Add images using deterministic upload keys to avoid filename collisions.
+      itemUploadBatches.forEach(({ imageUploads }) => {
+        imageUploads.forEach(({ image, uploadKey }) => {
+          formData.append("itemPhotos", image, uploadKey);
         });
       });
 
