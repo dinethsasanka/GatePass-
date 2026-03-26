@@ -75,6 +75,19 @@ const validateServiceNumber = (serviceNo) => {
 };
 
 /**
+ * Validate serial number format
+ * @param {string} serialNumber - Serial number to validate
+ * @returns {boolean} - True if valid
+ */
+const validateSerialNumber = (serialNumber) => {
+  if (!serialNumber || typeof serialNumber !== "string") return false;
+  const trimmed = serialNumber.trim();
+  if (!trimmed) return false;
+  const serialRegex = /^[A-Za-z0-9\-_/]+$/;
+  return serialRegex.test(trimmed);
+};
+
+/**
  * Validate Sri Lankan vehicle number
  * @param {string} vehicleNumber - Vehicle number to validate
  * @returns {boolean} - True if valid
@@ -165,6 +178,15 @@ const validateRequestCreation = (data) => {
   // Items validation
   if (!data.items || !Array.isArray(JSON.parse(data.items)) || JSON.parse(data.items).length === 0) {
     errors.push("At least one item is required");
+  } else {
+    const parsedItems = JSON.parse(data.items);
+    parsedItems.forEach((item, index) => {
+      if (!validateSerialNumber(item?.serialNumber)) {
+        errors.push(
+          `Item ${index + 1}: invalid serial number format (only letters, numbers, -, _, /)`
+        );
+      }
+    });
   }
 
   // Destination type validation
@@ -288,6 +310,14 @@ const validateSerialNumbers = (serialNumbers) => {
 
   if (!Array.isArray(serialNumbers) || serialNumbers.length === 0) {
     errors.push("Serial numbers are required and must be a non-empty array");
+  } else {
+    serialNumbers.forEach((serialNumber, index) => {
+      if (!validateSerialNumber(serialNumber)) {
+        errors.push(
+          `Invalid serial number at position ${index + 1} (only letters, numbers, -, _, /)`
+        );
+      }
+    });
   }
 
   return {
@@ -337,6 +367,7 @@ module.exports = {
   validateNIC,
   validatePhone,
   validateServiceNumber,
+  validateSerialNumber,
   validateVehicleNumber,
   validateCompanyName,
   validateNonSLTPerson,
