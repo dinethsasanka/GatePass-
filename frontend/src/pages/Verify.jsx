@@ -33,6 +33,8 @@ import {
   validateName,
   validateSerialNumber,
   validateNIC,
+  sanitizeNICInput,
+  sanitizeIntegerInput,
   validatePhone,
   validateEmail,
   validateCompanyName,
@@ -237,12 +239,19 @@ const Verify = () => {
 
   // Handle field change with real-time validation
   const handleNonSltFieldChange = (field, value) => {
+    const sanitizedValue =
+      field === "nic"
+        ? sanitizeNICInput(value)
+        : field === "contactNo"
+          ? sanitizeIntegerInput(value)
+          : value;
+
     setNonSltStaffDetails({
       ...nonSltStaffDetails,
-      [field]: value,
+      [field]: sanitizedValue,
     });
 
-    const error = validateField(field, value);
+    const error = validateField(field, sanitizedValue);
     setFormErrors({
       ...formErrors,
       [field]: error,
