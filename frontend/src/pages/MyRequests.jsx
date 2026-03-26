@@ -538,7 +538,7 @@ const RequestDetailsModal = ({
       doc.line(
         margin,
         yPos + 8,
-        margin + col1Width + col2Width + col3Width + col4Width + col5Width,
+        margin + col1Width + col2Width + col3Width + col4Width,
         yPos + 8,
       );
 
@@ -632,9 +632,17 @@ const RequestDetailsModal = ({
             <h3 className="text-lg font-semibold text-gray-800 flex items-center mb-4">
               <FaBoxOpen className="mr-2" /> Item Details
               <button
-                onClick={() =>
-                  generateItemDetailsPDF(request.items, request.refNo)
-                }
+                onClick={() => {
+                  try {
+                    generateItemDetailsPDF(
+                      request.items || [],
+                      request.referenceNumber,
+                    );
+                  } catch (error) {
+                    console.error("Failed to generate items PDF:", error);
+                    alert("Failed to generate PDF. Please try again.");
+                  }
+                }}
                 className="ml-auto px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center transition-colors"
               >
                 <FaFilePdf className="mr-2" /> Download Items PDF
