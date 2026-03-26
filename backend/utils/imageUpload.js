@@ -17,6 +17,18 @@ const ensureUploadDirectory = async () => {
     await fs.promises.mkdir(imagesUploadDir, { recursive: true });
 };
 
+const sanitizePathSegment = (value, fallback = 'unknown') => {
+    const cleaned = String(value || '')
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]/g, '-');
+
+    return cleaned || fallback;
+};
+
+const getDateFolderSegment = () => {
+    return new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+};
+
 const getSafeExtension = (file) => {
     const originalExt = path.extname(file?.originalname || '').toLowerCase();
     if (allowedExtensions.has(originalExt)) {
@@ -35,9 +47,10 @@ const getSafeExtension = (file) => {
  * Upload image to local storage
  * @param {Object} file - Multer file object
  * @param {String} folder - Subfolder name (e.g., 'items')
+ * @param {Object} options - Upload options
  * @returns {Object} - Object with url and path properties matching schema
  */
-const uploadImage = async (file, folder = 'items') => {
+const uploadImage = async (file, folder = 'items', options = {}) => {
     try {
         if (!file || !file.buffer) {
             throw new Error('Invalid file payload');
@@ -46,14 +59,23 @@ const uploadImage = async (file, folder = 'items') => {
         await ensureUploadDirectory();
 
         const safeFolder = String(folder || 'items').replace(/[^a-zA-Z0-9_-]/g, '') || 'items';
+        const safeDateFolder = sanitizePathSegment(options.dateFolder || getDateFolderSegment(), 'unknown-date');
+        const safeRequestFolder = sanitizePathSegment(
+            options.requestReference || options.requestId || 'unassigned-request',
+            'unassigned-request'
+        );
+        const targetDir = path.join(imagesUploadDir, safeDateFolder, safeRequestFolder);
+
+        await fs.promises.mkdir(targetDir, { recursive: true });
+
         const fileExtension = getSafeExtension(file);
         const filename = `${safeFolder}-${Date.now()}-${crypto.randomUUID()}${fileExtension}`;
-        const filepath = path.join(imagesUploadDir, filename);
+        const filepath = path.join(targetDir, filename);
 
         await fs.promises.writeFile(filepath, file.buffer, { flag: 'wx' });
 
         const imageObject = {
-            url: `/uploads/images/${filename}`,
+            url: `/uploads/images/${safeDateFolder}/${safeRequestFolder}/${filename}`,
             path: filepath
         };
 
@@ -112,8 +134,17 @@ const deleteImage = async (imageData) => {
         let fullPath = '';
 
         if (imagePath.startsWith('/uploads/images/')) {
-            const safeFileName = path.basename(imagePath);
-            fullPath = path.join(imagesUploadDir, safeFileName);
+            const relativeImagePath = imagePath.replace('/uploads/images/', '');
+            const normalizedRelativePath = path.normalize(relativeImagePath);
+            const resolvedFullPath = path.resolve(imagesUploadDir, normalizedRelativePath);
+            const resolvedBaseDir = path.resolve(imagesUploadDir);
+
+            if (!resolvedFullPath.startsWith(`${resolvedBaseDir}${path.sep}`)) {
+                console.error('❌ Invalid image path outside uploads directory');
+                return false;
+            }
+
+            fullPath = resolvedFullPath;
         } else {
             fullPath = imagePath;
         }

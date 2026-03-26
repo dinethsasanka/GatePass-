@@ -74,7 +74,9 @@ const createRequest = async (req, res) => {
     const inLocationName = await resolveLocationName(inLocation);
 
     // Process items with images
-    const processedItems = await processCSVItems(parsedItems, req.files);
+    const processedItems = await processCSVItems(parsedItems, req.files, {
+      requestReference: referenceNumber,
+    });
     // Process items with images
 
     console.log("Processed items:", processedItems.length);
@@ -195,7 +197,7 @@ const createRequest = async (req, res) => {
 };
 
 // ⭐ CORRECTED processCSVItems function
-const processCSVItems = async (csvItems, files) => {
+const processCSVItems = async (csvItems, files, uploadOptions = {}) => {
   // Create a map to group files by their original names if files exist
   const fileMap = {};
   if (files && files.length > 0) {
@@ -228,7 +230,7 @@ const processCSVItems = async (csvItems, files) => {
           if (file) {
             try {
               // uploadImage returns { url: '...', path: '...' }
-              const uploadedImage = await uploadImage(file, "items");
+              const uploadedImage = await uploadImage(file, "items", uploadOptions);
 
               // CRITICAL: Verify the structure before pushing
               if (uploadedImage && uploadedImage.url && uploadedImage.path) {
@@ -359,6 +361,10 @@ const updateRequest = async (req, res) => {
       receiverServiceNo,
     } = req.body;
 
+    const existingRequest = await Request.findById(req.params.id).select(
+      "referenceNumber",
+    );
+
     // Handle item photos upload for updated items
     const parsedItems = JSON.parse(items);
     const processedItems = await Promise.all(
@@ -369,7 +375,9 @@ const updateRequest = async (req, res) => {
             (file) => file.fieldname === `itemPhotos_${index}`,
           );
           for (const file of itemFiles) {
-            const uploadedImage = await uploadImage(file, "items");
+            const uploadedImage = await uploadImage(file, "items", {
+              requestReference: existingRequest?.referenceNumber || req.params.id,
+            });
             photos.push(uploadedImage);
           }
         }
