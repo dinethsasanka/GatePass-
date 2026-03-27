@@ -46,9 +46,9 @@ const validateEmail = (email) => {
  */
 const validateNIC = (nic) => {
   if (!nic) return false;
-  // Old format: 9 digits + V/X
+  // Old format: 9 digits + V/v/X/x
   // New format: 12 digits
-  const nicRegex = /^([0-9]{9}[vV]|[0-9]{12})$/;
+  const nicRegex = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
   return nicRegex.test(nic.trim());
 };
 
@@ -95,8 +95,9 @@ const validateSerialNumber = (serialNumber) => {
  */
 const validateVehicleNumber = (vehicleNumber) => {
   if (!vehicleNumber) return false;
-  // Sri Lankan format: 2-3 uppercase letters + optional hyphen + 4 digits
-  const vehicleRegex = /^[A-Z]{2,3}-?[0-9]{4}$/i;
+  // Sri Lankan format: letters/digits/spaces/hyphens with minimum 4 digits
+  // Covers: CAA 1234, POLICE 1234, 32-1234, ශ්‍රී CAA 1234, etc.
+  const vehicleRegex = /^(?=(?:[a-zA-Z\s\-\u0D80-\u0DFF\u200D]*\d){4})[a-zA-Z0-9\s\-\u0D80-\u0DFF\u200D]+$/;
   return vehicleRegex.test(vehicleNumber.trim());
 };
 
