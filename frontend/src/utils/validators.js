@@ -25,13 +25,70 @@ export const validateNIC = (nic) => {
   if (!nic || !nic.trim()) {
     return "NIC is required";
   }
-  // Old format: 9 digits + V/v only (not X)
+  // Old format: 9 digits + V/v/X/x
   // New format: 12 digits
-  const nicRegex = /^([0-9]{9}[vV]|[0-9]{12})$/;
+  const nicRegex = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
   if (!nicRegex.test(nic.trim())) {
-    return "Invalid NIC format (use 9 digits+V or 12 digits)";
+    return "Invalid NIC format (use 9 digits+V/X or 12 digits)";
   }
   return "";
+};
+
+/**
+ * Keep NIC input limited to digits and V/v/X/x.
+ * @param {string} value - Raw input
+ * @returns {string} - Sanitized NIC input
+ */
+export const sanitizeNICInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/[^0-9vVxX]/g, "");
+};
+
+/**
+ * Keep numeric inputs limited to digits only.
+ * @param {string} value - Raw input
+ * @returns {string} - Digits-only input
+ */
+export const sanitizeIntegerInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/\D/g, "");
+};
+
+/**
+ * Keep name input limited to letters and spaces only.
+ * @param {string} value - Raw input
+ * @returns {string} - Letters-and-spaces-only input
+ */
+export const sanitizeLettersOnlyInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/[^A-Za-z\s]/g, "");
+};
+
+/**
+ * Keep serial number input limited to supported characters.
+ * Allowed: letters and numbers only.
+ * @param {string} value - Raw input
+ * @returns {string} - Sanitized serial number input
+ */
+export const sanitizeSerialNumberInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/[^A-Za-z0-9]/g, "");
+};
+
+/**
+ * Sanitize vehicle number input to allow letters, digits, spaces, and hyphens.
+ * Supports Sri Lankan formats: CAA 1234, POLICE 1234, 32-1234, etc.
+ * @param {string} value - Raw input
+ * @returns {string} - Sanitized vehicle number input
+ */
+export const sanitizeVehicleNumberInput = (value) => {
+  if (!value) return "";
+
+  // Keep letters, digits, spaces, hyphens, and Sinhala script
+  // Sinhala Unicode range: U+0D80-U+0DFF and Zero Width Joiner U+200D
+  return String(value)
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s\-\u0D80-\u0DFF\u200D]/g, "");
 };
 
 /**
@@ -111,17 +168,19 @@ export const validateServiceNumber = (serviceNo) => {
  * Validate vehicle number (Sri Lankan format)
  * @param {string} vehicleNumber - Vehicle number to validate
  * @returns {string} - Error message or empty string if valid
- * Formats: ABC1234, AB1234, ABC-1234, AB-1234
+ * Formats: CAA 1234, POLICE 1234, 32-1234, 121234
+ * Requires minimum 4 digits
  */
 export const validateVehicleNumber = (vehicleNumber) => {
   if (!vehicleNumber || !vehicleNumber.trim()) {
     return "Vehicle number is required";
   }
   const trimmed = vehicleNumber.trim();
-  // Sri Lankan format: 2-3 uppercase letters + optional hyphen + 4 digits
-  const vehicleRegex = /^[A-Z]{2,3}-?[0-9]{4}$/i;
+  // Sri Lankan format: letters/digits/spaces/hyphens with minimum 4 digits
+  // Covers: CAA 1234, POLICE 1234, 32-1234, 121234, ශ්‍රී CAA 1234, etc.
+  const vehicleRegex = /^(?=(?:[a-zA-Z\s\-\u0D80-\u0DFF\u200D]*\d){4})[a-zA-Z0-9\s\-\u0D80-\u0DFF\u200D]+$/;
   if (!vehicleRegex.test(trimmed)) {
-    return "Invalid vehicle number format. Use Sri Lankan format (e.g., ABC1234, QQ6770, ABQ-4931)";
+    return "Invalid vehicle number format.";
   }
   return "";
 };
@@ -310,13 +369,10 @@ export const validateSerialNumber = (serialNumber) => {
     return "Serial number is required";
   }
   const trimmed = serialNumber.trim();
-  if (trimmed.length < 3) {
-    return "Serial number must be at least 3 characters";
-  }
-  // Allow alphanumeric, hyphens, underscores, and slashes
-  const serialRegex = /^[a-zA-Z0-9\-_/]+$/;
+  // Allow alphanumeric only
+  const serialRegex = /^[a-zA-Z0-9]+$/;
   if (!serialRegex.test(trimmed)) {
-    return "Serial number can only contain letters, numbers, hyphens, underscores, and slashes";
+    return "Serial number can only contain letters and numbers";
   }
   return "";
 };

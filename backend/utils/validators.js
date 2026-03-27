@@ -46,9 +46,9 @@ const validateEmail = (email) => {
  */
 const validateNIC = (nic) => {
   if (!nic) return false;
-  // Old format: 9 digits + V/X
+  // Old format: 9 digits + V/v/X/x
   // New format: 12 digits
-  const nicRegex = /^([0-9]{9}[vV]|[0-9]{12})$/;
+  const nicRegex = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
   return nicRegex.test(nic.trim());
 };
 
@@ -75,6 +75,19 @@ const validateServiceNumber = (serviceNo) => {
 };
 
 /**
+ * Validate serial number format
+ * @param {string} serialNumber - Serial number to validate
+ * @returns {boolean} - True if valid
+ */
+const validateSerialNumber = (serialNumber) => {
+  if (!serialNumber || typeof serialNumber !== "string") return false;
+  const trimmed = serialNumber.trim();
+  if (!trimmed) return false;
+  const serialRegex = /^[A-Za-z0-9]+$/;
+  return serialRegex.test(trimmed);
+};
+
+/**
  * Validate Sri Lankan vehicle number
  * @param {string} vehicleNumber - Vehicle number to validate
  * @returns {boolean} - True if valid
@@ -82,8 +95,9 @@ const validateServiceNumber = (serviceNo) => {
  */
 const validateVehicleNumber = (vehicleNumber) => {
   if (!vehicleNumber) return false;
-  // Sri Lankan format: 2-3 uppercase letters + optional hyphen + 4 digits
-  const vehicleRegex = /^[A-Z]{2,3}-?[0-9]{4}$/i;
+  // Sri Lankan format: letters/digits/spaces/hyphens with minimum 4 digits
+  // Covers: CAA 1234, POLICE 1234, 32-1234, ශ්‍රී CAA 1234, etc.
+  const vehicleRegex = /^(?=(?:[a-zA-Z\s\-\u0D80-\u0DFF\u200D]*\d){4})[a-zA-Z0-9\s\-\u0D80-\u0DFF\u200D]+$/;
   return vehicleRegex.test(vehicleNumber.trim());
 };
 
@@ -165,6 +179,15 @@ const validateRequestCreation = (data) => {
   // Items validation
   if (!data.items || !Array.isArray(JSON.parse(data.items)) || JSON.parse(data.items).length === 0) {
     errors.push("At least one item is required");
+  } else {
+    const parsedItems = JSON.parse(data.items);
+    parsedItems.forEach((item, index) => {
+      if (!validateSerialNumber(item?.serialNumber)) {
+        errors.push(
+          `Item ${index + 1}: invalid serial number format (only letters and numbers)`
+        );
+      }
+    });
   }
 
   // Destination type validation
@@ -288,6 +311,14 @@ const validateSerialNumbers = (serialNumbers) => {
 
   if (!Array.isArray(serialNumbers) || serialNumbers.length === 0) {
     errors.push("Serial numbers are required and must be a non-empty array");
+  } else {
+    serialNumbers.forEach((serialNumber, index) => {
+      if (!validateSerialNumber(serialNumber)) {
+        errors.push(
+          `Invalid serial number at position ${index + 1} (only letters and numbers)`
+        );
+      }
+    });
   }
 
   return {
@@ -337,6 +368,7 @@ module.exports = {
   validateNIC,
   validatePhone,
   validateServiceNumber,
+  validateSerialNumber,
   validateVehicleNumber,
   validateCompanyName,
   validateNonSLTPerson,
