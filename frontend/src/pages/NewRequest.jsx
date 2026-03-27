@@ -2744,7 +2744,7 @@ const NewRequest = () => {
                             const error = validateVehicleNumber(value);
                             setVehicleNumberError(error);
                           }}
-                          placeholder="Enter vehicle number (e.g., ABC1234 or AB1234)"
+                          placeholder="Enter vehicle number (e.g., CAA 1234, 32-1234 or 121234)"
                         />
                         {vehicleNumberError && (
                           <p className="mt-1 text-sm text-red-600">{vehicleNumberError}</p>
