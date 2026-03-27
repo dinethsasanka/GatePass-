@@ -35,6 +35,79 @@ export const validateNIC = (nic) => {
 };
 
 /**
+ * Keep NIC input limited to digits and V/v only.
+ * @param {string} value - Raw input
+ * @returns {string} - Sanitized NIC input
+ */
+export const sanitizeNICInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/[^0-9vV]/g, "");
+};
+
+/**
+ * Keep numeric inputs limited to digits only.
+ * @param {string} value - Raw input
+ * @returns {string} - Digits-only input
+ */
+export const sanitizeIntegerInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/\D/g, "");
+};
+
+/**
+ * Keep name input limited to letters and spaces only.
+ * @param {string} value - Raw input
+ * @returns {string} - Letters-and-spaces-only input
+ */
+export const sanitizeLettersOnlyInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/[^A-Za-z\s]/g, "");
+};
+
+/**
+ * Keep serial number input limited to supported characters.
+ * Allowed: letters and numbers only.
+ * @param {string} value - Raw input
+ * @returns {string} - Sanitized serial number input
+ */
+export const sanitizeSerialNumberInput = (value) => {
+  if (!value) return "";
+  return String(value).replace(/[^A-Za-z0-9]/g, "");
+};
+
+/**
+ * Keep vehicle number input limited to letters and digits only,
+ * with max 3 letters and max 4 digits.
+ * @param {string} value - Raw input
+ * @returns {string} - Sanitized vehicle number input
+ */
+export const sanitizeVehicleNumberInput = (value) => {
+  if (!value) return "";
+
+  const raw = String(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
+  let letters = 0;
+  let digits = 0;
+  let result = "";
+
+  for (const ch of raw) {
+    if (/[A-Z]/.test(ch)) {
+      if (letters < 3) {
+        result += ch;
+        letters += 1;
+      }
+      continue;
+    }
+
+    if (/[0-9]/.test(ch) && digits < 4) {
+      result += ch;
+      digits += 1;
+    }
+  }
+
+  return result;
+};
+
+/**
  * Validate phone number
  * @param {string} phone - Phone number to validate
  * @returns {string} - Error message or empty string if valid
@@ -111,17 +184,17 @@ export const validateServiceNumber = (serviceNo) => {
  * Validate vehicle number (Sri Lankan format)
  * @param {string} vehicleNumber - Vehicle number to validate
  * @returns {string} - Error message or empty string if valid
- * Formats: ABC1234, AB1234, ABC-1234, AB-1234
+ * Formats: ABC1234, AB1234
  */
 export const validateVehicleNumber = (vehicleNumber) => {
   if (!vehicleNumber || !vehicleNumber.trim()) {
     return "Vehicle number is required";
   }
   const trimmed = vehicleNumber.trim();
-  // Sri Lankan format: 2-3 uppercase letters + optional hyphen + 4 digits
-  const vehicleRegex = /^[A-Z]{2,3}-?[0-9]{4}$/i;
+  // Sri Lankan format: 2-3 uppercase letters + 4 digits (no symbols)
+  const vehicleRegex = /^[A-Z]{2,3}[0-9]{4}$/;
   if (!vehicleRegex.test(trimmed)) {
-    return "Invalid vehicle number format. Use Sri Lankan format (e.g., ABC1234, QQ6770, ABQ-4931)";
+    return "Invalid vehicle number format.";
   }
   return "";
 };
@@ -310,13 +383,10 @@ export const validateSerialNumber = (serialNumber) => {
     return "Serial number is required";
   }
   const trimmed = serialNumber.trim();
-  if (trimmed.length < 3) {
-    return "Serial number must be at least 3 characters";
-  }
-  // Allow alphanumeric, hyphens, underscores, and slashes
-  const serialRegex = /^[a-zA-Z0-9\-_/]+$/;
+  // Allow alphanumeric only
+  const serialRegex = /^[a-zA-Z0-9]+$/;
   if (!serialRegex.test(trimmed)) {
-    return "Serial number can only contain letters, numbers, hyphens, underscores, and slashes";
+    return "Serial number can only contain letters and numbers";
   }
   return "";
 };
