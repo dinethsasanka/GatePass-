@@ -338,7 +338,9 @@ const NewRequest = () => {
       return;
     }
 
-    const oversizedFiles = files.filter((file) => file.size > maxImageSizeBytes);
+    const oversizedFiles = files.filter(
+      (file) => file.size > maxImageSizeBytes,
+    );
     if (oversizedFiles.length > 0) {
       showToast("Each image must be 5MB or smaller", "warning");
       e.target.value = "";
@@ -379,35 +381,67 @@ const NewRequest = () => {
 
       console.log("Item data received in frontend:", itemData);
 
-      // Populate form with API data
-      setCurrentItem((prev) => ({
-        ...prev,
-        serialNumber: serialNumber,
-        itemCode: itemData.itemCode || "",
-        itemDescription: itemData.itemDescription || "",
-        itemCategory: itemData.itemCategory || "",
-        categoryDescription: itemData.categoryDescription || itemData.itemCategory || "",
-        qty: prev.qty || 1,
-        returnable: prev.returnable || "No",
-        images: prev.images || [],
-        returnDate: prev.returnDate || "",
-      }));
+      if (itemData && (itemData.itemDescription || itemData.itemCode)) {
+        // Populate form with API data
+        setCurrentItem((prev) => ({
+          ...prev,
+          serialNumber: serialNumber,
+          itemCode: itemData.itemCode || "",
+          itemDescription: itemData.itemDescription || "",
+          itemCategory: itemData.itemCategory || "",
+          categoryDescription:
+            itemData.categoryDescription || itemData.itemCategory || "",
+          qty: prev.qty || 1,
+          returnable: prev.returnable || "No",
+          images: prev.images || [],
+          returnDate: prev.returnDate || "",
+        }));
 
-      console.log("Current item after update:", {
-        serialNumber: serialNumber,
-        itemCode: itemData.itemCode,
-        itemDescription: itemData.itemDescription,
-        itemCategory: itemData.itemCategory,
-        categoryDescription: itemData.categoryDescription,
-      });
+        console.log("Current item after update:", {
+          serialNumber: serialNumber,
+          itemCode: itemData.itemCode,
+          itemDescription: itemData.itemDescription,
+          itemCategory: itemData.itemCategory,
+          categoryDescription: itemData.categoryDescription,
+        });
 
-      showToast("Item found and auto-filled", "success");
+        showToast("Item found and auto-filled", "success");
+      } else {
+        // ITEM UNAVAILABLE (Empty Data): Clear the form but keep the serial number
+        setCurrentItem((prev) => ({
+          ...prev,
+          itemCode: "",
+          itemDescription: "",
+          itemCategory: "",
+          categoryDescription: "",
+          qty: 1,
+          returnable: "No",
+          images: [],
+          returnDate: "",
+        }));
+        showToast("Item unavailable", "error");
+      }
     } catch (error) {
       console.error("Error fetching item:", error);
-      // Silently fail - user can fill manually
-      // Only show message if it's not a 404
-      if (error.response?.status !== 404) {
+
+      // ITEM UNAVAILABLE (Error/404): Clear the form but keep the serial number
+      setCurrentItem((prev) => ({
+        ...prev,
+        itemCode: "",
+        itemDescription: "",
+        itemCategory: "",
+        categoryDescription: "",
+        qty: 1,
+        returnable: "No",
+        images: [],
+        returnDate: "",
+      }));
+
+      if (error.response?.status === 404) {
+        showToast("Item unavailable", "error");
         console.log("Item lookup failed, user can fill manually");
+      } else {
+        showToast("Error searching for item", "error");
       }
     } finally {
       setIsSearchingItem(false);
@@ -765,12 +799,20 @@ const NewRequest = () => {
         }
 
         // Validate receiver details if provided for Non-SLT
-        if (receiverNIC.trim() || receiverName.trim() || receiverContact.trim()) {
+        if (
+          receiverNIC.trim() ||
+          receiverName.trim() ||
+          receiverContact.trim()
+        ) {
           // If any receiver field is filled, validate all required fields
-          if (!receiverNIC.trim() || !receiverName.trim() || !receiverContact.trim()) {
+          if (
+            !receiverNIC.trim() ||
+            !receiverName.trim() ||
+            !receiverContact.trim()
+          ) {
             showToast(
               "Please fill in all receiver details (NIC, Name, and Contact)",
-              "warning"
+              "warning",
             );
             return;
           }
@@ -1022,17 +1064,19 @@ const NewRequest = () => {
         };
       });
 
-      const itemsWithFileNames = itemUploadBatches.map(({ item, imageUploads }) => ({
-        serialNumber: item.serialNumber,
-        itemCode: item.itemCode || "",
-        itemDescription: item.itemDescription,
-        itemCategory: item.itemCategory,
-        categoryDescription: item.categoryDescription,
-        itemReturnable: item.returnable === "Yes",
-        itemQuantity: parseInt(item.qty) || 1,
-        returnDate: item.returnDate || null,
-        originalFileNames: imageUploads.map(({ uploadKey }) => uploadKey),
-      }));
+      const itemsWithFileNames = itemUploadBatches.map(
+        ({ item, imageUploads }) => ({
+          serialNumber: item.serialNumber,
+          itemCode: item.itemCode || "",
+          itemDescription: item.itemDescription,
+          itemCategory: item.itemCategory,
+          categoryDescription: item.categoryDescription,
+          itemReturnable: item.returnable === "Yes",
+          itemQuantity: parseInt(item.qty) || 1,
+          returnDate: item.returnDate || null,
+          originalFileNames: imageUploads.map(({ uploadKey }) => uploadKey),
+        }),
+      );
 
       formData.append("items", JSON.stringify(itemsWithFileNames));
 
@@ -1572,11 +1616,15 @@ const NewRequest = () => {
                         }}
                         placeholder="Enter receiver's NIC number"
                         className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                          receiverNICError ? "border-red-500" : "border-gray-200"
+                          receiverNICError
+                            ? "border-red-500"
+                            : "border-gray-200"
                         }`}
                       />
                       {receiverNICError && (
-                        <p className="mt-1 text-sm text-red-600">{receiverNICError}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {receiverNICError}
+                        </p>
                       )}
                     </div>
                     <div>
@@ -1598,16 +1646,21 @@ const NewRequest = () => {
                         }}
                         placeholder="Enter receiver's full name"
                         className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                          receiverNameError ? "border-red-500" : "border-gray-200"
+                          receiverNameError
+                            ? "border-red-500"
+                            : "border-gray-200"
                         }`}
                       />
                       {receiverNameError && (
-                        <p className="mt-1 text-sm text-red-600">{receiverNameError}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {receiverNameError}
+                        </p>
                       )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-2">
-                        Receiver Contact Number <span className="text-red-500">*</span>
+                        Receiver Contact Number{" "}
+                        <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
@@ -1624,11 +1677,15 @@ const NewRequest = () => {
                         }}
                         placeholder="Enter receiver's contact number"
                         className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                          receiverContactError ? "border-red-500" : "border-gray-200"
+                          receiverContactError
+                            ? "border-red-500"
+                            : "border-gray-200"
                         }`}
                       />
                       {receiverContactError && (
-                        <p className="mt-1 text-sm text-red-600">{receiverContactError}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {receiverContactError}
+                        </p>
                       )}
                     </div>
                   </>
@@ -1736,13 +1793,16 @@ const NewRequest = () => {
                       placeholder="Enter company name"
                     />
                     {companyNameError && (
-                      <p className="mt-1 text-sm text-red-600">{companyNameError}</p>
+                      <p className="mt-1 text-sm text-red-600">
+                        {companyNameError}
+                      </p>
                     )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-2">
-                      Company / Organization Address <span className="text-red-500">*</span>
+                      Company / Organization Address{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <textarea
                       rows="3"
@@ -1758,12 +1818,16 @@ const NewRequest = () => {
                         setCompanyAddressError(error);
                       }}
                       className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                        companyAddressError ? "border-red-500" : "border-gray-200"
+                        companyAddressError
+                          ? "border-red-500"
+                          : "border-gray-200"
                       }`}
                       placeholder="Enter company address"
                     />
                     {companyAddressError && (
-                      <p className="mt-1 text-sm text-red-600">{companyAddressError}</p>
+                      <p className="mt-1 text-sm text-red-600">
+                        {companyAddressError}
+                      </p>
                     )}
                   </div>
                 </>
@@ -1865,7 +1929,9 @@ const NewRequest = () => {
                       </label>
                       <input
                         className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                          serialNumberError ? "border-red-500" : "border-gray-200"
+                          serialNumberError
+                            ? "border-red-500"
+                            : "border-gray-200"
                         }`}
                         type="text"
                         value={currentItem.serialNumber}
@@ -1877,12 +1943,15 @@ const NewRequest = () => {
                           });
                           // Clear error on change
                           setSerialNumberError("");
-                          // Auto-lookup after user stops typing (debounced)
+
+                          // ALWAYS clear the timeout on every keystroke
+                          clearTimeout(window.serialLookupTimeout);
+
+                          // Only set a new timeout if the length is 3 or more
                           if (serialNumber.length >= 3) {
-                            clearTimeout(window.serialLookupTimeout);
                             window.serialLookupTimeout = setTimeout(() => {
                               handleSerialNumberLookup(serialNumber.trim());
-                            }, 800);
+                            }, 1200);
                           }
                         }}
                         onBlur={(e) => {
@@ -1892,7 +1961,9 @@ const NewRequest = () => {
                         placeholder="Enter serial number"
                       />
                       {serialNumberError ? (
-                        <p className="mt-1 text-sm text-red-600">{serialNumberError}</p>
+                        <p className="mt-1 text-sm text-red-600">
+                          {serialNumberError}
+                        </p>
                       ) : (
                         <p className="mt-1 text-xs text-gray-500">
                           Type serial number - details will auto-fill if found
@@ -2390,7 +2461,9 @@ const NewRequest = () => {
                         </label>
                         <input
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                            nonSLTTransporterNameError ? "border-red-500" : "border-gray-200"
+                            nonSLTTransporterNameError
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                           type="text"
                           value={nonSLTTransporterName}
@@ -2407,7 +2480,9 @@ const NewRequest = () => {
                           placeholder="Enter carrier name"
                         />
                         {nonSLTTransporterNameError && (
-                          <p className="mt-1 text-sm text-red-600">{nonSLTTransporterNameError}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {nonSLTTransporterNameError}
+                          </p>
                         )}
                       </div>
                       <div>
@@ -2416,7 +2491,9 @@ const NewRequest = () => {
                         </label>
                         <input
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                            nonSLTTransporterNICError ? "border-red-500" : "border-gray-200"
+                            nonSLTTransporterNICError
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                           type="text"
                           value={nonSLTTransporterNIC}
@@ -2433,7 +2510,9 @@ const NewRequest = () => {
                           placeholder="Enter NIC number"
                         />
                         {nonSLTTransporterNICError && (
-                          <p className="mt-1 text-sm text-red-600">{nonSLTTransporterNICError}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {nonSLTTransporterNICError}
+                          </p>
                         )}
                       </div>
                       <div>
@@ -2442,7 +2521,9 @@ const NewRequest = () => {
                         </label>
                         <input
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                            nonSLTTransporterPhoneError ? "border-red-500" : "border-gray-200"
+                            nonSLTTransporterPhoneError
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                           type="text"
                           value={nonSLTTransporterPhone}
@@ -2459,7 +2540,9 @@ const NewRequest = () => {
                           placeholder="Enter phone number"
                         />
                         {nonSLTTransporterPhoneError && (
-                          <p className="mt-1 text-sm text-red-600">{nonSLTTransporterPhoneError}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {nonSLTTransporterPhoneError}
+                          </p>
                         )}
                       </div>
                       <div>
@@ -2468,7 +2551,9 @@ const NewRequest = () => {
                         </label>
                         <input
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                            nonSLTTransporterEmailError ? "border-red-500" : "border-gray-200"
+                            nonSLTTransporterEmailError
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                           type="email"
                           value={nonSLTTransporterEmail}
@@ -2491,7 +2576,9 @@ const NewRequest = () => {
                           placeholder="Enter email address (optional)"
                         />
                         {nonSLTTransporterEmailError && (
-                          <p className="mt-1 text-sm text-red-600">{nonSLTTransporterEmailError}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {nonSLTTransporterEmailError}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -2599,11 +2686,14 @@ const NewRequest = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-600 mb-1">
-                          Transporter Name <span className="text-red-500">*</span>
+                          Transporter Name{" "}
+                          <span className="text-red-500">*</span>
                         </label>
                         <input
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                            nonSLTTransporterNameError ? "border-red-500" : "border-gray-200"
+                            nonSLTTransporterNameError
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                           type="text"
                           value={nonSLTTransporterName}
@@ -2620,7 +2710,9 @@ const NewRequest = () => {
                           placeholder="Enter transporter name"
                         />
                         {nonSLTTransporterNameError && (
-                          <p className="mt-1 text-sm text-red-600">{nonSLTTransporterNameError}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {nonSLTTransporterNameError}
+                          </p>
                         )}
                       </div>
                       <div>
@@ -2629,7 +2721,9 @@ const NewRequest = () => {
                         </label>
                         <input
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                            nonSLTTransporterNICError ? "border-red-500" : "border-gray-200"
+                            nonSLTTransporterNICError
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                           type="text"
                           value={nonSLTTransporterNIC}
@@ -2646,7 +2740,9 @@ const NewRequest = () => {
                           placeholder="Enter NIC number"
                         />
                         {nonSLTTransporterNICError && (
-                          <p className="mt-1 text-sm text-red-600">{nonSLTTransporterNICError}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {nonSLTTransporterNICError}
+                          </p>
                         )}
                       </div>
                       <div>
@@ -2655,7 +2751,9 @@ const NewRequest = () => {
                         </label>
                         <input
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                            nonSLTTransporterPhoneError ? "border-red-500" : "border-gray-200"
+                            nonSLTTransporterPhoneError
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                           type="text"
                           value={nonSLTTransporterPhone}
@@ -2672,7 +2770,9 @@ const NewRequest = () => {
                           placeholder="Enter phone number"
                         />
                         {nonSLTTransporterPhoneError && (
-                          <p className="mt-1 text-sm text-red-600">{nonSLTTransporterPhoneError}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {nonSLTTransporterPhoneError}
+                          </p>
                         )}
                       </div>
                       <div>
@@ -2681,7 +2781,9 @@ const NewRequest = () => {
                         </label>
                         <input
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                            nonSLTTransporterEmailError ? "border-red-500" : "border-gray-200"
+                            nonSLTTransporterEmailError
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                           type="email"
                           value={nonSLTTransporterEmail}
@@ -2704,7 +2806,9 @@ const NewRequest = () => {
                           placeholder="Enter email address (optional)"
                         />
                         {nonSLTTransporterEmailError && (
-                          <p className="mt-1 text-sm text-red-600">{nonSLTTransporterEmailError}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {nonSLTTransporterEmailError}
+                          </p>
                         )}
                       </div>
                     </div>
@@ -2722,7 +2826,9 @@ const NewRequest = () => {
                         </label>
                         <input
                           className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 ${
-                            vehicleNumberError ? "border-red-500" : "border-gray-200"
+                            vehicleNumberError
+                              ? "border-red-500"
+                              : "border-gray-200"
                           }`}
                           type="text"
                           value={vehicleNumber}
@@ -2735,7 +2841,9 @@ const NewRequest = () => {
                           placeholder="Enter vehicle number (e.g., ABC1234, QQ-6770)"
                         />
                         {vehicleNumberError && (
-                          <p className="mt-1 text-sm text-red-600">{vehicleNumberError}</p>
+                          <p className="mt-1 text-sm text-red-600">
+                            {vehicleNumberError}
+                          </p>
                         )}
                       </div>
                       <div>
