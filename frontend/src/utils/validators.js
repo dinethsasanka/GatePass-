@@ -25,12 +25,15 @@ export const validateNIC = (nic) => {
   if (!nic || !nic.trim()) {
     return "NIC is required";
   }
-  // Old format: 9 digits + V/v only (not X)
+
+  // Old format: 9 digits + any letter
   // New format: 12 digits
-  const nicRegex = /^([0-9]{9}[vV]|[0-9]{12})$/;
+  const nicRegex = /^([0-9]{9}[A-Za-z]|[0-9]{12})$/;
+
   if (!nicRegex.test(nic.trim())) {
-    return "Invalid NIC format (use 9 digits+V or 12 digits)";
+    return "Invalid NIC format (use 9 digits + letter or 12 digits)";
   }
+
   return "";
 };
 
