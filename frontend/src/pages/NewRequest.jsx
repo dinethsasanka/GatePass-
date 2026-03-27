@@ -31,8 +31,13 @@ import {
 } from "../hooks/useItemHolidayApiData.js";
 import {
   validateVehicleNumber,
+  sanitizeVehicleNumberInput,
   validateCompanyName,
   validateNIC,
+  sanitizeNICInput,
+  sanitizeIntegerInput,
+  sanitizeLettersOnlyInput,
+  sanitizeSerialNumberInput,
   validatePhone,
   validateEmail,
   validateName,
@@ -367,7 +372,8 @@ const NewRequest = () => {
 
   // Auto-search for item by serial number
   const handleSerialNumberLookup = async (serialNumber) => {
-    if (!serialNumber || serialNumber.length < 3) {
+    const serialError = validateSerialNumber(serialNumber);
+    if (serialError) {
       return;
     }
 
@@ -401,7 +407,6 @@ const NewRequest = () => {
         categoryDescription: itemData.categoryDescription,
       });
 
-      showToast("Item found and auto-filled", "success");
     } catch (error) {
       console.error("Error fetching item:", error);
       // Silently fail - user can fill manually
@@ -1219,6 +1224,11 @@ const NewRequest = () => {
         )
           continue;
 
+        const serialError = validateSerialNumber(item.serialNumber);
+        if (serialError) {
+          continue;
+        }
+
         // Convert returnable to Yes/No format
         if (item.returnable) {
           item.returnable =
@@ -1561,7 +1571,7 @@ const NewRequest = () => {
                         type="text"
                         value={receiverNIC}
                         onChange={(e) => {
-                          const value = e.target.value;
+                          const value = sanitizeNICInput(e.target.value);
                           setReceiverNIC(value);
                           const error = validateNIC(value);
                           setReceiverNICError(error);
@@ -1587,7 +1597,7 @@ const NewRequest = () => {
                         type="text"
                         value={receiverName}
                         onChange={(e) => {
-                          const value = e.target.value;
+                          const value = sanitizeLettersOnlyInput(e.target.value);
                           setReceiverName(value);
                           const error = validateName(value);
                           setReceiverNameError(error);
@@ -1613,7 +1623,7 @@ const NewRequest = () => {
                         type="text"
                         value={receiverContact}
                         onChange={(e) => {
-                          const value = e.target.value;
+                          const value = sanitizeIntegerInput(e.target.value);
                           setReceiverContact(value);
                           const error = validatePhone(value);
                           setReceiverContactError(error);
@@ -1870,15 +1880,17 @@ const NewRequest = () => {
                         type="text"
                         value={currentItem.serialNumber}
                         onChange={(e) => {
-                          const serialNumber = e.target.value;
+                          const serialNumber = sanitizeSerialNumberInput(
+                            e.target.value,
+                          );
                           setCurrentItem({
                             ...currentItem,
                             serialNumber: serialNumber,
                           });
-                          // Clear error on change
-                          setSerialNumberError("");
+                          // Validate in real-time while user types
+                          setSerialNumberError(validateSerialNumber(serialNumber));
                           // Auto-lookup after user stops typing (debounced)
-                          if (serialNumber.length >= 3) {
+                          if (serialNumber.trim()) {
                             clearTimeout(window.serialLookupTimeout);
                             window.serialLookupTimeout = setTimeout(() => {
                               handleSerialNumberLookup(serialNumber.trim());
@@ -2395,7 +2407,7 @@ const NewRequest = () => {
                           type="text"
                           value={nonSLTTransporterName}
                           onChange={(e) => {
-                            const value = e.target.value;
+                              const value = sanitizeLettersOnlyInput(e.target.value);
                             setNonSLTTransporterName(value);
                             const error = validateName(value);
                             setNonSLTTransporterNameError(error);
@@ -2421,7 +2433,7 @@ const NewRequest = () => {
                           type="text"
                           value={nonSLTTransporterNIC}
                           onChange={(e) => {
-                            const value = e.target.value;
+                            const value = sanitizeNICInput(e.target.value);
                             setNonSLTTransporterNIC(value);
                             const error = validateNIC(value);
                             setNonSLTTransporterNICError(error);
@@ -2447,7 +2459,7 @@ const NewRequest = () => {
                           type="text"
                           value={nonSLTTransporterPhone}
                           onChange={(e) => {
-                            const value = e.target.value;
+                            const value = sanitizeIntegerInput(e.target.value);
                             setNonSLTTransporterPhone(value);
                             const error = validatePhone(value);
                             setNonSLTTransporterPhoneError(error);
@@ -2608,7 +2620,7 @@ const NewRequest = () => {
                           type="text"
                           value={nonSLTTransporterName}
                           onChange={(e) => {
-                            const value = e.target.value;
+                              const value = sanitizeLettersOnlyInput(e.target.value);
                             setNonSLTTransporterName(value);
                             const error = validateName(value);
                             setNonSLTTransporterNameError(error);
@@ -2634,7 +2646,7 @@ const NewRequest = () => {
                           type="text"
                           value={nonSLTTransporterNIC}
                           onChange={(e) => {
-                            const value = e.target.value;
+                            const value = sanitizeNICInput(e.target.value);
                             setNonSLTTransporterNIC(value);
                             const error = validateNIC(value);
                             setNonSLTTransporterNICError(error);
@@ -2660,7 +2672,7 @@ const NewRequest = () => {
                           type="text"
                           value={nonSLTTransporterPhone}
                           onChange={(e) => {
-                            const value = e.target.value;
+                            const value = sanitizeIntegerInput(e.target.value);
                             setNonSLTTransporterPhone(value);
                             const error = validatePhone(value);
                             setNonSLTTransporterPhoneError(error);
@@ -2727,12 +2739,12 @@ const NewRequest = () => {
                           type="text"
                           value={vehicleNumber}
                           onChange={(e) => {
-                            const value = e.target.value.toUpperCase();
+                            const value = sanitizeVehicleNumberInput(e.target.value);
                             setVehicleNumber(value);
                             const error = validateVehicleNumber(value);
                             setVehicleNumberError(error);
                           }}
-                          placeholder="Enter vehicle number (e.g., ABC1234, QQ-6770)"
+                          placeholder="Enter vehicle number (e.g., ABC1234 or AB1234)"
                         />
                         {vehicleNumberError && (
                           <p className="mt-1 text-sm text-red-600">{vehicleNumberError}</p>
