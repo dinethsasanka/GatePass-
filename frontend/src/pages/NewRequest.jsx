@@ -311,17 +311,58 @@ const NewRequest = () => {
   }, [receiverServiceNo]);
 
   // Categories are now fetched via useItemCategories hook
+  const allowedImageMimeTypes = new Set([
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+  ]);
+  const maxImageSizeBytes = 5 * 1024 * 1024;
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
-    if (currentItem.images.length + files.length > 5) {
-      showToast("Maximum 5 photos allowed per item", "warning");
+    if (files.length === 0) {
       return;
     }
-    setCurrentItem({
-      ...currentItem,
-      images: [...currentItem.images, ...files],
-    });
+
+    const invalidTypeFiles = files.filter(
+      (file) => !allowedImageMimeTypes.has(file.type),
+    );
+    if (invalidTypeFiles.length > 0) {
+      showToast(
+        "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.",
+        "warning",
+      );
+      e.target.value = "";
+      return;
+    }
+
+    const oversizedFiles = files.filter((file) => file.size > maxImageSizeBytes);
+    if (oversizedFiles.length > 0) {
+      showToast("Each image must be 5MB or smaller", "warning");
+      e.target.value = "";
+      return;
+    }
+
+    const remainingSlots = Math.max(0, 5 - currentItem.images.length);
+    if (remainingSlots <= 0) {
+      showToast("Maximum 5 photos allowed per item", "warning");
+      e.target.value = "";
+      return;
+    }
+
+    if (files.length > remainingSlots) {
+      showToast(`Only ${remainingSlots} more photo(s) can be added`, "warning");
+    }
+
+    setCurrentItem((prev) => ({
+      ...prev,
+      images: [...prev.images, ...files.slice(0, remainingSlots)],
+    }));
+
+    // Reset so selecting the same file again still triggers onChange.
+    e.target.value = "";
   };
 
   // Auto-search for item by serial number
@@ -964,7 +1005,24 @@ const NewRequest = () => {
         }
       }
 
-      const itemsWithFileNames = items.map((item) => ({
+      const itemUploadBatches = items.map((item, itemIndex) => {
+        const imageUploads = (item.images || []).map((image, imageIndex) => {
+          const extIndex = image.name.lastIndexOf(".");
+          const ext = extIndex >= 0 ? image.name.slice(extIndex) : "";
+          const uploadKey = `item-${itemIndex}-${imageIndex}-${Date.now()}-${Math.floor(Math.random() * 1e6)}${ext}`;
+          return {
+            image,
+            uploadKey,
+          };
+        });
+
+        return {
+          item,
+          imageUploads,
+        };
+      });
+
+      const itemsWithFileNames = itemUploadBatches.map(({ item, imageUploads }) => ({
         serialNumber: item.serialNumber,
         itemCode: item.itemCode || "",
         itemDescription: item.itemDescription,
@@ -973,15 +1031,15 @@ const NewRequest = () => {
         itemReturnable: item.returnable === "Yes",
         itemQuantity: parseInt(item.qty) || 1,
         returnDate: item.returnDate || null,
-        originalFileNames: item.images.map((img) => img.name),
+        originalFileNames: imageUploads.map(({ uploadKey }) => uploadKey),
       }));
 
       formData.append("items", JSON.stringify(itemsWithFileNames));
 
-      // ⭐ Add images in order per item
-      items.forEach((item) => {
-        item.images.forEach((image) => {
-          formData.append("itemPhotos", image);
+      // Add images using deterministic upload keys to avoid filename collisions.
+      itemUploadBatches.forEach(({ imageUploads }) => {
+        imageUploads.forEach(({ image, uploadKey }) => {
+          formData.append("itemPhotos", image, uploadKey);
         });
       });
 
@@ -2026,7 +2084,10 @@ const NewRequest = () => {
                               type="file"
                               className="sr-only"
                               multiple
-                              accept="image/*"
+                              accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
+                              onClick={(event) => {
+                                event.target.value = "";
+                              }}
                               onChange={handleImageUpload}
                             />
                           </label>

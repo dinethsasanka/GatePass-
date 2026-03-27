@@ -67,6 +67,8 @@ pnpm-lock.yaml
 
 # Uploads directory (if contains sensitive data)
 uploads/
+backend/uploads/images/*
+!backend/uploads/images/.gitkeep
 
 # Compiled files
 *.class

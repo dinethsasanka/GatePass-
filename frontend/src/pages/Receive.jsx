@@ -289,29 +289,39 @@ const Receive = () => {
     }
 
     if (field === "nic" && value.length > nonSltStaffDetails.nic.length) {
-      const currentNic = nonSltStaffDetails.nic;
-      const newChar = value.slice(currentNic.length);
-      if (/[^0-9Vv]/.test(newChar)) {
-        setFormErrors({ ...formErrors, nic: "Only numbers and the letter V are allowed." });
-        return;
-      }
-      if (/[Vv]/.test(newChar) && currentNic.length !== 9) {
-        setFormErrors({ ...formErrors, nic: "V can only be entered after 9 digits." });
-        return;
-      }
-      if (/[Vv]/.test(newChar) && /[Vv]/.test(currentNic)) {
-        setFormErrors({ ...formErrors, nic: "Only one V is allowed in the NIC." });
-        return;
-      }
-      if (/[Vv]/.test(currentNic)) {
-        setFormErrors({ ...formErrors, nic: "NIC is complete (9 digits + V)." });
-        return;
-      }
-      if (!/[Vv]/.test(currentNic) && !/[Vv]/.test(newChar) && currentNic.length >= 12) {
-        setFormErrors({ ...formErrors, nic: "NIC is complete (12 digits)." });
-        return;
-      }
-    }
+  const currentNic = nonSltStaffDetails.nic;
+  const newChar = value.slice(currentNic.length);
+
+  // Allow only numbers and letters
+  if (/[^0-9A-Za-z]/.test(newChar)) {
+    setFormErrors({ ...formErrors, nic: "Only numbers and letters are allowed." });
+    return;
+  }
+
+  // Letter can only be entered after 9 digits
+  if (/[A-Za-z]/.test(newChar) && currentNic.length !== 9) {
+    setFormErrors({ ...formErrors, nic: "Letter can only be entered after 9 digits." });
+    return;
+  }
+
+  // Only one letter allowed
+  if (/[A-Za-z]/.test(newChar) && /[A-Za-z]/.test(currentNic)) {
+    setFormErrors({ ...formErrors, nic: "Only one letter is allowed at the end." });
+    return;
+  }
+
+  // If letter already exists NIC is complete
+  if (/[A-Za-z]/.test(currentNic)) {
+    setFormErrors({ ...formErrors, nic: "NIC is complete (9 digits + letter)." });
+    return;
+  }
+
+  // 12 digit NIC complete
+  if (!/[A-Za-z]/.test(currentNic) && !/[A-Za-z]/.test(newChar) && currentNic.length >= 12) {
+    setFormErrors({ ...formErrors, nic: "NIC is complete (12 digits)." });
+    return;
+  }
+}
 
 
     setNonSltStaffDetails({
