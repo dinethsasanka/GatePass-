@@ -37,6 +37,9 @@ import {
   validatePhone,
   validateEmail,
   validateCompanyName,
+  sanitizeNICInput,
+  sanitizeIntegerInput,
+  sanitizeLettersOnlyInput,
 } from "../utils/validators.js";
 import {
   FaClock,
@@ -250,12 +253,21 @@ const Receive = () => {
 
   // Handle field change with real-time validation
   const handleNonSltFieldChange = (field, value) => {
+    const sanitizedValue =
+      field === "name"
+        ? sanitizeLettersOnlyInput(value)
+        : field === "nic"
+          ? sanitizeNICInput(value)
+          : field === "contactNo"
+            ? sanitizeIntegerInput(value)
+            : value;
+
     setNonSltStaffDetails({
       ...nonSltStaffDetails,
-      [field]: value,
+      [field]: sanitizedValue,
     });
 
-    const error = validateField(field, value);
+    const error = validateField(field, sanitizedValue);
     setFormErrors({
       ...formErrors,
       [field]: error,
