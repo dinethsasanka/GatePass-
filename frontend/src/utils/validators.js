@@ -25,23 +25,23 @@ export const validateNIC = (nic) => {
   if (!nic || !nic.trim()) {
     return "NIC is required";
   }
-  // Old format: 9 digits + V/v only (not X)
+  // Old format: 9 digits + V/v/X/x
   // New format: 12 digits
-  const nicRegex = /^([0-9]{9}[vV]|[0-9]{12})$/;
+  const nicRegex = /^([0-9]{9}[vVxX]|[0-9]{12})$/;
   if (!nicRegex.test(nic.trim())) {
-    return "Invalid NIC format (use 9 digits+V or 12 digits)";
+    return "Invalid NIC format (use 9 digits+V/X or 12 digits)";
   }
   return "";
 };
 
 /**
- * Keep NIC input limited to digits and V/v only.
+ * Keep NIC input limited to digits and V/v/X/x.
  * @param {string} value - Raw input
  * @returns {string} - Sanitized NIC input
  */
 export const sanitizeNICInput = (value) => {
   if (!value) return "";
-  return String(value).replace(/[^0-9vV]/g, "");
+  return String(value).replace(/[^0-9vVxX]/g, "");
 };
 
 /**
@@ -76,35 +76,19 @@ export const sanitizeSerialNumberInput = (value) => {
 };
 
 /**
- * Keep vehicle number input limited to letters and digits only,
- * with max 3 letters and max 4 digits.
+ * Sanitize vehicle number input to allow letters, digits, spaces, and hyphens.
+ * Supports Sri Lankan formats: CAA 1234, POLICE 1234, 32-1234, etc.
  * @param {string} value - Raw input
  * @returns {string} - Sanitized vehicle number input
  */
 export const sanitizeVehicleNumberInput = (value) => {
   if (!value) return "";
 
-  const raw = String(value).toUpperCase().replace(/[^A-Z0-9]/g, "");
-  let letters = 0;
-  let digits = 0;
-  let result = "";
-
-  for (const ch of raw) {
-    if (/[A-Z]/.test(ch)) {
-      if (letters < 3) {
-        result += ch;
-        letters += 1;
-      }
-      continue;
-    }
-
-    if (/[0-9]/.test(ch) && digits < 4) {
-      result += ch;
-      digits += 1;
-    }
-  }
-
-  return result;
+  // Keep letters, digits, spaces, hyphens, and Sinhala script
+  // Sinhala Unicode range: U+0D80-U+0DFF and Zero Width Joiner U+200D
+  return String(value)
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s\-\u0D80-\u0DFF\u200D]/g, "");
 };
 
 /**
@@ -184,15 +168,17 @@ export const validateServiceNumber = (serviceNo) => {
  * Validate vehicle number (Sri Lankan format)
  * @param {string} vehicleNumber - Vehicle number to validate
  * @returns {string} - Error message or empty string if valid
- * Formats: ABC1234, AB1234
+ * Formats: CAA 1234, POLICE 1234, 32-1234, 121234
+ * Requires minimum 4 digits
  */
 export const validateVehicleNumber = (vehicleNumber) => {
   if (!vehicleNumber || !vehicleNumber.trim()) {
     return "Vehicle number is required";
   }
   const trimmed = vehicleNumber.trim();
-  // Sri Lankan format: 2-3 uppercase letters + 4 digits (no symbols)
-  const vehicleRegex = /^[A-Z]{2,3}[0-9]{4}$/;
+  // Sri Lankan format: letters/digits/spaces/hyphens with minimum 4 digits
+  // Covers: CAA 1234, POLICE 1234, 32-1234, 121234, ශ්‍රී CAA 1234, etc.
+  const vehicleRegex = /^(?=(?:[a-zA-Z\s\-\u0D80-\u0DFF\u200D]*\d){4})[a-zA-Z0-9\s\-\u0D80-\u0DFF\u200D]+$/;
   if (!vehicleRegex.test(trimmed)) {
     return "Invalid vehicle number format.";
   }
