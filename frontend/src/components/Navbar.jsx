@@ -9,6 +9,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import loginImage from "../assets/SLTMobitel_Logo.svg";
+import transzentLogo from "../assets/transzent-logo.png";
 import { useLocation, useNavigate, Link, NavLink } from "react-router-dom";
 import { useToast } from "../components/ToastProvider";
 
@@ -196,45 +197,78 @@ const Navbar = () => {
   // --- UI improvement helpers (active tab + underline effect) ---
   const navItemClass = ({ isActive }) =>
     [
-      "px-3 py-2 text-sm font-medium transition-all duration-200 ease-in-out relative group",
-      "text-slate-600 dark:text-slate-300",
-      "hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-slate-800",
-      isActive
-        ? "bg-blue-100/70 dark:bg-slate-800 text-blue-700 dark:text-blue-300 font-semibold rounded-t-md"
-        : "rounded-lg",
+      "px-2.5 py-1.5 text-xs font-medium transition-all duration-200 ease-in-out relative group rounded-md whitespace-nowrap",
+      isActive ? "font-semibold" : "hover:text-white",
     ].join(" ");
+
+  const navItemStyle = (isActive) => ({
+    color: isActive ? "#fff" : "rgba(203,213,225,0.85)",
+    background: isActive ? "rgba(59,130,246,0.18)" : "transparent",
+    boxShadow: isActive ? "0 0 0 1px rgba(59,130,246,0.3)" : "none",
+  });
 
   const underlineClass = (isActive) =>
     [
-      "absolute bottom-0 left-0 h-0.5 bg-blue-600 transition-all duration-300",
-      isActive ? "w-full" : "w-0 group-hover:w-full",
+      "absolute bottom-0 left-0 h-0.5 rounded-full transition-all duration-300",
+      isActive ? "w-full bg-blue-400" : "w-0 group-hover:w-full group-hover:bg-blue-500/60",
     ].join(" ");
   // ----------------------------------------------------------------
 
   return (
-    <nav className="fixed w-full h-20 z-20 top-0 left-0 bg-white dark:bg-slate-900 backdrop-blur-lg bg-opacity-80 dark:bg-opacity-80">
-      <div className="max-w-screen-xl mx-auto p-4">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link to={logoTargetPath} className="flex items-center group">
-            <div className="relative">
+    <nav className="fixed w-full z-20 top-0 left-0" style={{ height: "68px", background: "linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #0f172a 100%)", borderBottom: "1px solid rgba(59,130,246,0.2)", boxShadow: "0 4px 24px rgba(0,0,0,0.45)" }}>
+      <div className="max-w-screen-xl mx-auto px-6" style={{ height: "68px", display: "flex", alignItems: "center" }}>
+        <div className="flex items-center justify-between w-full relative">
+          {/* Brand Logos — pinned left, never shrinks */}
+          <Link to={logoTargetPath} className="flex items-center group flex-shrink-0" style={{ textDecoration: "none" }}>
+            <div
+              className="flex items-center gap-3 px-4 py-2 rounded-2xl transition-all duration-300"
+              style={{
+                background: "rgba(15,23,42,0.6)",
+                border: "1px solid rgba(148,163,184,0.18)",
+                backdropFilter: "blur(8px)",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
+              }}
+            >
+              {/* SLT Mobitel */}
               <img
                 src={loginImage}
-                className="h-10 mr-3 rounded-lg transform group-hover:scale-105 transition-transform duration-300"
-                alt="Logo"
+                className="transition-transform duration-300 group-hover:scale-105"
+                alt="SLT Mobitel"
+                style={{ height: "34px", width: "auto", filter: "brightness(1.1) contrast(1.05)" }}
               />
-              <div className="absolute inset-0 bg-blue-500 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+              {/* Divider */}
+              <div style={{
+                width: "1.5px",
+                height: "26px",
+                background: "linear-gradient(to bottom, transparent, rgba(148,163,184,0.5), transparent)",
+                flexShrink: 0,
+              }} />
+              {/* Transzent */}
+              <img
+                src={transzentLogo}
+                className="transition-transform duration-300 group-hover:scale-105"
+                alt="Transzent"
+                style={{ height: "28px", width: "auto", filter: "brightness(1.1)" }}
+              />
             </div>
           </Link>
 
-          {/* Desktop menu */}
+          {/* Desktop menu — absolutely centered in navbar */}
           {!isLoginPage && (
-            <div className="hidden md:flex items-center space-x-2 flex-1 justify-center">
+            <div
+              className="hidden md:flex items-center space-x-0.5"
+              style={{
+                position: "absolute",
+                left: "50%",
+                transform: "translateX(-50%)",
+              }}
+            >
               {menuItems.map((item) => (
                 <NavLink
                   key={item.path}
                   to={item.path}
                   className={navItemClass}
+                  style={({ isActive }) => navItemStyle(isActive)}
                   end
                 >
                   {({ isActive }) => (
@@ -250,23 +284,26 @@ const Navbar = () => {
 
           {/* Right side - User Profile Dropdown */}
           {!isLoginPage && (
-            <div className="hidden md:flex items-center absolute right-4 top-1/2 -translate-y-1/2">
+            <div className="hidden md:flex items-center ml-auto flex-shrink-0">
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="flex items-center gap-3 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 dark:from-slate-800 dark:to-slate-700 hover:from-blue-100 hover:to-purple-100 dark:hover:from-slate-700 dark:hover:to-slate-600 border border-blue-200 dark:border-slate-600 transition-all duration-300 hover:shadow-lg group"
+                  className="flex items-center gap-3 px-4 py-2 rounded-xl transition-all duration-300 group"
+                  style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.13)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.07)"}
                 >
                   {/* Avatar Circle */}
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{ background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", boxShadow: "0 0 10px rgba(99,102,241,0.5)" }}>
                     {userName.charAt(0).toUpperCase()}
                   </div>
 
                   {/* User Info */}
                   <div className="flex flex-col items-start">
-                    <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-tight">
+                    <span className="text-sm font-semibold leading-tight" style={{ color: "#f1f5f9" }}>
                       {userName}
                     </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 leading-tight">
+                    <span className="text-xs leading-tight" style={{ color: "rgba(148,163,184,0.8)" }}>
                       {userRole}
                     </span>
                   </div>
