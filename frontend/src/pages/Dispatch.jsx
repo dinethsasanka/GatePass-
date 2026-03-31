@@ -1234,7 +1234,7 @@ const Dispatch = () => {
       // Debug log to see what data we have
       console.log("Debug - Approval data:", {
         request: statusData.request,
-        approvedItem: approvedItem,
+        approvedItem: approvedDESCRIPTION,
         receiverServiceNo: statusData.request?.receiverServiceNo,
         itemReceiver: item?.receiverDetails?.serviceNo,
       });

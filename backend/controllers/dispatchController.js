@@ -311,6 +311,7 @@ const updateApproved = async (req, res) => {
       }
 
       // No email needed - this is the final step for Non-SLT
+      await newStatus.populate("request");
       return res.status(200).json({ ok: true, status: newStatus });
     }
 
@@ -350,6 +351,7 @@ const updateApproved = async (req, res) => {
         );
       }
 
+      await newStatus.populate("request");
       return res.status(200).json({ ok: true, status: newStatus });
     } else {
       // Receiver is available, route to specific receiver
@@ -394,6 +396,7 @@ const updateApproved = async (req, res) => {
         console.error("Email (Dispatch→Receiver) failed:", mailErr);
       }
 
+      await newStatus.populate("request");
       return res.status(200).json({ ok: true, status: newStatus });
     }
   } catch (error) {

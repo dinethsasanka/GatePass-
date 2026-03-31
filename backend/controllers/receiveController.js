@@ -663,6 +663,18 @@ const updateApproved = async (req, res) => {
     if (!statusDoc)
       return res.status(404).json({ message: "Status not found" });
 
+    // ✅ AUTO-RESOLVE: If Receiver unloads while Dispatcher (Petrol Leader/Security) is still pending (status 7),
+    // automatically mark it as Dispatch Approved (status 8) so it drops off their Pending tabs.
+    if (statusDoc.afterStatus === 7 || statusDoc.afterStatus === "7") {
+      statusDoc.afterStatus = 8;
+      statusDoc.pleaderStatus = 2; // Treat as approved by Dispatcher
+      statusDoc.comment = statusDoc.comment 
+        ? statusDoc.comment + " | [System]: Auto-resolved based on Receiver completion"
+        : "[System]: Auto-resolved because Receiver completed the request first";
+      
+      await statusDoc.save();
+    }
+
     // Update Request document details
     if (statusDoc.request) {
       if (unloadingDetails) {
