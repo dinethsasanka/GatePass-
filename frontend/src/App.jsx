@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { PublicClientApplication } from "@azure/msal-browser";
 import { msalConfig } from "./config/azureConfig";
@@ -22,6 +22,9 @@ import { ToastProvider } from "./components/ToastProvider";
 const msalInstance = new PublicClientApplication(msalConfig);
 
 const App = () => {
+  const location = useLocation();
+  const isAuthPage = ["/", "/login", "/callback"].includes(location.pathname);
+
   useEffect(() => {
     // Initialize MSAL when app loads
     msalInstance.initialize().catch((err) => {
@@ -30,9 +33,9 @@ const App = () => {
   }, []);
 
   return (
-    <div className="pt-20">
+    <div className={isAuthPage ? "" : "pt-20"}>
       <ToastProvider>
-        <Navbar />
+        {!isAuthPage && <Navbar />}
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Login />} />
