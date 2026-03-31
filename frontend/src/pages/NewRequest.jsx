@@ -1570,6 +1570,7 @@ const NewRequest = () => {
                       <input
                         type="text"
                         value={receiverNIC}
+                        maxLength={12}
                         onChange={(e) => {
                           const value = sanitizeNICInput(e.target.value);
                           setReceiverNIC(value);
@@ -1622,6 +1623,7 @@ const NewRequest = () => {
                       <input
                         type="text"
                         value={receiverContact}
+                        maxLength={10}
                         onChange={(e) => {
                           const value = sanitizeIntegerInput(e.target.value);
                           setReceiverContact(value);
@@ -2432,6 +2434,7 @@ const NewRequest = () => {
                           }`}
                           type="text"
                           value={nonSLTTransporterNIC}
+                          maxLength={12}
                           onChange={(e) => {
                             const value = sanitizeNICInput(e.target.value);
                             setNonSLTTransporterNIC(value);
@@ -2458,6 +2461,7 @@ const NewRequest = () => {
                           }`}
                           type="text"
                           value={nonSLTTransporterPhone}
+                          maxLength={10}
                           onChange={(e) => {
                             const value = sanitizeIntegerInput(e.target.value);
                             setNonSLTTransporterPhone(value);
@@ -2645,6 +2649,7 @@ const NewRequest = () => {
                           }`}
                           type="text"
                           value={nonSLTTransporterNIC}
+                          maxLength={12}
                           onChange={(e) => {
                             const value = sanitizeNICInput(e.target.value);
                             setNonSLTTransporterNIC(value);
@@ -2671,6 +2676,7 @@ const NewRequest = () => {
                           }`}
                           type="text"
                           value={nonSLTTransporterPhone}
+                          maxLength={10}
                           onChange={(e) => {
                             const value = sanitizeIntegerInput(e.target.value);
                             setNonSLTTransporterPhone(value);
