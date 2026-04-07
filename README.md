@@ -2,7 +2,7 @@
 
 
 
-comprehensive digital gate pass management system for Sri Lanka Telecom (SLT) to streamline the process of requesting, approving, dispatching, and receiving items across locations.When you're done, you can delete the content in this README and update the file with details for others getting started with your repository.
+A comprehensive digital gate pass management system for Sri Lanka Telecom (SLT) to streamline the process of requesting, approving, dispatching, and receiving items across locations.When you're done, you can delete the content in this README and update the file with details for others getting started with your repository.
 
 
 
