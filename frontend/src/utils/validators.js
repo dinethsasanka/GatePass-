@@ -55,6 +55,37 @@ export const sanitizeIntegerInput = (value) => {
 };
 
 /**
+ * Keep Sri Lankan phone input limited to valid prefixes and lengths.
+ * Allowed formats:
+ * - 0XXXXXXXXX (10 chars)
+ * - +94XXXXXXXXX (12 chars total, 9 digits after +94)
+ * @param {string} value - Raw input
+ * @returns {string} - Sanitized phone input
+ */
+export const sanitizePhoneInput = (value) => {
+  if (!value) return "";
+
+  const raw = String(value).replace(/\s+/g, "");
+
+  if (raw.startsWith("+")) {
+    const digits = raw.slice(1).replace(/\D/g, "");
+
+    if (digits.length === 0) return "+";
+    if (digits[0] !== "9") return "+";
+    if (digits.length === 1) return "+9";
+    if (digits[1] !== "4") return "+9";
+
+    return `+94${digits.slice(2, 11)}`;
+  }
+
+  const digitsOnly = raw.replace(/\D/g, "");
+  if (!digitsOnly) return "";
+  if (digitsOnly[0] !== "0") return "";
+
+  return digitsOnly.slice(0, 10);
+};
+
+/**
  * Keep name input limited to letters and spaces only.
  * @param {string} value - Raw input
  * @returns {string} - Letters-and-spaces-only input
@@ -100,11 +131,13 @@ export const validatePhone = (phone) => {
   if (!phone || !phone.trim()) {
     return "Contact number is required";
   }
-  // Must contain at least 10 digits
-  const digitsOnly = phone.replace(/\D/g, "");
-  if (digitsOnly.length < 10) {
-    return "Contact number must be at least 10 digits";
+
+  const trimmedPhone = phone.trim();
+  const phoneRegex = /^(0\d{9}|\+94\d{9})$/;
+  if (!phoneRegex.test(trimmedPhone)) {
+    return "Use 0XXXXXXXXX (10 digits) or +94XXXXXXXXX (9 digits after +94)";
   }
+
   return "";
 };
 

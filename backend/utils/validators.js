@@ -59,9 +59,9 @@ const validateNIC = (nic) => {
  */
 const validatePhone = (phone) => {
   if (!phone) return false;
-  // Must contain at least 10 digits
-  const phoneRegex = /^[\d\s+()-]{10,}$/;
-  return phoneRegex.test(phone);
+  const phoneStr = String(phone).trim();
+  const phoneRegex = /^(0\d{9}|\+94\d{9})$/;
+  return phoneRegex.test(phoneStr);
 };
 
 /**
@@ -144,7 +144,7 @@ const validateNonSLTPerson = (data) => {
 
   // Phone validation
   if (data.phone && !validatePhone(data.phone)) {
-    errors.push("Phone number must be at least 10 digits");
+    errors.push("Phone number must be 0XXXXXXXXX or +94XXXXXXXXX");
   }
 
   // Email validation

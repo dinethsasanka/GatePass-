@@ -34,7 +34,7 @@ import {
   validateSerialNumber,
   validateNIC,
   sanitizeNICInput,
-  sanitizeIntegerInput,
+  sanitizePhoneInput,
   validatePhone,
   validateEmail,
   validateCompanyName,
@@ -243,7 +243,7 @@ const Verify = () => {
       field === "nic"
         ? sanitizeNICInput(value)
         : field === "contactNo"
-          ? sanitizeIntegerInput(value)
+          ? sanitizePhoneInput(value)
           : value;
 
     setNonSltStaffDetails({

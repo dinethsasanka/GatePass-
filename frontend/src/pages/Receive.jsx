@@ -38,7 +38,7 @@ import {
   validateEmail,
   validateCompanyName,
   sanitizeNICInput,
-  sanitizeIntegerInput,
+  sanitizePhoneInput,
   sanitizeLettersOnlyInput,
 } from "../utils/validators.js";
 import {
@@ -259,7 +259,7 @@ const Receive = () => {
         : field === "nic"
           ? sanitizeNICInput(value)
           : field === "contactNo"
-            ? sanitizeIntegerInput(value)
+            ? sanitizePhoneInput(value)
             : value;
 
     setNonSltStaffDetails({

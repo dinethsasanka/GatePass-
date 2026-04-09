@@ -30,8 +30,7 @@ const validateEmail = (email) => {
 const validatePhoneNumber = (phone) => {
   if (!phone) return false;
   const phoneStr = String(phone).trim();
-  // Allow +94, 0, or direct digits, with hyphens/spaces
-  return /^(\+94|0)?[\d\s\-]{9,15}$/.test(phoneStr);
+  return /^(0\d{9}|\+94\d{9})$/.test(phoneStr);
 };
 
 const validateNonEmptyString = (value) => {
@@ -59,7 +58,7 @@ const validateNonSLTUnloadingStaff = (data) => {
 
   if (!validatePhoneNumber(data.nonSLTStaffContact)) {
     errors.push(
-      "Invalid unloading staff contact number. Please provide a valid phone number",
+      "Invalid unloading staff contact number. Use 0XXXXXXXXX or +94XXXXXXXXX",
     );
   }
 
